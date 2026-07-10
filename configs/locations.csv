@@ -1,1 +1,11 @@
 location_id,location_name,region,admin_type,is_active
+HN,Hà Nội,Miền Bắc,Thành phố,true
+HCM,TP.HCM,Miền Nam,Thành phố,true
+DN,Đà Nẵng,Miền Trung,Thành phố,true
+HP,Hải Phòng,Miền Bắc,Thành phố,true
+CT,Cần Thơ,Miền Nam,Thành phố,true
+HUE,Huế,Miền Trung,Thành phố,true
+QN,Quảng Ninh,Miền Bắc,Tỉnh,true
+KH,Khánh Hòa,Miền Trung,Tỉnh,true
+LD,Lâm Đồng,Miền Trung,Tỉnh,true
+TH,Thanh Hóa,Miền Bắc,Tỉnh,true
