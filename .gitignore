@@ -216,3 +216,42 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+
+# Virtual environments
+.venv/
+venv/
+
+# Local data and service volumes
+data/
+logs/
+airflow-data/
+minio-data/
+postgres-data/
+timescaledb-data/
+
+# Airflow local files
+airflow.cfg
+airflow.db
+standalone_admin_password.txt
+
+# Test and coverage output
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+
+# Operating system
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log
