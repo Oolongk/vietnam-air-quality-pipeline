@@ -398,9 +398,18 @@ class OpenMeteoClient:
             domain=domain,
         )
 
-        response_data = self._send_request(
-            params=params
-        )
+        try:
+            response_data = self._send_request(
+                params=params
+            )
+        except (
+            requests.Timeout,
+            requests.ConnectionError,
+        ) as error:
+            raise OpenMeteoClientError(
+                "Không thể kết nối đến Open-Meteo "
+                "sau các lần retry."
+            ) from error
 
         self._validate_response(
             response_data=response_data
