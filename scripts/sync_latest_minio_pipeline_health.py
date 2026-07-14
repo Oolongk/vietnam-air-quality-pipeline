@@ -45,40 +45,69 @@ def main() -> None:
 
         raise SystemExit(1) from error
 
+    status = result.get(
+        "status",
+        "UNKNOWN",
+    )
+
+    batch_id = result.get(
+        "batch_id",
+        "UNKNOWN",
+    )
+
+    pipeline_logs_upserted = result.get(
+        "pipeline_logs_upserted",
+        0,
+    )
+
+    data_quality_logs_upserted = result.get(
+        "data_quality_logs_upserted",
+        0,
+    )
+
+    stages = result.get(
+        "stages",
+        [],
+    )
+
+    if isinstance(
+        stages,
+        list,
+    ):
+        stages_text = ", ".join(
+            str(stage)
+            for stage in stages
+        )
+    else:
+        stages_text = str(
+            stages
+        )
+
     print(
         "Đồng bộ Pipeline Health "
         "hoàn tất."
     )
 
     print(
-        "Status: "
-        f"{result['status']}"
+        f"Status: {status}"
     )
 
     print(
-        "Batch ID: "
-        f"{result['batch_id']}"
+        f"Batch ID: {batch_id}"
     )
 
     print(
         "Pipeline logs upserted: "
-        f"{result[
-            'pipeline_logs_upserted'
-        ]}"
+        f"{pipeline_logs_upserted}"
     )
 
     print(
         "Data Quality logs upserted: "
-        f"{result[
-            'data_quality_logs_upserted'
-        ]}"
+        f"{data_quality_logs_upserted}"
     )
 
     print(
-        "Stages: "
-        + ", ".join(
-            result["stages"]
-        )
+        f"Stages: {stages_text}"
     )
 
 

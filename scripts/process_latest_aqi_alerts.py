@@ -336,33 +336,34 @@ def main() -> None:
                 )
             )
 
+            status = alert_summary.get(
+            "status",
+            "UNKNOWN",
+        )
+
+        input_records = alert_summary.get(
+            "input_records",
+            alert_summary.get(
+                "processed_records",
+                len(clean_dataframe),
+            ),
+        )
+
         print()
         print(
             "Xử lý AQI và alert hoàn tất."
         )
 
         print(
-            "Batch ID đã xử lý: "
-            f"{batch_id}"
+            f"Batch ID đã xử lý: {batch_id}"
         )
 
         print(
-            "Status: "
-            f"{alert_summary.get(
-                'status',
-                'UNKNOWN',
-            )}"
+            f"Status: {status}"
         )
 
         print(
-            "Input records: "
-            f"{alert_summary.get(
-                'input_records',
-                alert_summary.get(
-                    'processed_records',
-                    len(clean_dataframe),
-                ),
-            )}"
+            f"Input records: {input_records}"
         )
 
         print(
@@ -381,19 +382,28 @@ def main() -> None:
         )
 
         print()
-        print("Các object đã upload:")
+        print(
+            "Các object đã upload:"
+        )
 
-        for uploaded_object in (
-            uploaded_objects
-        ):
+        for uploaded_object in uploaded_objects:
+            object_name = (
+                uploaded_object.get(
+                    "object_name",
+                    "UNKNOWN",
+                )
+            )
+
+            size_bytes = (
+                uploaded_object.get(
+                    "size_bytes",
+                    0,
+                )
+            )
+
             print(
-                "- "
-                f"{uploaded_object[
-                    'object_name'
-                ]} "
-                f"({uploaded_object[
-                    'size_bytes'
-                ]} bytes)"
+                f"- {object_name} "
+                f"({size_bytes} bytes)"
             )
 
     except (

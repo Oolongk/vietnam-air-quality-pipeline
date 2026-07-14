@@ -1,6 +1,61 @@
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: docker/airflow/Dockerfile
+
+  image: air-quality-airflow:2.11.2
+
+  env_file:
+    - .env
+
+  environment:
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: >-
+      postgresql+psycopg2://airflow:airflow@airflow-postgres:5432/airflow
+
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_WEBSERVER_SECRET_KEY}
+
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+
+    AIRFLOW__CORE__DEFAULT_TIMEZONE: Asia/Ho_Chi_Minh
+    AIRFLOW__WEBSERVER__DEFAULT_UI_TIMEZONE: Asia/Ho_Chi_Minh
+
+    PYTHONPATH: /opt/airflow/project
+    TZ: Asia/Ho_Chi_Minh
+
+    MINIO_ENDPOINT: minio:9000
+    MINIO_SECURE: "false"
+
+    POSTGRES_HOST: timescaledb
+    POSTGRES_PORT: "5432"
+
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs/airflow:/opt/airflow/logs
+    - ./plugins:/opt/airflow/plugins
+    - .:/opt/airflow/project
+
+  networks:
+    - air_quality_network
+
+  depends_on:
+    airflow-postgres:
+      condition: service_healthy
+
+    minio:
+      condition: service_healthy
+
+    timescaledb:
+      condition: service_healthy
+
+
 services:
   timescaledb:
     image: ${TIMESCALEDB_IMAGE:-timescale/timescaledb:2.28.0-pg17}
+
     container_name: air-quality-timescaledb
 
     environment:
@@ -30,11 +85,14 @@ services:
     restart: unless-stopped
 
     networks:
-      - air_quality_network
+      air_quality_network:
+        aliases:
+          - timescaledb
 
 
   minio:
     image: ${MINIO_IMAGE:-quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z}
+
     container_name: air-quality-minio
 
     command:
@@ -70,14 +128,150 @@ services:
     restart: unless-stopped
 
     networks:
-      - air_quality_network
+      air_quality_network:
+        aliases:
+          - minio
+
+
+  airflow-postgres:
+    image: postgres:16-alpine
+
+    container_name: air-quality-airflow-postgres
+
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+      TZ: Asia/Ho_Chi_Minh
+
+    volumes:
+      - airflow-postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U airflow -d airflow"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+    restart: unless-stopped
+
+    networks:
+      air_quality_network:
+        aliases:
+          - airflow-postgres
+
+
+  airflow-init:
+    <<: *airflow-common
+
+    container_name: air-quality-airflow-init
+
+    entrypoint: /bin/bash
+
+    command:
+      - -c
+      - |
+        set -e
+
+        airflow db migrate
+
+        airflow users create \
+          --username "$${AIRFLOW_ADMIN_USERNAME}" \
+          --password "$${AIRFLOW_ADMIN_PASSWORD}" \
+          --firstname "$${AIRFLOW_ADMIN_FIRSTNAME}" \
+          --lastname "$${AIRFLOW_ADMIN_LASTNAME}" \
+          --role Admin \
+          --email "$${AIRFLOW_ADMIN_EMAIL}" \
+          || true
+
+    restart: "no"
+
+
+  airflow-webserver:
+    <<: *airflow-common
+
+    container_name: air-quality-airflow-webserver
+
+    command: webserver
+
+    ports:
+      - "127.0.0.1:8080:8080"
+
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+      airflow-postgres:
+        condition: service_healthy
+
+      minio:
+        condition: service_healthy
+
+      timescaledb:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "--fail",
+          "http://localhost:8080/health"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+    restart: unless-stopped
+
+
+  airflow-scheduler:
+    <<: *airflow-common
+
+    container_name: air-quality-airflow-scheduler
+
+    command: scheduler
+
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+      airflow-postgres:
+        condition: service_healthy
+
+      minio:
+        condition: service_healthy
+
+      timescaledb:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "airflow jobs check --job-type SchedulerJob --hostname \"$${HOSTNAME}\""
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+    restart: unless-stopped
 
 
 volumes:
   timescaledb_data:
   minio_data:
+  airflow-postgres-data:
 
 
 networks:
   air_quality_network:
     name: air-quality-network
+    driver: bridge
