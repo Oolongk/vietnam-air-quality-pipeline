@@ -24,6 +24,10 @@ DEFAULT_HOURLY_VARIABLES: tuple[str, ...] = (
     "us_aqi",
     "us_aqi_pm2_5",
     "us_aqi_pm10",
+    "us_aqi_nitrogen_dioxide",
+    "us_aqi_carbon_monoxide",
+    "us_aqi_ozone",
+    "us_aqi_sulphur_dioxide",
 )
 
 RETRYABLE_HTTP_STATUS_CODES = {
