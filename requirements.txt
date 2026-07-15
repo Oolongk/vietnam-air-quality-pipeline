@@ -21,3 +21,6 @@ minio>=7.2.19,<8.0
 
 fastapi
 uvicorn[standard]
+
+streamlit
+requests

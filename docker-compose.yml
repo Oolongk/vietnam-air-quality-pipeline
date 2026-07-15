@@ -129,6 +129,43 @@ services:
 
     networks:
       - air_quality_network
+      
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/dashboard/Dockerfile
+
+    image: air-quality-dashboard:1.0.0
+
+    container_name: air-quality-dashboard
+
+    environment:
+      API_BASE_URL: http://api:8000
+      PYTHONPATH: /app
+      TZ: Asia/Ho_Chi_Minh
+
+    ports:
+      - "127.0.0.1:${DASHBOARD_PORT:-8501}:8501"
+
+    depends_on:
+      api:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health', timeout=5)\""
+        ]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+    restart: unless-stopped
+
+    networks:
+      - air_quality_network
 
   minio:
     image: ${MINIO_IMAGE:-quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z}
