@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-import json
-import os
 import csv
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -421,62 +418,6 @@ def _build_raw_envelope(
         "api_response": api_response,
     }
 
-def chunk_monitoring_points(
-    monitoring_points: list[dict[str, Any]],
-    batch_size: int,
-) -> Iterator[list[dict[str, Any]]]:
-    """
-    Chia danh sách monitoring point thành các batch nhỏ.
-
-    Ví dụ:
-        10 point, batch_size=3
-        -> 4 batch có kích thước 3, 3, 3, 1.
-    """
-
-    if batch_size <= 0:
-        raise ValueError(
-            "batch_size phải lớn hơn 0."
-        )
-
-    for start_index in range(
-        0,
-        len(monitoring_points),
-        batch_size,
-    ):
-        yield monitoring_points[
-            start_index:
-            start_index + batch_size
-        ]
-
-def get_open_meteo_batch_size() -> int:
-    """
-    Đọc kích thước batch từ biến môi trường.
-
-    Giá trị mặc định là 10 monitoring point mỗi request.
-    """
-
-    raw_value = os.getenv(
-        "OPEN_METEO_BATCH_SIZE",
-        "10",
-    ).strip()
-
-    try:
-        batch_size = int(
-            raw_value
-        )
-
-    except ValueError as error:
-        raise ValueError(
-            "OPEN_METEO_BATCH_SIZE phải là số nguyên, "
-            f"nhận được {raw_value!r}."
-        ) from error
-
-    if batch_size <= 0:
-        raise ValueError(
-            "OPEN_METEO_BATCH_SIZE phải lớn hơn 0."
-        )
-
-    return batch_size
 
 def extract_monitoring_points_to_minio(
     monitoring_points: list[

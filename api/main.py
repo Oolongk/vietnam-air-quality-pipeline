@@ -155,7 +155,8 @@ def get_latest_air_quality(
 ) -> dict[str, Any]:
     query = """
         WITH latest_batch AS (
-            SELECT batch_id
+            SELECT
+                batch_id
             FROM fact_air_quality_hourly
             WHERE batch_id IS NOT NULL
               AND BTRIM(batch_id) <> ''
@@ -166,36 +167,55 @@ def get_latest_air_quality(
             LIMIT 1
         )
         SELECT
-            point_id,
-            location_id,
-            latitude,
-            longitude,
-            forecast_time,
-            pm2_5,
-            pm10,
-            carbon_monoxide,
-            nitrogen_dioxide,
-            sulphur_dioxide,
-            ozone,
-            us_aqi,
-            us_aqi_pm2_5,
-            us_aqi_pm10,
-            us_aqi_nitrogen_dioxide,
-            us_aqi_carbon_monoxide,
-            us_aqi_ozone,
-            us_aqi_sulphur_dioxide,
-            source,
-            batch_id,
-            schema_version,
-            ingested_at
-        FROM fact_air_quality_hourly
-        WHERE batch_id = (
+            f.point_id,
+            f.location_id,
+
+            p.point_name,
+            p.point_type,
+
+            l.location_name,
+            l.region,
+            l.admin_type,
+
+            p.latitude,
+            p.longitude,
+
+            f.forecast_time,
+            f.pm2_5,
+            f.pm10,
+            f.carbon_monoxide,
+            f.nitrogen_dioxide,
+            f.sulphur_dioxide,
+            f.ozone,
+            f.us_aqi,
+            f.us_aqi_pm2_5,
+            f.us_aqi_pm10,
+            f.us_aqi_nitrogen_dioxide,
+            f.us_aqi_carbon_monoxide,
+            f.us_aqi_ozone,
+            f.us_aqi_sulphur_dioxide,
+            f.source,
+            f.batch_id,
+            f.schema_version,
+            f.ingested_at
+
+        FROM fact_air_quality_hourly AS f
+
+        INNER JOIN dim_monitoring_point AS p
+            ON p.point_id = f.point_id
+
+        INNER JOIN dim_location AS l
+            ON l.location_id = f.location_id
+
+        WHERE f.batch_id = (
             SELECT batch_id
             FROM latest_batch
         )
+
         ORDER BY
-            forecast_time,
-            point_id
+            f.forecast_time,
+            f.point_id
+
         LIMIT %s
     """
 
@@ -261,7 +281,8 @@ def get_air_quality_by_point(
 
     query = """
         WITH latest_batch AS (
-            SELECT batch_id
+            SELECT
+                batch_id
             FROM fact_air_quality_hourly
             WHERE batch_id IS NOT NULL
               AND BTRIM(batch_id) <> ''
@@ -272,28 +293,48 @@ def get_air_quality_by_point(
             LIMIT 1
         )
         SELECT
-            point_id,
-            location_id,
-            latitude,
-            longitude,
-            forecast_time,
-            pm2_5,
-            pm10,
-            carbon_monoxide,
-            nitrogen_dioxide,
-            sulphur_dioxide,
-            ozone,
-            us_aqi,
-            source,
-            batch_id,
-            ingested_at
-        FROM fact_air_quality_hourly
-        WHERE batch_id = (
+            f.point_id,
+            f.location_id,
+
+            p.point_name,
+            p.point_type,
+
+            l.location_name,
+            l.region,
+            l.admin_type,
+
+            p.latitude,
+            p.longitude,
+
+            f.forecast_time,
+            f.pm2_5,
+            f.pm10,
+            f.carbon_monoxide,
+            f.nitrogen_dioxide,
+            f.sulphur_dioxide,
+            f.ozone,
+            f.us_aqi,
+            f.source,
+            f.batch_id,
+            f.ingested_at
+
+        FROM fact_air_quality_hourly AS f
+
+        INNER JOIN dim_monitoring_point AS p
+            ON p.point_id = f.point_id
+
+        INNER JOIN dim_location AS l
+            ON l.location_id = f.location_id
+
+        WHERE f.batch_id = (
             SELECT batch_id
             FROM latest_batch
         )
-          AND point_id = %s
-        ORDER BY forecast_time
+          AND f.point_id = %s
+
+        ORDER BY
+            f.forecast_time
+
         LIMIT %s
     """
 
