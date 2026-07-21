@@ -31,13 +31,13 @@ BEGIN
           AND column_name = 'forecast_time'
     ) THEN
         EXECUTE '
-            CREATE UNIQUE INDEX IF NOT EXISTS
-            uq_fact_air_quality_hourly_point_forecast_source
-            ON fact_air_quality_hourly (
-                point_id,
-                forecast_time,
-                source
-            )
+            -- Không tạo thêm unique index cho logical key tại đây.
+            -- Logical key chính thức đã được bảo vệ bởi constraint:
+            --     uq_air_quality_point_time_source
+            --     (point_id, forecast_time, source)
+            -- Tạo thêm một unique index có cùng bộ cột sẽ làm trùng index
+            -- trên hypertable và có thể gây xung đột metadata với các
+            -- TimescaleDB chunk indexes.
         ';
 
     ELSIF EXISTS (
