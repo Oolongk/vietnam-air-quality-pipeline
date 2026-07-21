@@ -117,3 +117,134 @@ def test_rejects_missing_required_column() -> None:
         prepare_fact_dataframe(
             dataframe
         )
+        
+
+def test_rejects_missing_batch_id() -> None:
+    dataframe = (
+        build_valid_dataframe()
+        .drop(
+            columns=[
+                "batch_id",
+            ]
+        )
+    )
+
+    with pytest.raises(
+        MinioTimescaleDBLoadError,
+        match="batch_id",
+    ):
+        prepare_fact_dataframe(
+            dataframe
+        )
+
+
+def test_rejects_blank_batch_id() -> None:
+    dataframe = build_valid_dataframe()
+
+    dataframe.loc[
+        0,
+        "batch_id",
+    ] = "   "
+
+    with pytest.raises(
+        MinioTimescaleDBLoadError,
+        match="batch_id",
+    ):
+        prepare_fact_dataframe(
+            dataframe
+        )
+
+
+def test_rejects_mixed_batch_ids() -> None:
+    dataframe = build_valid_dataframe()
+
+    dataframe.loc[
+        1,
+        "batch_id",
+    ] = "another_batch"
+
+    with pytest.raises(
+        MinioTimescaleDBLoadError,
+        match="đúng một batch_id",
+    ):
+        prepare_fact_dataframe(
+            dataframe
+        )
+
+
+def test_rejects_missing_ingested_at() -> None:
+    dataframe = (
+        build_valid_dataframe()
+        .drop(
+            columns=[
+                "ingested_at",
+            ]
+        )
+    )
+
+    with pytest.raises(
+        MinioTimescaleDBLoadError,
+        match="ingested_at",
+    ):
+        prepare_fact_dataframe(
+            dataframe
+        )
+
+
+def test_rejects_invalid_ingested_at() -> None:
+    dataframe = build_valid_dataframe()
+
+    dataframe.loc[
+        0,
+        "ingested_at",
+    ] = "not-a-timestamp"
+
+    with pytest.raises(
+        MinioTimescaleDBLoadError,
+        match="ingested_at",
+    ):
+        prepare_fact_dataframe(
+            dataframe
+        )
+
+
+def test_accepts_matching_expected_batch_id() -> None:
+    dataframe = prepare_fact_dataframe(
+        build_valid_dataframe(),
+        expected_batch_id="test_batch",
+    )
+
+    assert (
+        dataframe[
+            "batch_id"
+        ]
+        .unique()
+        .tolist()
+        == [
+            "test_batch",
+        ]
+    )
+
+
+def test_rejects_unexpected_batch_id() -> None:
+    with pytest.raises(
+        MinioTimescaleDBLoadError,
+        match="không khớp",
+    ):
+        prepare_fact_dataframe(
+            build_valid_dataframe(),
+            expected_batch_id=(
+                "another_batch"
+            ),
+        )
+
+
+def test_rejects_blank_expected_batch_id() -> None:
+    with pytest.raises(
+        MinioTimescaleDBLoadError,
+        match="expected_batch_id",
+    ):
+        prepare_fact_dataframe(
+            build_valid_dataframe(),
+            expected_batch_id="   ",
+        )

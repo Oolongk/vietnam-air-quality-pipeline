@@ -45,6 +45,8 @@ MANDATORY_DATAFRAME_COLUMNS: set[str] = {
     "latitude",
     "longitude",
     "source",
+    "batch_id",
+    "ingested_at",
 }
 
 LOGICAL_KEY_COLUMNS: tuple[str, ...] = (
@@ -175,6 +177,7 @@ class TimescaleDBSettings:
 
 def prepare_fact_dataframe(
     dataframe: pd.DataFrame,
+    expected_batch_id: str | None = None,
 ) -> pd.DataFrame:
     if not isinstance(
         dataframe,
@@ -214,6 +217,7 @@ def prepare_fact_dataframe(
         "point_id",
         "location_id",
         "source",
+        "batch_id",
     ):
         prepared[column_name] = (
             prepared[column_name]
@@ -246,22 +250,65 @@ def prepare_fact_dataframe(
             "forecast_time có timestamp không hợp lệ."
         )
 
-    if "ingested_at" in prepared.columns:
-        prepared["ingested_at"] = (
-            pd.to_datetime(
-                prepared["ingested_at"],
-                errors="coerce",
-                utc=True,
-            )
+    prepared["ingested_at"] = (
+        pd.to_datetime(
+            prepared["ingested_at"],
+            errors="coerce",
+            utc=True,
+        )
+    )
+
+    if prepared[
+        "ingested_at"
+    ].isna().any():
+        raise MinioTimescaleDBLoadError(
+            "ingested_at có timestamp không hợp lệ."
         )
 
-        if prepared[
-            "ingested_at"
-        ].isna().any():
+    distinct_batch_ids = sorted(
+        prepared[
+            "batch_id"
+        ]
+        .dropna()
+        .unique()
+        .tolist()
+    )
+
+    if len(distinct_batch_ids) != 1:
+        raise MinioTimescaleDBLoadError(
+            "Clean DataFrame phải chứa đúng "
+            "một batch_id. "
+            f"Batch IDs tìm thấy: {distinct_batch_ids}"
+        )
+
+    if expected_batch_id is not None:
+        normalized_expected_batch_id = (
+            str(
+                expected_batch_id
+            )
+            .strip()
+        )
+
+        if not normalized_expected_batch_id:
             raise MinioTimescaleDBLoadError(
-                "ingested_at có timestamp không hợp lệ."
+                "expected_batch_id không được rỗng."
             )
 
+        actual_batch_id = str(
+            distinct_batch_ids[0]
+        )
+
+        if (
+            actual_batch_id
+            != normalized_expected_batch_id
+        ):
+            raise MinioTimescaleDBLoadError(
+                "batch_id trong Clean Parquet "
+                "không khớp Data Quality summary. "
+                f"Expected: {normalized_expected_batch_id}; "
+                f"Actual: {actual_batch_id}"
+            )
+    
     duplicate_mask = (
         prepared.duplicated(
             subset=list(
@@ -695,10 +742,14 @@ def _existing_logical_keys(
 def upsert_fact_dataframe(
     connection: psycopg.Connection,
     dataframe: pd.DataFrame,
+    expected_batch_id: str | None = None,
 ) -> dict[str, Any]:
     prepared_dataframe = (
         prepare_fact_dataframe(
-            dataframe
+            dataframe,
+            expected_batch_id=(
+                expected_batch_id
+            ),
         )
     )
 
@@ -1046,6 +1097,7 @@ def load_latest_minio_clean_batch(
             upsert_fact_dataframe(
                 connection=connection,
                 dataframe=clean_dataframe,
+                expected_batch_id=batch_id,
             )
         )
 
