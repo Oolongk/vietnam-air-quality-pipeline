@@ -28,6 +28,10 @@ ALERT_SUMMARY_ROOT_PREFIX = (
     "alerts/air_quality/hourly"
 )
 
+MART_SUMMARY_ROOT_PREFIX = (
+    "air_quality/build_summary"
+)
+
 
 class MinioPipelineLogSyncError(
     RuntimeError
@@ -366,6 +370,94 @@ def _find_alert_summary(
     )
 
 
+def _find_mart_summary(
+    batch_id: str,
+    partition_date: str,
+    partition_hour: str,
+    settings: MinioSettings,
+    client: Minio,
+) -> tuple[str, dict[str, Any]]:
+    """
+    Tìm mart_summary.json đúng với batch đang đồng bộ.
+
+    Mart summary là bắt buộc vì task sync_pipeline_health
+    chỉ chạy sau khi build_minio_mart hoàn tất.
+    """
+
+    expected_prefix = (
+        f"{MART_SUMMARY_ROOT_PREFIX}/"
+        f"date={partition_date}/"
+        f"hour={partition_hour}/"
+        f"batch_id={batch_id}"
+    )
+
+    object_names = [
+        object_name
+        for object_name in list_object_names(
+            bucket_name=(
+                settings.mart_bucket
+            ),
+            prefix=expected_prefix,
+            recursive=True,
+            settings=settings,
+            client=client,
+        )
+        if object_name.endswith(
+            "/mart_summary.json"
+        )
+        or object_name.endswith(
+            "mart_summary.json"
+        )
+    ]
+
+    if not object_names:
+        raise MinioPipelineLogSyncError(
+            "Không tìm thấy mart_summary.json "
+            "cho batch hiện tại: "
+            f"{batch_id}."
+        )
+
+    object_name = sorted(
+        object_names
+    )[0]
+
+    summary = get_json_object(
+        bucket_name=(
+            settings.mart_bucket
+        ),
+        object_name=object_name,
+        settings=settings,
+        client=client,
+    )
+
+    if not isinstance(
+        summary,
+        dict,
+    ):
+        raise MinioPipelineLogSyncError(
+            "Mart summary không phải "
+            "JSON object hợp lệ."
+        )
+
+    summary_batch_id = _clean_text(
+        summary.get(
+            "batch_id"
+        )
+    )
+
+    if summary_batch_id != batch_id:
+        raise MinioPipelineLogSyncError(
+            "Mart summary không khớp batch_id. "
+            f"Expected={batch_id}, "
+            f"actual={summary_batch_id or 'EMPTY'}."
+        )
+
+    return (
+        object_name,
+        summary,
+    )
+
+
 def collect_latest_pipeline_summaries(
     settings: MinioSettings | None = None,
     client: Minio | None = None,
@@ -476,6 +568,17 @@ def collect_latest_pipeline_summaries(
         client=resolved_client,
     )
 
+    (
+        mart_object_name,
+        mart_summary,
+    ) = _find_mart_summary(
+        batch_id=batch_id,
+        partition_date=partition_date,
+        partition_hour=partition_hour,
+        settings=resolved_settings,
+        client=resolved_client,
+    )
+
     return {
         "batch_id": batch_id,
         "partition_date": (
@@ -534,6 +637,15 @@ def collect_latest_pipeline_summaries(
                 alert_object_name
             ),
             "summary": alert_summary,
+        },
+        "mart": {
+            "bucket_name": (
+                resolved_settings.mart_bucket
+            ),
+            "object_name": (
+                mart_object_name
+            ),
+            "summary": mart_summary,
         },
     }
 
@@ -633,6 +745,23 @@ def build_pipeline_log_rows(
                 "total_alerts",
             ),
             (),
+        ),
+        (
+            "mart",
+            "mart",
+            (
+                "input_records",
+                "history_input_records",
+                "latest_clean_records",
+            ),
+            (
+                "output_records",
+                "current_aqi_rows",
+            ),
+            (
+                "failed_records",
+                "skipped_source_object_count",
+            ),
         ),
     ]
 

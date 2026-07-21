@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
 from minio import Minio
 
+from src.quality.data_quality_checks import (
+    DataQualityConfigurationError,
+    DataQualitySchemaError,
+    run_air_quality_data_quality,
+)
 from src.utils.minio_client import (
     MinioSettings,
     ensure_buckets,
@@ -35,28 +42,27 @@ QUALITY_ROOT_PREFIX = (
     "quality/air_quality/hourly"
 )
 
+QUALITY_SNAPSHOT_HISTORY_ROOT = (
+    "data_quality/history"
+)
 
-REQUIRED_COLUMNS: set[str] = {
-    "point_id",
-    "location_id",
-    "forecast_time",
-    "pm2_5",
-    "pm10",
-    "us_aqi",
-    "latitude",
-    "longitude",
-    "source",
-}
+QUALITY_SNAPSHOT_LATEST_OBJECT = (
+    "data_quality/latest/"
+    "quality_snapshot.json"
+)
 
+DEFAULT_MONITORING_POINTS_PATH = (
+    "configs/monitoring_points.csv"
+)
 
-LOGICAL_KEY_COLUMNS: tuple[str, ...] = (
-    "point_id",
-    "forecast_time",
-    "source",
+DEFAULT_LOCATIONS_PATH = (
+    "configs/locations.csv"
 )
 
 
-class MinioDataQualityError(RuntimeError):
+class MinioDataQualityError(
+    RuntimeError
+):
     """Lỗi khi chạy Data Quality trực tiếp trên MinIO."""
 
 
@@ -64,12 +70,17 @@ def _require_non_empty_string(
     value: Any,
     field_name: str,
 ) -> str:
-    if not isinstance(value, str):
+    if not isinstance(
+        value,
+        str,
+    ):
         raise MinioDataQualityError(
             f"{field_name} phải là chuỗi."
         )
 
-    cleaned_value = value.strip()
+    cleaned_value = (
+        value.strip()
+    )
 
     if not cleaned_value:
         raise MinioDataQualityError(
@@ -83,21 +94,27 @@ def _parse_aware_datetime(
     value: Any,
     field_name: str,
 ) -> datetime:
-    if not isinstance(value, str):
+    if not isinstance(
+        value,
+        str,
+    ):
         raise MinioDataQualityError(
             f"{field_name} phải là ISO datetime."
         )
 
     normalized_value = (
-        value.strip().replace(
+        value.strip()
+        .replace(
             "Z",
             "+00:00",
         )
     )
 
     try:
-        parsed_value = datetime.fromisoformat(
-            normalized_value
+        parsed_value = (
+            datetime.fromisoformat(
+                normalized_value
+            )
         )
     except ValueError as error:
         raise MinioDataQualityError(
@@ -107,7 +124,8 @@ def _parse_aware_datetime(
 
     if (
         parsed_value.tzinfo is None
-        or parsed_value.utcoffset() is None
+        or parsed_value.utcoffset()
+        is None
     ):
         raise MinioDataQualityError(
             f"{field_name} phải có timezone."
@@ -116,473 +134,137 @@ def _parse_aware_datetime(
     return parsed_value
 
 
-def _missing_or_blank(
-    series: pd.Series,
-) -> pd.Series:
-    string_values = series.astype(
-        "string"
+def _parse_positive_integer_environment(
+    name: str,
+    default: int,
+) -> int:
+    raw_value = os.getenv(
+        name
     )
 
-    return (
-        string_values.isna()
-        | string_values
-        .str.strip()
-        .eq("")
-        .fillna(True)
-    )
-
-
-def _non_negative_invalid_mask(
-    series: pd.Series,
-) -> pd.Series:
-    numeric_values = pd.to_numeric(
-        series,
-        errors="coerce",
-    )
-
-    value_present = (
-        series.notna()
-    )
-
-    return (
-        value_present
-        & (
-            numeric_values.isna()
-            | numeric_values.lt(0)
-        )
-    )
-
-
-def _range_invalid_mask(
-    series: pd.Series,
-    minimum: float,
-    maximum: float,
-) -> pd.Series:
-    numeric_values = pd.to_numeric(
-        series,
-        errors="coerce",
-    )
-
-    return (
-        numeric_values.isna()
-        | numeric_values.lt(minimum)
-        | numeric_values.gt(maximum)
-    )
-
-
-def _is_aware_datetime(
-    value: Any,
-) -> bool:
-    if value is None:
-        return False
+    if raw_value is None:
+        return default
 
     try:
-        missing_value = pd.isna(
-            value
-        )
-
-        if isinstance(
-            missing_value,
-            bool,
-        ) and missing_value:
-            return False
-    except (
-        TypeError,
-        ValueError,
-    ):
-        pass
-
-    try:
-        timestamp = pd.Timestamp(
-            value
+        value = int(
+            raw_value.strip()
         )
     except (
         TypeError,
         ValueError,
-    ):
-        return False
+    ) as error:
+        raise MinioDataQualityError(
+            f"{name} phải là số nguyên."
+        ) from error
 
-    return (
-        timestamp.tzinfo is not None
-        and timestamp.utcoffset()
-        is not None
+    if value <= 0:
+        raise MinioDataQualityError(
+            f"{name} phải lớn hơn 0."
+        )
+
+    return value
+
+
+def _parse_non_negative_float_environment(
+    name: str,
+    default: float,
+) -> float:
+    raw_value = os.getenv(
+        name
     )
 
+    if raw_value is None:
+        return default
 
-def _validate_dataframe_schema(
-    dataframe: pd.DataFrame,
+    try:
+        value = float(
+            raw_value.strip()
+        )
+    except (
+        TypeError,
+        ValueError,
+    ) as error:
+        raise MinioDataQualityError(
+            f"{name} phải là số."
+        ) from error
+
+    if value < 0:
+        raise MinioDataQualityError(
+            f"{name} không được âm."
+        )
+
+    return value
+
+
+def _resolve_config_path(
+    environment_name: str,
+    default_path: str,
+) -> Path:
+    configured_path = os.getenv(
+        environment_name,
+        default_path,
+    )
+
+    path = Path(
+        configured_path
+    )
+
+    if not path.is_absolute():
+        path = (
+            Path.cwd()
+            / path
+        )
+
+    resolved_path = (
+        path.resolve()
+    )
+
+    if not resolved_path.exists():
+        raise MinioDataQualityError(
+            f"Không tìm thấy file cấu hình: "
+            f"{resolved_path}"
+        )
+
+    if not resolved_path.is_file():
+        raise MinioDataQualityError(
+            f"Đường dẫn cấu hình không phải file: "
+            f"{resolved_path}"
+        )
+
+    return resolved_path
+
+
+def _read_csv_config(
+    path: Path,
+    config_name: str,
 ) -> pd.DataFrame:
-    if not isinstance(
-        dataframe,
-        pd.DataFrame,
-    ):
-        raise TypeError(
-            "dataframe phải là Pandas DataFrame."
+    try:
+        return pd.read_csv(
+            path,
+            encoding="utf-8-sig",
         )
-
-    if dataframe.empty:
+    except Exception as error:
         raise MinioDataQualityError(
-            "Transformed DataFrame không có record."
+            f"Không đọc được {config_name}: "
+            f"{path}. Chi tiết: {error}"
+        ) from error
+
+
+def _parse_summary_timestamp(
+    summary: Mapping[str, Any],
+) -> datetime:
+    timestamp_value = (
+        summary.get(
+            "finished_at"
         )
-
-    missing_columns = (
-        REQUIRED_COLUMNS
-        - set(dataframe.columns)
-    )
-
-    if missing_columns:
-        missing_text = ", ".join(
-            sorted(missing_columns)
-        )
-
-        raise MinioDataQualityError(
-            "Transformed DataFrame thiếu các cột: "
-            f"{missing_text}"
-        )
-
-    return (
-        dataframe
-        .copy()
-        .reset_index(drop=True)
-    )
-
-
-def evaluate_data_quality(
-    dataframe: pd.DataFrame,
-) -> tuple[
-    pd.DataFrame,
-    pd.DataFrame,
-    list[dict[str, Any]],
-]:
-    working_dataframe = (
-        _validate_dataframe_schema(
-            dataframe
+        or summary.get(
+            "started_at"
         )
     )
 
-    record_count = len(
-        working_dataframe
-    )
-
-    invalid_record_mask = pd.Series(
-        False,
-        index=working_dataframe.index,
-        dtype=bool,
-    )
-
-    row_error_codes: list[
-        list[str]
-    ] = [
-        []
-        for _ in range(record_count)
-    ]
-
-    row_error_messages: list[
-        list[str]
-    ] = [
-        []
-        for _ in range(record_count)
-    ]
-
-    check_results: list[
-        dict[str, Any]
-    ] = []
-
-    def apply_rule(
-        check_name: str,
-        message: str,
-        invalid_mask: pd.Series,
-    ) -> None:
-        nonlocal invalid_record_mask
-
-        normalized_mask = (
-            invalid_mask
-            .reindex(
-                working_dataframe.index
-            )
-            .fillna(True)
-            .astype(bool)
-        )
-
-        bad_records_count = int(
-            normalized_mask.sum()
-        )
-
-        check_results.append(
-            {
-                "check_name": check_name,
-                "status": (
-                    "PASSED"
-                    if bad_records_count == 0
-                    else "FAILED"
-                ),
-                "bad_records_count": (
-                    bad_records_count
-                ),
-                "message": message,
-            }
-        )
-
-        invalid_record_mask = (
-            invalid_record_mask
-            | normalized_mask
-        )
-
-        invalid_indices = (
-            working_dataframe.index[
-                normalized_mask
-            ]
-        )
-
-        for row_index in invalid_indices:
-            row_error_codes[
-                int(row_index)
-            ].append(
-                check_name
-            )
-
-            row_error_messages[
-                int(row_index)
-            ].append(
-                message
-            )
-
-    apply_rule(
-        check_name="POINT_ID_REQUIRED",
-        message=(
-            "point_id không được rỗng."
-        ),
-        invalid_mask=_missing_or_blank(
-            working_dataframe[
-                "point_id"
-            ]
-        ),
-    )
-
-    apply_rule(
-        check_name=(
-            "LOCATION_ID_REQUIRED"
-        ),
-        message=(
-            "location_id không được rỗng."
-        ),
-        invalid_mask=_missing_or_blank(
-            working_dataframe[
-                "location_id"
-            ]
-        ),
-    )
-
-    forecast_time_invalid = (
-        ~working_dataframe[
-            "forecast_time"
-        ].map(
-            _is_aware_datetime
-        )
-    )
-
-    apply_rule(
-        check_name=(
-            "FORECAST_TIME_REQUIRED"
-        ),
-        message=(
-            "forecast_time phải hợp lệ "
-            "và có timezone."
-        ),
-        invalid_mask=(
-            forecast_time_invalid
-        ),
-    )
-
-    apply_rule(
-        check_name=(
-            "PM2_5_NON_NEGATIVE"
-        ),
-        message=(
-            "pm2_5 phải là số không âm "
-            "nếu có giá trị."
-        ),
-        invalid_mask=(
-            _non_negative_invalid_mask(
-                working_dataframe[
-                    "pm2_5"
-                ]
-            )
-        ),
-    )
-
-    apply_rule(
-        check_name=(
-            "PM10_NON_NEGATIVE"
-        ),
-        message=(
-            "pm10 phải là số không âm "
-            "nếu có giá trị."
-        ),
-        invalid_mask=(
-            _non_negative_invalid_mask(
-                working_dataframe[
-                    "pm10"
-                ]
-            )
-        ),
-    )
-
-    apply_rule(
-        check_name=(
-            "US_AQI_NON_NEGATIVE"
-        ),
-        message=(
-            "us_aqi phải là số không âm "
-            "nếu có giá trị."
-        ),
-        invalid_mask=(
-            _non_negative_invalid_mask(
-                working_dataframe[
-                    "us_aqi"
-                ]
-            )
-        ),
-    )
-
-    apply_rule(
-        check_name="LATITUDE_RANGE",
-        message=(
-            "latitude phải nằm trong "
-            "khoảng -90 đến 90."
-        ),
-        invalid_mask=(
-            _range_invalid_mask(
-                working_dataframe[
-                    "latitude"
-                ],
-                minimum=-90,
-                maximum=90,
-            )
-        ),
-    )
-
-    apply_rule(
-        check_name="LONGITUDE_RANGE",
-        message=(
-            "longitude phải nằm trong "
-            "khoảng -180 đến 180."
-        ),
-        invalid_mask=(
-            _range_invalid_mask(
-                working_dataframe[
-                    "longitude"
-                ],
-                minimum=-180,
-                maximum=180,
-            )
-        ),
-    )
-
-    source_values = (
-        working_dataframe[
-            "source"
-        ]
-        .astype("string")
-        .str.strip()
-        .str.lower()
-    )
-
-    source_invalid = (
-        source_values.isna()
-        | source_values.ne(
-            "open_meteo"
-        )
-        .fillna(True)
-    )
-
-    apply_rule(
-        check_name=(
-            "SOURCE_OPEN_METEO"
-        ),
-        message=(
-            "source phải là open_meteo."
-        ),
-        invalid_mask=(
-            source_invalid
-        ),
-    )
-
-    duplicate_mask = (
-        working_dataframe
-        .duplicated(
-            subset=list(
-                LOGICAL_KEY_COLUMNS
-            ),
-            keep=False,
-        )
-    )
-
-    apply_rule(
-        check_name=(
-            "UNIQUE_LOGICAL_KEY"
-        ),
-        message=(
-            "Không được duplicate theo "
-            "point_id + forecast_time + source."
-        ),
-        invalid_mask=(
-            duplicate_mask
-        ),
-    )
-
-    clean_dataframe = (
-        working_dataframe.loc[
-            ~invalid_record_mask
-        ]
-        .copy()
-        .reset_index(drop=True)
-    )
-
-    bad_records_dataframe = (
-        working_dataframe.loc[
-            invalid_record_mask
-        ]
-        .copy()
-    )
-
-    if not bad_records_dataframe.empty:
-        bad_indices = (
-            bad_records_dataframe.index
-            .tolist()
-        )
-
-        bad_records_dataframe[
-            "dq_error_codes"
-        ] = [
-            "|".join(
-                row_error_codes[
-                    int(row_index)
-                ]
-            )
-            for row_index in bad_indices
-        ]
-
-        bad_records_dataframe[
-            "dq_error_messages"
-        ] = [
-            " | ".join(
-                row_error_messages[
-                    int(row_index)
-                ]
-            )
-            for row_index in bad_indices
-        ]
-
-        bad_records_dataframe = (
-            bad_records_dataframe
-            .reset_index(drop=True)
-        )
-
-    return (
-        clean_dataframe,
-        bad_records_dataframe,
-        check_results,
+    return _parse_aware_datetime(
+        timestamp_value,
+        "summary timestamp",
     )
 
 
@@ -612,24 +294,26 @@ def build_quality_prefix(
     )
 
 
-def _parse_summary_timestamp(
-    summary: Mapping[str, Any],
-) -> datetime:
-    timestamp_value = (
-        summary.get("finished_at")
-        or summary.get("started_at")
-    )
-
-    return _parse_aware_datetime(
-        timestamp_value,
-        "summary timestamp",
+def build_quality_snapshot_prefix(
+    partition_date: str,
+    partition_hour: str,
+    batch_id: str,
+) -> str:
+    return (
+        f"{QUALITY_SNAPSHOT_HISTORY_ROOT}/"
+        f"date={partition_date}/"
+        f"hour={partition_hour}/"
+        f"batch_id={batch_id}"
     )
 
 
 def find_latest_quality_candidate(
     settings: MinioSettings | None = None,
     client: Minio | None = None,
-) -> tuple[str, dict[str, Any]]:
+) -> tuple[
+    str,
+    dict[str, Any],
+]:
     resolved_settings = (
         settings
         or MinioSettings.from_environment()
@@ -653,8 +337,12 @@ def find_latest_quality_candidate(
                 TRANSFORMED_ROOT_PREFIX
             ),
             recursive=True,
-            settings=resolved_settings,
-            client=resolved_client,
+            settings=(
+                resolved_settings
+            ),
+            client=(
+                resolved_client
+            ),
         )
         if object_name.endswith(
             "/transform_summary.json"
@@ -680,14 +368,22 @@ def find_latest_quality_candidate(
         summary_object_names
     ):
         try:
-            summary = get_json_object(
-                bucket_name=(
-                    resolved_settings
-                    .clean_bucket
-                ),
-                object_name=object_name,
-                settings=resolved_settings,
-                client=resolved_client,
+            summary = (
+                get_json_object(
+                    bucket_name=(
+                        resolved_settings
+                        .clean_bucket
+                    ),
+                    object_name=(
+                        object_name
+                    ),
+                    settings=(
+                        resolved_settings
+                    ),
+                    client=(
+                        resolved_client
+                    ),
+                )
             )
 
             if not isinstance(
@@ -781,7 +477,10 @@ def find_latest_quality_candidate(
 def find_latest_loadable_quality_batch(
     settings: MinioSettings | None = None,
     client: Minio | None = None,
-) -> tuple[str, dict[str, Any]]:
+) -> tuple[
+    str,
+    dict[str, Any],
+]:
     resolved_settings = (
         settings
         or MinioSettings.from_environment()
@@ -801,10 +500,16 @@ def find_latest_loadable_quality_batch(
                 resolved_settings
                 .clean_bucket
             ),
-            prefix=QUALITY_ROOT_PREFIX,
+            prefix=(
+                QUALITY_ROOT_PREFIX
+            ),
             recursive=True,
-            settings=resolved_settings,
-            client=resolved_client,
+            settings=(
+                resolved_settings
+            ),
+            client=(
+                resolved_client
+            ),
         )
         if object_name.endswith(
             "/data_quality_summary.json"
@@ -823,14 +528,22 @@ def find_latest_loadable_quality_batch(
         summary_object_names
     ):
         try:
-            summary = get_json_object(
-                bucket_name=(
-                    resolved_settings
-                    .clean_bucket
-                ),
-                object_name=object_name,
-                settings=resolved_settings,
-                client=resolved_client,
+            summary = (
+                get_json_object(
+                    bucket_name=(
+                        resolved_settings
+                        .clean_bucket
+                    ),
+                    object_name=(
+                        object_name
+                    ),
+                    settings=(
+                        resolved_settings
+                    ),
+                    client=(
+                        resolved_client
+                    ),
+                )
             )
 
             if not isinstance(
@@ -913,7 +626,10 @@ def find_latest_loadable_quality_batch(
 
 
 def process_transformed_batch_on_minio(
-    transform_summary: Mapping[str, Any],
+    transform_summary: Mapping[
+        str,
+        Any,
+    ],
     transform_summary_object_name: str,
     settings: MinioSettings | None = None,
     client: Minio | None = None,
@@ -978,6 +694,41 @@ def process_transformed_batch_on_minio(
         )
     )
 
+    monitoring_points_path = (
+        _resolve_config_path(
+            "MONITORING_POINTS_CONFIG_PATH",
+            DEFAULT_MONITORING_POINTS_PATH,
+        )
+    )
+
+    locations_path = (
+        _resolve_config_path(
+            "LOCATIONS_CONFIG_PATH",
+            DEFAULT_LOCATIONS_PATH,
+        )
+    )
+
+    expected_forecast_hours = (
+        _parse_positive_integer_environment(
+            "DQ_EXPECTED_FORECAST_HOURS",
+            24,
+        )
+    )
+
+    freshness_minutes = (
+        _parse_positive_integer_environment(
+            "DQ_FRESHNESS_MINUTES",
+            90,
+        )
+    )
+
+    coordinate_tolerance = (
+        _parse_non_negative_float_environment(
+            "DQ_COORDINATE_TOLERANCE",
+            0.001,
+        )
+    )
+
     started_at = datetime.now(
         timezone.utc
     )
@@ -991,48 +742,113 @@ def process_transformed_batch_on_minio(
             object_name=(
                 transformed_object_name
             ),
-            settings=resolved_settings,
-            client=resolved_client,
+            settings=(
+                resolved_settings
+            ),
+            client=(
+                resolved_client
+            ),
         )
     )
 
-    (
-        clean_dataframe,
-        bad_records_dataframe,
-        check_results,
-    ) = evaluate_data_quality(
-        transformed_dataframe
+    monitoring_points = (
+        _read_csv_config(
+            monitoring_points_path,
+            "monitoring_points.csv",
+        )
     )
 
-    input_records = len(
-        transformed_dataframe
+    locations = _read_csv_config(
+        locations_path,
+        "locations.csv",
     )
 
-    valid_records = len(
-        clean_dataframe
+    try:
+        result = (
+            run_air_quality_data_quality(
+                dataframe=(
+                    transformed_dataframe
+                ),
+                monitoring_points=(
+                    monitoring_points
+                ),
+                locations=locations,
+                expected_forecast_hours=(
+                    expected_forecast_hours
+                ),
+                freshness_minutes=(
+                    freshness_minutes
+                ),
+                coordinate_tolerance=(
+                    coordinate_tolerance
+                ),
+                expected_batch_id=(
+                    batch_id
+                ),
+            )
+        )
+    except (
+        DataQualitySchemaError,
+        DataQualityConfigurationError,
+    ) as error:
+        raise MinioDataQualityError(
+            f"Data Quality không thể chạy: "
+            f"{error}"
+        ) from error
+
+    input_records = (
+        result.total_records
     )
 
-    bad_records = len(
-        bad_records_dataframe
+    valid_records = (
+        result.valid_count
     )
 
-    if bad_records == 0:
-        status = "SUCCESS"
-    elif valid_records > 0:
-        status = "PARTIAL_SUCCESS"
-    else:
-        status = "FAILED"
+    bad_records = (
+        result.bad_count
+    )
 
-    clean_prefix = build_clean_prefix(
-        partition_date=partition_date,
-        partition_hour=partition_hour,
-        batch_id=batch_id,
+    valid_percentage = round(
+        (
+            valid_records
+            / input_records
+            * 100
+        ),
+        2,
+    )
+
+    clean_prefix = (
+        build_clean_prefix(
+            partition_date=(
+                partition_date
+            ),
+            partition_hour=(
+                partition_hour
+            ),
+            batch_id=batch_id,
+        )
     )
 
     quality_prefix = (
         build_quality_prefix(
-            partition_date=partition_date,
-            partition_hour=partition_hour,
+            partition_date=(
+                partition_date
+            ),
+            partition_hour=(
+                partition_hour
+            ),
+            batch_id=batch_id,
+        )
+    )
+
+    snapshot_prefix = (
+        build_quality_snapshot_prefix(
+            partition_date=(
+                partition_date
+            ),
+            partition_hour=(
+                partition_hour
+            ),
             batch_id=batch_id,
         )
     )
@@ -1052,6 +868,11 @@ def process_transformed_batch_on_minio(
         "data_quality_summary.json"
     )
 
+    snapshot_history_object_name = (
+        f"{snapshot_prefix}/"
+        "quality_snapshot.json"
+    )
+
     clean_upload_result = None
     bad_upload_result = None
 
@@ -1066,12 +887,17 @@ def process_transformed_batch_on_minio(
                     clean_object_name
                 ),
                 dataframe=(
-                    clean_dataframe
+                    result.valid_records
                 ),
-                settings=resolved_settings,
-                client=resolved_client,
+                settings=(
+                    resolved_settings
+                ),
+                client=(
+                    resolved_client
+                ),
             )
         )
+
     elif object_exists(
         bucket_name=(
             resolved_settings
@@ -1080,8 +906,12 @@ def process_transformed_batch_on_minio(
         object_name=(
             clean_object_name
         ),
-        settings=resolved_settings,
-        client=resolved_client,
+        settings=(
+            resolved_settings
+        ),
+        client=(
+            resolved_client
+        ),
     ):
         delete_object(
             bucket_name=(
@@ -1091,8 +921,12 @@ def process_transformed_batch_on_minio(
             object_name=(
                 clean_object_name
             ),
-            settings=resolved_settings,
-            client=resolved_client,
+            settings=(
+                resolved_settings
+            ),
+            client=(
+                resolved_client
+            ),
         )
 
     if bad_records > 0:
@@ -1106,12 +940,17 @@ def process_transformed_batch_on_minio(
                     bad_records_object_name
                 ),
                 dataframe=(
-                    bad_records_dataframe
+                    result.bad_records
                 ),
-                settings=resolved_settings,
-                client=resolved_client,
+                settings=(
+                    resolved_settings
+                ),
+                client=(
+                    resolved_client
+                ),
             )
         )
+
     elif object_exists(
         bucket_name=(
             resolved_settings
@@ -1120,8 +959,12 @@ def process_transformed_batch_on_minio(
         object_name=(
             bad_records_object_name
         ),
-        settings=resolved_settings,
-        client=resolved_client,
+        settings=(
+            resolved_settings
+        ),
+        client=(
+            resolved_client
+        ),
     ):
         delete_object(
             bucket_name=(
@@ -1131,57 +974,53 @@ def process_transformed_batch_on_minio(
             object_name=(
                 bad_records_object_name
             ),
-            settings=resolved_settings,
-            client=resolved_client,
+            settings=(
+                resolved_settings
+            ),
+            client=(
+                resolved_client
+            ),
         )
 
     finished_at = datetime.now(
         timezone.utc
     )
 
-    valid_percentage = (
-        round(
-            (
-                valid_records
-                / input_records
-                * 100
-            ),
-            2,
-        )
-        if input_records > 0
-        else 0.0
-    )
-
-    summary = {
+    snapshot = {
+        "snapshot_schema_version": "1.0",
         "pipeline_name": (
             "open_meteo_air_quality_data_quality"
         ),
+        "stage_name": "data_quality",
         "source": "open_meteo",
         "storage_backend": "minio",
-        "status": status,
-        "batch_id": batch_id,
-        "partition_date": partition_date,
-        "partition_hour": partition_hour,
-        "started_at": (
-            started_at.isoformat()
+        "status": (
+            result.pipeline_status
         ),
-        "finished_at": (
+        "quality_status": (
+            result.quality_status
+        ),
+        "quality_score": (
+            result.quality_score
+        ),
+        "batch_id": batch_id,
+        "partition_date": (
+            partition_date
+        ),
+        "partition_hour": (
+            partition_hour
+        ),
+        "generated_at": (
             finished_at.isoformat()
         ),
-        "duration_seconds": (
-            finished_at - started_at
-        ).total_seconds(),
-        "transform_bucket": (
-            resolved_settings.clean_bucket
-        ),
-        "transform_summary_object_name": (
-            transform_summary_object_name
-        ),
-        "transformed_object_name": (
-            transformed_object_name
+        "checked_at": (
+            result.checked_at
         ),
         "input_records": (
             input_records
+        ),
+        "expected_records": (
+            result.expected_records
         ),
         "valid_records": (
             valid_records
@@ -1192,9 +1031,195 @@ def process_transformed_batch_on_minio(
         "valid_percentage": (
             valid_percentage
         ),
-        "checks": check_results,
+        "expected_active_points": (
+            result.expected_active_points
+        ),
+        "actual_active_points": (
+            result.actual_active_points
+        ),
+        "expected_forecast_hours": (
+            result.expected_forecast_hours
+        ),
+        "passed_checks": (
+            result.passed_check_count
+        ),
+        "warning_checks": (
+            result.warning_check_count
+        ),
+        "failed_checks": (
+            result.failed_check_count
+        ),
+        "total_checks": len(
+            result.checks
+        ),
+        "row_checks": (
+            result.row_checks
+        ),
+        "batch_checks": (
+            result.batch_checks
+        ),
+        "summary_bucket": (
+            resolved_settings
+            .clean_bucket
+        ),
+        "summary_object_name": (
+            summary_object_name
+        ),
         "clean_bucket": (
-            resolved_settings.clean_bucket
+            resolved_settings
+            .clean_bucket
+        ),
+        "clean_object_name": (
+            clean_object_name
+            if clean_upload_result
+            is not None
+            else None
+        ),
+        "bad_records_object_name": (
+            bad_records_object_name
+            if bad_upload_result
+            is not None
+            else None
+        ),
+        "history_snapshot_bucket": (
+            resolved_settings
+            .mart_bucket
+        ),
+        "history_snapshot_object_name": (
+            snapshot_history_object_name
+        ),
+        "latest_snapshot_bucket": (
+            resolved_settings
+            .mart_bucket
+        ),
+        "latest_snapshot_object_name": (
+            QUALITY_SNAPSHOT_LATEST_OBJECT
+        ),
+    }
+
+    put_json_object(
+        bucket_name=(
+            resolved_settings
+            .mart_bucket
+        ),
+        object_name=(
+            snapshot_history_object_name
+        ),
+        data=snapshot,
+        settings=(
+            resolved_settings
+        ),
+        client=(
+            resolved_client
+        ),
+    )
+
+    put_json_object(
+        bucket_name=(
+            resolved_settings
+            .mart_bucket
+        ),
+        object_name=(
+            QUALITY_SNAPSHOT_LATEST_OBJECT
+        ),
+        data=snapshot,
+        settings=(
+            resolved_settings
+        ),
+        client=(
+            resolved_client
+        ),
+    )
+
+    summary = {
+        "pipeline_name": (
+            "open_meteo_air_quality_data_quality"
+        ),
+        "stage_name": "data_quality",
+        "source": "open_meteo",
+        "storage_backend": "minio",
+        "status": (
+            result.pipeline_status
+        ),
+        "quality_status": (
+            result.quality_status
+        ),
+        "quality_score": (
+            result.quality_score
+        ),
+        "batch_id": batch_id,
+        "partition_date": (
+            partition_date
+        ),
+        "partition_hour": (
+            partition_hour
+        ),
+        "started_at": (
+            started_at.isoformat()
+        ),
+        "finished_at": (
+            finished_at.isoformat()
+        ),
+        "duration_seconds": (
+            finished_at
+            - started_at
+        ).total_seconds(),
+        "checked_at": (
+            result.checked_at
+        ),
+        "transform_bucket": (
+            resolved_settings
+            .clean_bucket
+        ),
+        "transform_summary_object_name": (
+            transform_summary_object_name
+        ),
+        "transformed_object_name": (
+            transformed_object_name
+        ),
+        "input_records": (
+            input_records
+        ),
+        "expected_records": (
+            result.expected_records
+        ),
+        "valid_records": (
+            valid_records
+        ),
+        "bad_records": (
+            bad_records
+        ),
+        "valid_percentage": (
+            valid_percentage
+        ),
+        "expected_active_points": (
+            result.expected_active_points
+        ),
+        "actual_active_points": (
+            result.actual_active_points
+        ),
+        "expected_forecast_hours": (
+            result.expected_forecast_hours
+        ),
+        "passed_checks": (
+            result.passed_check_count
+        ),
+        "warning_checks": (
+            result.warning_check_count
+        ),
+        "failed_checks": (
+            result.failed_check_count
+        ),
+        "checks": result.checks,
+        "row_checks": (
+            result.row_checks
+        ),
+        "batch_checks": (
+            result.batch_checks
+        ),
+        "clean_bucket": (
+            resolved_settings
+            .clean_bucket
         ),
         "clean_object_name": (
             clean_object_name
@@ -1211,7 +1236,8 @@ def process_transformed_batch_on_minio(
             else 0
         ),
         "bad_records_bucket": (
-            resolved_settings.clean_bucket
+            resolved_settings
+            .clean_bucket
         ),
         "bad_records_object_name": (
             bad_records_object_name
@@ -1228,23 +1254,49 @@ def process_transformed_batch_on_minio(
             else 0
         ),
         "summary_bucket": (
-            resolved_settings.clean_bucket
+            resolved_settings
+            .clean_bucket
         ),
         "summary_object_name": (
             summary_object_name
+        ),
+        "quality_snapshot_bucket": (
+            resolved_settings
+            .mart_bucket
+        ),
+        "quality_snapshot_object_name": (
+            snapshot_history_object_name
+        ),
+        "latest_quality_snapshot_object_name": (
+            QUALITY_SNAPSHOT_LATEST_OBJECT
+        ),
+        "monitoring_points_config_path": (
+            str(
+                monitoring_points_path
+            )
+        ),
+        "locations_config_path": (
+            str(
+                locations_path
+            )
         ),
     }
 
     put_json_object(
         bucket_name=(
-            resolved_settings.clean_bucket
+            resolved_settings
+            .clean_bucket
         ),
         object_name=(
             summary_object_name
         ),
         data=summary,
-        settings=resolved_settings,
-        client=resolved_client,
+        settings=(
+            resolved_settings
+        ),
+        client=(
+            resolved_client
+        ),
     )
 
     return summary

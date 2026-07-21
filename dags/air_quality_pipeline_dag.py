@@ -17,6 +17,11 @@ LOCAL_TIMEZONE = pendulum.timezone(
 def build_python_command(
     module_name: str,
 ) -> str:
+    """
+    Tạo Bash command chạy Python module
+    từ thư mục gốc của project.
+    """
+
     return (
         "set -euo pipefail\n"
         f"cd {PROJECT_ROOT}\n"
@@ -62,17 +67,21 @@ with DAG(
         "open-meteo",
         "minio",
         "timescaledb",
+        "mart",
     ],
 ) as dag:
     sync_dimensions = BashOperator(
         task_id="sync_dimensions",
-        bash_command=(
-            "cd /opt/airflow/project "
-            "&& python -m "
-            "scripts.sync_dimensions_to_timescaledb"
+        bash_command=build_python_command(
+            "scripts."
+            "sync_dimensions_to_timescaledb"
         ),
+        execution_timeout=timedelta(
+            minutes=5
+        ),
+        append_env=True,
     )
-    
+
     extract_to_minio = BashOperator(
         task_id="extract_to_minio",
         bash_command=build_python_command(
@@ -135,6 +144,18 @@ with DAG(
         append_env=True,
     )
 
+    build_minio_mart = BashOperator(
+        task_id="build_minio_mart",
+        bash_command=build_python_command(
+            "scripts."
+            "build_latest_minio_mart"
+        ),
+        execution_timeout=timedelta(
+            minutes=8
+        ),
+        append_env=True,
+    )
+
     sync_pipeline_health = BashOperator(
         task_id="sync_pipeline_health",
         bash_command=build_python_command(
@@ -148,11 +169,24 @@ with DAG(
     )
 
     (
-    sync_dimensions
+        sync_dimensions
         >> extract_to_minio
         >> transform_minio_batch
         >> run_data_quality
+    )
+
+    (
+        run_data_quality
         >> load_timescaledb
         >> process_aqi_alerts
-        >> sync_pipeline_health
     )
+
+    (
+        run_data_quality
+        >> build_minio_mart
+    )
+
+    [
+        process_aqi_alerts,
+        build_minio_mart,
+    ] >> sync_pipeline_health

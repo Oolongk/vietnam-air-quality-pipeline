@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+
 from minio.error import S3Error
 
 from src.quality.minio_quality_processor import (
@@ -16,7 +18,29 @@ from src.utils.minio_object_io import (
 )
 
 
+def configure_console_encoding() -> None:
+    if hasattr(
+        sys.stdout,
+        "reconfigure",
+    ):
+        sys.stdout.reconfigure(
+            encoding="utf-8",
+            errors="replace",
+        )
+
+    if hasattr(
+        sys.stderr,
+        "reconfigure",
+    ):
+        sys.stderr.reconfigure(
+            encoding="utf-8",
+            errors="replace",
+        )
+
+
 def main() -> None:
+    configure_console_encoding()
+
     try:
         (
             transform_summary_object_name,
@@ -50,14 +74,21 @@ def main() -> None:
 
         raise SystemExit(1) from error
 
+    print()
+
     print(
-        "Data Quality trực tiếp trên "
-        "MinIO hoàn tất."
+        "Pipeline status: "
+        f"{quality_summary['status']}"
     )
 
     print(
-        "Status: "
-        f"{quality_summary['status']}"
+        "Quality status: "
+        f"{quality_summary['quality_status']}"
+    )
+
+    print(
+        "Quality score: "
+        f"{quality_summary['quality_score']}"
     )
 
     print(
@@ -68,6 +99,11 @@ def main() -> None:
     print(
         "Input records: "
         f"{quality_summary['input_records']}"
+    )
+
+    print(
+        "Expected records: "
+        f"{quality_summary['expected_records']}"
     )
 
     print(
@@ -86,8 +122,33 @@ def main() -> None:
     )
 
     print(
-        "Clean bucket: "
-        f"{quality_summary['clean_bucket']}"
+        "Expected active points: "
+        f"{quality_summary['expected_active_points']}"
+    )
+
+    print(
+        "Actual active points: "
+        f"{quality_summary['actual_active_points']}"
+    )
+
+    print(
+        "Expected forecast hours: "
+        f"{quality_summary['expected_forecast_hours']}"
+    )
+
+    print(
+        "Checks passed: "
+        f"{quality_summary['passed_checks']}"
+    )
+
+    print(
+        "Checks warned: "
+        f"{quality_summary['warning_checks']}"
+    )
+
+    print(
+        "Checks failed: "
+        f"{quality_summary['failed_checks']}"
     )
 
     print(
@@ -105,19 +166,49 @@ def main() -> None:
         f"{quality_summary['summary_object_name']}"
     )
 
-    print()
-    print("Kết quả từng Data Quality rule:")
+    print(
+        "Quality snapshot history: "
+        f"{quality_summary['quality_snapshot_object_name']}"
+    )
 
-    for check in quality_summary[
-        "checks"
-    ]:
-        print(
-            "- "
-            f"{check['check_name']}: "
-            f"{check['status']} "
-            f"(bad records: "
-            f"{check['bad_records_count']})"
+    print(
+        "Latest quality snapshot: "
+        f"{quality_summary['latest_quality_snapshot_object_name']}"
+    )
+
+    print()
+    print(
+        "Kết quả các rule không PASSED:"
+    )
+
+    non_passed_checks = [
+        check
+        for check in quality_summary[
+            "checks"
+        ]
+        if check.get(
+            "status"
         )
+        != "PASSED"
+    ]
+
+    if not non_passed_checks:
+        print(
+            "- Tất cả rule đều PASSED."
+        )
+    else:
+        for check in (
+            non_passed_checks
+        ):
+            print(
+                "- "
+                f"{check['check_name']}: "
+                f"{check['status']} "
+                f"(scope="
+                f"{check.get('check_scope')}, "
+                f"bad="
+                f"{check['bad_records_count']})"
+            )
 
 
 if __name__ == "__main__":
