@@ -154,15 +154,12 @@ def get_latest_air_quality(
     ),
 ) -> dict[str, Any]:
     query = """
-        WITH latest_batch AS (
+         WITH latest_batch AS (
             SELECT
                 batch_id
             FROM fact_air_quality_hourly
-            WHERE batch_id IS NOT NULL
-              AND BTRIM(batch_id) <> ''
-            GROUP BY batch_id
             ORDER BY
-                MAX(ingested_at) DESC,
+                ingested_at DESC,
                 batch_id DESC
             LIMIT 1
         )
@@ -284,11 +281,8 @@ def get_air_quality_by_point(
             SELECT
                 batch_id
             FROM fact_air_quality_hourly
-            WHERE batch_id IS NOT NULL
-              AND BTRIM(batch_id) <> ''
-            GROUP BY batch_id
             ORDER BY
-                MAX(ingested_at) DESC,
+                ingested_at DESC,
                 batch_id DESC
             LIMIT 1
         )

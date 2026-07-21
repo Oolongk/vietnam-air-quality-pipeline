@@ -23,4 +23,4 @@ fastapi
 uvicorn[standard]
 
 streamlit
-requests
+requestshttpx2==2.7.0
