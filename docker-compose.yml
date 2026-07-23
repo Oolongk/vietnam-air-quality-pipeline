@@ -32,6 +32,11 @@ x-airflow-common: &airflow-common
     POSTGRES_HOST: timescaledb
     POSTGRES_PORT: "5432"
 
+    SNAPSHOT_API_BASE_URL: http://api:8000
+    SNAPSHOT_OUTPUT_DIRECTORY: >-
+      /opt/airflow/project/data/public_snapshots
+    SNAPSHOT_REQUEST_TIMEOUT_SECONDS: "30"
+
   volumes:
     - ./dags:/opt/airflow/dags
     - ./logs/airflow:/opt/airflow/logs
@@ -49,6 +54,9 @@ x-airflow-common: &airflow-common
       condition: service_healthy
 
     timescaledb:
+      condition: service_healthy
+
+    api:
       condition: service_healthy
 
 
@@ -292,6 +300,9 @@ services:
       timescaledb:
         condition: service_healthy
 
+      api:
+        condition: service_healthy
+
     healthcheck:
       test:
         [
@@ -326,6 +337,9 @@ services:
         condition: service_healthy
 
       timescaledb:
+        condition: service_healthy
+
+      api:
         condition: service_healthy
 
     healthcheck:

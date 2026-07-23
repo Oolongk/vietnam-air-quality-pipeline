@@ -19,8 +19,12 @@ pytest>=8.0,<10.0
 # Object storage
 minio>=7.2.19,<8.0
 
+# API serving
 fastapi
 uvicorn[standard]
 
+# Dashboard
 streamlit
-requestshttpx2==2.7.0
+
+# FastAPI TestClient
+httpx>=0.27,<1.0

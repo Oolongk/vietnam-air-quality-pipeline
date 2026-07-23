@@ -68,6 +68,7 @@ with DAG(
         "minio",
         "timescaledb",
         "mart",
+        "snapshot",
     ],
 ) as dag:
     sync_dimensions = BashOperator(
@@ -167,6 +168,20 @@ with DAG(
         ),
         append_env=True,
     )
+    
+    publish_public_snapshots = BashOperator(
+        task_id=(
+            "publish_public_snapshots"
+        ),
+        bash_command=build_python_command(
+            "scripts."
+            "publish_latest_snapshots"
+        ),
+        execution_timeout=timedelta(
+            minutes=10
+        ),
+        append_env=True,
+    )
 
     (
         sync_dimensions
@@ -190,3 +205,8 @@ with DAG(
         process_aqi_alerts,
         build_minio_mart,
     ] >> sync_pipeline_health
+    
+    (
+        sync_pipeline_health
+        >> publish_public_snapshots
+    )
