@@ -7,8 +7,8 @@ import pandas as pd
 import streamlit as st
 
 from dashboard.api_client import (
-    AirQualityAPIClient,
-    AirQualityAPIError,
+    AirQualitySnapshotClient,
+    AirQualitySnapshotError,
 )
 
 
@@ -114,10 +114,10 @@ def records_to_dataframe(
     show_spinner=False,
 )
 def load_health(
-    api_url: str,
+    snapshot_url: str,
 ) -> dict[str, Any]:
-    client = AirQualityAPIClient(
-        api_url
+    client = AirQualitySnapshotClient(
+        snapshot_url
     )
 
     return client.get_health()
@@ -128,16 +128,14 @@ def load_health(
     show_spinner=False,
 )
 def load_latest_air_quality(
-    api_url: str,
+    snapshot_url: str,
 ) -> dict[str, Any]:
-    client = AirQualityAPIClient(
-        api_url
+    client = AirQualitySnapshotClient(
+        snapshot_url
     )
 
-    return (
-        client.get_latest_air_quality(
-            limit=2000
-        )
+    return client.get_latest_air_quality(
+        limit=2000
     )
 
 
@@ -146,11 +144,11 @@ def load_latest_air_quality(
     show_spinner=False,
 )
 def load_point_history(
-    api_url: str,
+    snapshot_url: str,
     point_id: str,
 ) -> dict[str, Any]:
-    client = AirQualityAPIClient(
-        api_url
+    client = AirQualitySnapshotClient(
+        snapshot_url
     )
 
     return client.get_point_history(
@@ -164,15 +162,13 @@ def load_point_history(
     show_spinner=False,
 )
 def load_pipeline_health(
-    api_url: str,
+    snapshot_url: str,
 ) -> dict[str, Any]:
-    client = AirQualityAPIClient(
-        api_url
+    client = AirQualitySnapshotClient(
+        snapshot_url
     )
 
-    return (
-        client.get_pipeline_health()
-    )
+    return client.get_pipeline_health()
 
 
 @st.cache_data(
@@ -180,10 +176,10 @@ def load_pipeline_health(
     show_spinner=False,
 )
 def load_data_quality(
-    api_url: str,
+    snapshot_url: str,
 ) -> dict[str, Any]:
-    client = AirQualityAPIClient(
-        api_url
+    client = AirQualitySnapshotClient(
+        snapshot_url
     )
 
     return client.get_data_quality()
@@ -194,30 +190,32 @@ def load_data_quality(
     show_spinner=False,
 )
 def load_alerts(
-    api_url: str,
+    snapshot_url: str,
 ) -> dict[str, Any]:
-    client = AirQualityAPIClient(
-        api_url
+    client = AirQualitySnapshotClient(
+        snapshot_url
     )
 
     return client.get_latest_alerts(
         limit=100
     )
 
-
-default_api_url = os.getenv(
-    "API_BASE_URL",
-    "http://127.0.0.1:8000",
-)
-
+default_snapshot_url = os.getenv(
+    "PUBLIC_SNAPSHOT_BASE_URL",
+    "",
+).strip()
 
 st.sidebar.header(
     "Cấu hình"
 )
 
-api_url = st.sidebar.text_input(
-    label="FastAPI URL",
-    value=default_api_url,
+snapshot_url = st.sidebar.text_input(
+    label="Public Snapshot URL",
+    value=default_snapshot_url,
+    placeholder=(
+        "https://xxxx.lambda-url."
+        "ap-southeast-2.on.aws"
+    ),
 )
 
 if st.sidebar.button(
@@ -227,6 +225,18 @@ if st.sidebar.button(
     st.cache_data.clear()
     st.rerun()
 
+if not snapshot_url.strip():
+    st.warning(
+        "Chưa cấu hình Public Snapshot URL."
+    )
+
+    st.info(
+        "Đặt biến môi trường "
+        "`PUBLIC_SNAPSHOT_BASE_URL` "
+        "bằng Lambda Function URL."
+    )
+
+    st.stop()
 
 st.title(
     "Vietnam Air Quality Monitoring"
@@ -235,23 +245,26 @@ st.title(
 st.caption(
     "Dữ liệu mô hình và dự báo chất lượng "
     "không khí từ Open-Meteo, được xử lý "
-    "bởi Airflow, MinIO và TimescaleDB."
+    "bởi Airflow, MinIO và TimescaleDB, "
+    "sau đó xuất bản qua private S3 và "
+    "AWS Lambda Function URL."
 )
 
 
 try:
     health_payload = load_health(
-        api_url
+        snapshot_url
     )
 
-except AirQualityAPIError as error:
+except AirQualitySnapshotError as error:
     st.error(
-        f"Không kết nối được FastAPI: {error}"
+        "Không đọc được public snapshot: "
+        f"{error}"
     )
 
     st.info(
-        "Kiểm tra container API bằng "
-        "`docker compose ps api`."
+        "Kiểm tra Lambda Function URL và "
+        "đường dẫn `/current.json`."
     )
 
     st.stop()
@@ -268,7 +281,7 @@ database_name = health_payload.get(
 )
 
 st.sidebar.success(
-    f"API: {health_status}"
+    f"Snapshot: {health_status}"
 )
 
 st.sidebar.write(
@@ -279,11 +292,11 @@ st.sidebar.write(
 try:
     latest_payload = (
         load_latest_air_quality(
-            api_url
+            snapshot_url
         )
     )
 
-except AirQualityAPIError as error:
+except AirQualitySnapshotError as error:
     st.error(
         "Không tải được dữ liệu AQI: "
         f"{error}"
@@ -535,7 +548,7 @@ with point_tab:
     try:
         point_payload = (
             load_point_history(
-                api_url,
+                snapshot_url,
                 selected_point_id,
             )
         )
@@ -551,7 +564,7 @@ with point_tab:
             )
         )
 
-    except AirQualityAPIError as error:
+    except AirQualitySnapshotError as error:
         st.error(
             "Không tải được dữ liệu "
             f"{selected_point_id}: {error}"
@@ -708,7 +721,7 @@ with health_tab:
     try:
         pipeline_payload = (
             load_pipeline_health(
-                api_url
+                snapshot_url
             )
         )
 
@@ -770,7 +783,7 @@ with health_tab:
                 hide_index=True,
             )
 
-    except AirQualityAPIError as error:
+    except AirQualitySnapshotError as error:
         st.warning(
             "Endpoint Pipeline Health "
             f"chưa sử dụng được: {error}"
@@ -783,7 +796,7 @@ with health_tab:
     try:
         quality_payload = (
             load_data_quality(
-                api_url
+                snapshot_url
             )
         )
 
@@ -835,7 +848,7 @@ with health_tab:
                 hide_index=True,
             )
 
-    except AirQualityAPIError as error:
+    except AirQualitySnapshotError as error:
         st.warning(
             "Endpoint Data Quality "
             f"chưa sử dụng được: {error}"
@@ -849,7 +862,7 @@ with alert_tab:
 
     try:
         alert_payload = load_alerts(
-            api_url
+            snapshot_url
         )
 
         alert_records = (
@@ -886,7 +899,7 @@ with alert_tab:
                 hide_index=True,
             )
 
-    except AirQualityAPIError as error:
+    except AirQualitySnapshotError as error:
         st.warning(
             "Endpoint Alert chưa sử dụng "
             f"được: {error}"
