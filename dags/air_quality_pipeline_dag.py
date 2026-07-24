@@ -69,6 +69,7 @@ with DAG(
         "timescaledb",
         "mart",
         "snapshot",
+        "s3",
     ],
 ) as dag:
     sync_dimensions = BashOperator(
@@ -182,6 +183,20 @@ with DAG(
         ),
         append_env=True,
     )
+    
+    upload_public_snapshots_to_s3 = BashOperator(
+        task_id=(
+            "upload_public_snapshots_to_s3"
+        ),
+        bash_command=build_python_command(
+            "scripts."
+            "upload_public_snapshots_to_s3"
+        ),
+        execution_timeout=timedelta(
+            minutes=10
+        ),
+        append_env=True,
+    )
 
     (
         sync_dimensions
@@ -209,4 +224,5 @@ with DAG(
     (
         sync_pipeline_health
         >> publish_public_snapshots
+        >> upload_public_snapshots_to_s3
     )

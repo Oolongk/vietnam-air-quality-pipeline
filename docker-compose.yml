@@ -37,11 +37,30 @@ x-airflow-common: &airflow-common
       /opt/airflow/project/data/public_snapshots
     SNAPSHOT_REQUEST_TIMEOUT_SECONDS: "30"
 
+    AWS_SNAPSHOT_BUCKET: ${AWS_SNAPSHOT_BUCKET}
+    AWS_SNAPSHOT_REGION: ${AWS_SNAPSHOT_REGION:-ap-southeast-2}
+    AWS_SNAPSHOT_PROFILE: ${AWS_SNAPSHOT_PROFILE:-air-quality-uploader}
+
+    AWS_SNAPSHOT_INPUT_DIRECTORY: >-
+      /opt/airflow/project/data/public_snapshots
+
+    AWS_SNAPSHOT_RELEASE_PREFIX: releases
+    AWS_SNAPSHOT_POINTER_KEY: current.json
+
+    AWS_SHARED_CREDENTIALS_FILE: >-
+      /home/airflow/.aws/credentials
+
+    AWS_CONFIG_FILE: >-
+      /home/airflow/.aws/config
+
+    AWS_EC2_METADATA_DISABLED: "true"
+
   volumes:
     - ./dags:/opt/airflow/dags
     - ./logs/airflow:/opt/airflow/logs
     - ./plugins:/opt/airflow/plugins
     - .:/opt/airflow/project
+    - ${USERPROFILE}/.aws:/home/airflow/.aws:ro
 
   networks:
     - air_quality_network
