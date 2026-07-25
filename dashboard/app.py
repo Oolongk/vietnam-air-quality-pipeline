@@ -6,7 +6,7 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
-from dashboard.api_client import (
+from dashboard.snapshot_client import (
     AirQualitySnapshotClient,
     AirQualitySnapshotError,
 )
