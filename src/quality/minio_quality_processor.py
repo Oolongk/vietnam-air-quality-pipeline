@@ -242,6 +242,7 @@ def _read_csv_config(
         return pd.read_csv(
             path,
             encoding="utf-8-sig",
+            keep_default_na=False,
         )
     except Exception as error:
         raise MinioDataQualityError(

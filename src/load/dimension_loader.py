@@ -252,6 +252,7 @@ def prepare_locations(
 
     dataframe = pd.read_csv(
         path,
+        keep_default_na=False,
         encoding="utf-8",
     )
 
@@ -366,6 +367,7 @@ def prepare_monitoring_points(
 
     dataframe = pd.read_csv(
         path,
+        keep_default_na=False,
         encoding="utf-8",
     )
 

@@ -360,13 +360,47 @@ def build_summary_object_name(
         "run_summary.json"
     )
 
-
 def _count_hourly_records(
     api_response: dict[str, Any],
 ) -> int:
+    """
+    Đếm số hourly record trong response.
+
+    Hỗ trợ cả hai cấu trúc:
+
+    1. Response trực tiếp:
+       {
+           "hourly": {...}
+       }
+
+    2. Raw contract của OpenMeteoClient:
+       {
+           "request": {...},
+           "response": {
+               "hourly": {...}
+           }
+       }
+    """
+
     hourly = api_response.get(
         "hourly"
     )
+
+    if not isinstance(
+        hourly,
+        dict,
+    ):
+        response_data = api_response.get(
+            "response"
+        )
+
+        if isinstance(
+            response_data,
+            dict,
+        ):
+            hourly = response_data.get(
+                "hourly"
+            )
 
     if not isinstance(
         hourly,
@@ -387,7 +421,6 @@ def _count_hourly_records(
     return len(
         hourly_times
     )
-
 
 def _build_raw_envelope(
     point: MonitoringPoint,

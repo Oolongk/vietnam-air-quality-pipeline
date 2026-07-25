@@ -263,7 +263,7 @@ def get_air_quality_by_location(
     limit: int = Query(
         default=72,
         ge=1,
-        le=2000,
+        le=5000,
     ),
 ) -> dict[str, Any]:
     normalized_location_id = (
@@ -403,7 +403,7 @@ def get_latest_air_quality(
     limit: int = Query(
         default=500,
         ge=1,
-        le=2000,
+        le=5000,
     ),
 ) -> dict[str, Any]:
     query = """

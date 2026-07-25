@@ -137,9 +137,9 @@ class SnapshotSettings:
                     name=(
                         "SNAPSHOT_LATEST_LIMIT"
                     ),
-                    default=2000,
+                    default=5000,
                     minimum=1,
-                    maximum=2000,
+                    maximum=5000,
                 )
             ),
             top_polluted_limit=(
@@ -158,9 +158,9 @@ class SnapshotSettings:
                     name=(
                         "SNAPSHOT_LOCATION_LIMIT"
                     ),
-                    default=2000,
+                    default=5000,
                     minimum=1,
-                    maximum=2000,
+                    maximum=5000,
                 )
             ),
             point_limit=(

@@ -1,11 +1,103 @@
-point_id,location_id,point_name,point_type,latitude,longitude,is_active
-HN_CENTER,HN,Trung tâm Hà Nội,urban_center,21.0285,105.8542,true
-HCM_CENTER,HCM,Trung tâm TP.HCM,urban_center,10.7769,106.7009,true
-DN_CENTER,DN,Trung tâm Đà Nẵng,urban_center,16.0544,108.2022,true
-HP_CENTER,HP,Trung tâm Hải Phòng,urban_center,20.8449,106.6881,true
-CT_CENTER,CT,Trung tâm Cần Thơ,urban_center,10.0452,105.7469,true
-HUE_CENTER,HUE,Trung tâm Huế,urban_center,16.4637,107.5909,true
-QN_HA_LONG,QN,Hạ Long,urban_center,20.9500,107.0667,true
-KH_NHA_TRANG,KH,Nha Trang,urban_center,12.2388,109.1967,true
-LD_DA_LAT,LD,Đà Lạt,urban_center,11.9404,108.4583,true
-TH_CENTER,TH,Trung tâm Thanh Hóa,urban_center,19.8067,105.7852,true
+﻿point_id,location_id,point_name,point_type,latitude,longitude,is_active
+HN_CENTER,HN,Trung tâm Hà Nội,urban_center,21.0285,105.8542,True
+HN_HA_DONG,HN,Hà Đông,regional_center,20.9712,105.7788,True
+HN_SON_TAY,HN,Sơn Tây,regional_center,21.1382,105.5049,True
+CB_CENTER,CB,Trung tâm Cao Bằng,urban_center,22.6666,106.257,True
+CB_BAN_GIOC,CB,Khu vực Bản Giốc,regional_center,22.8536,106.7229,True
+CB_BAO_LAC,CB,Bảo Lạc,regional_center,22.95,105.68,True
+TQ_CENTER,TQ,Trung tâm Tuyên Quang,urban_center,21.8236,105.214,True
+TQ_HA_GIANG,TQ,Hà Giang,regional_center,22.8233,104.9836,True
+TQ_CHIEM_HOA,TQ,Chiêm Hóa,regional_center,22.145,105.272,True
+DB_CENTER,DB,Điện Biên Phủ,urban_center,21.386,103.023,True
+DB_MUONG_LAY,DB,Mường Lay,regional_center,22.035,103.123,True
+DB_TUAN_GIAO,DB,Tuần Giáo,regional_center,21.594,103.421,True
+LCH_CENTER,LCH,Trung tâm Lai Châu,urban_center,22.3964,103.4582,True
+LCH_TAM_DUONG,LCH,Tam Đường,regional_center,22.36,103.628,True
+LCH_THAN_UYEN,LCH,Than Uyên,regional_center,21.954,103.881,True
+SL_CENTER,SL,Trung tâm Sơn La,urban_center,21.327,103.914,True
+SL_MOC_CHAU,SL,Mộc Châu,regional_center,20.851,104.626,True
+SL_MAI_SON,SL,Mai Sơn,regional_center,21.158,103.973,True
+LCA_LAO_CAI,LCA,Lào Cai,urban_center,22.4809,103.9755,True
+LCA_YEN_BAI,LCA,Yên Bái,regional_center,21.7168,104.8986,True
+LCA_SA_PA,LCA,Sa Pa,regional_center,22.3364,103.8438,True
+TN_CENTER,TN,Trung tâm Thái Nguyên,urban_center,21.5942,105.8482,True
+TN_BAC_KAN,TN,Bắc Kạn,regional_center,22.147,105.8348,True
+TN_SONG_CONG,TN,Sông Công,regional_center,21.4866,105.826,True
+LS_CENTER,LS,Trung tâm Lạng Sơn,urban_center,21.8537,106.7615,True
+LS_DONG_DANG,LS,Đồng Đăng,regional_center,21.9465,106.698,True
+LS_HUU_LUNG,LS,Hữu Lũng,regional_center,21.505,106.345,True
+QN_HA_LONG,QN,Hạ Long,urban_center,20.95,107.0667,True
+QN_CAM_PHA,QN,Cẩm Phả,regional_center,21.0064,107.2925,True
+QN_UONG_BI,QN,Uông Bí,regional_center,21.034,106.764,True
+BN_CENTER,BN,Trung tâm Bắc Ninh,urban_center,21.1861,106.0763,True
+BN_BAC_GIANG,BN,Bắc Giang,regional_center,21.2731,106.1946,True
+BN_TU_SON,BN,Từ Sơn,regional_center,21.1188,105.9597,True
+PT_VIET_TRI,PT,Việt Trì,urban_center,21.3227,105.4019,True
+PT_VINH_YEN,PT,Vĩnh Yên,regional_center,21.3089,105.6049,True
+PT_HOA_BINH,PT,Hòa Bình,regional_center,20.8172,105.3376,True
+HP_CENTER,HP,Trung tâm Hải Phòng,urban_center,20.8449,106.6881,True
+HP_HAI_DUONG,HP,Hải Dương,regional_center,20.9373,106.3146,True
+HP_CHI_LINH,HP,Chí Linh,regional_center,21.1379,106.3965,True
+HY_CENTER,HY,Trung tâm Hưng Yên,urban_center,20.6464,106.0511,True
+HY_THAI_BINH,HY,Thái Bình,regional_center,20.4463,106.3366,True
+HY_PHO_NOI,HY,Phố Nối,regional_center,20.9367,106.0613,True
+NB_CENTER,NB,Trung tâm Ninh Bình,urban_center,20.2506,105.9745,True
+NB_NAM_DINH,NB,Nam Định,regional_center,20.4388,106.1621,True
+NB_PHU_LY,NB,Phủ Lý,regional_center,20.5411,105.9139,True
+TH_CENTER,TH,Trung tâm Thanh Hóa,urban_center,19.8067,105.7852,True
+TH_BIM_SON,TH,Bỉm Sơn,regional_center,20.0775,105.8603,True
+TH_NGHI_SON,TH,Nghi Sơn,regional_center,19.4567,105.778,True
+NA_VINH,NA,Vinh,urban_center,18.6796,105.6813,True
+NA_CUA_LO,NA,Cửa Lò,regional_center,18.8122,105.7168,True
+NA_THAI_HOA,NA,Thái Hòa,regional_center,19.3226,105.4304,True
+HT_CENTER,HT,Trung tâm Hà Tĩnh,urban_center,18.3428,105.9057,True
+HT_KY_ANH,HT,Kỳ Anh,regional_center,18.0674,106.296,True
+HT_HONG_LINH,HT,Hồng Lĩnh,regional_center,18.5358,105.7066,True
+QT_DONG_HOI,QT,Đồng Hới,urban_center,17.4688,106.6223,True
+QT_DONG_HA,QT,Đông Hà,regional_center,16.8163,107.1003,True
+QT_LAO_BAO,QT,Lao Bảo,regional_center,16.627,106.592,True
+HUE_CENTER,HUE,Trung tâm Huế,urban_center,16.4637,107.5909,True
+HUE_PHU_BAI,HUE,Phú Bài,regional_center,16.4016,107.702,True
+HUE_CHAN_MAY,HUE,Chân Mây,regional_center,16.2648,107.955,True
+DN_CENTER,DN,Trung tâm Đà Nẵng,urban_center,16.0544,108.2022,True
+DN_TAM_KY,DN,Tam Kỳ,regional_center,15.5736,108.474,True
+DN_HOI_AN,DN,Hội An,regional_center,15.8801,108.338,True
+QNG_CENTER,QNG,Trung tâm Quảng Ngãi,urban_center,15.1205,108.7923,True
+QNG_KON_TUM,QNG,Kon Tum,regional_center,14.3497,108.0005,True
+QNG_DUNG_QUAT,QNG,Dung Quất,regional_center,15.385,108.8,True
+GL_PLEIKU,GL,Pleiku,urban_center,13.9833,108.0,True
+GL_QUY_NHON,GL,Quy Nhơn,regional_center,13.782,109.219,True
+GL_AN_KHE,GL,An Khê,regional_center,14.034,108.685,True
+KH_NHA_TRANG,KH,Nha Trang,urban_center,12.2388,109.1967,True
+KH_PHAN_RANG,KH,Phan Rang,regional_center,11.5643,108.9886,True
+KH_CAM_RANH,KH,Cam Ranh,regional_center,11.9214,109.1591,True
+DLK_BUON_MA_THUOT,DLK,Buôn Ma Thuột,urban_center,12.6667,108.05,True
+DLK_TUY_HOA,DLK,Tuy Hòa,regional_center,13.0955,109.3209,True
+DLK_BUON_HO,DLK,Buôn Hồ,regional_center,12.92,108.267,True
+LD_DA_LAT,LD,Đà Lạt,urban_center,11.9404,108.4583,True
+LD_PHAN_THIET,LD,Phan Thiết,regional_center,10.9289,108.1021,True
+LD_GIA_NGHIA,LD,Gia Nghĩa,regional_center,12.0045,107.6907,True
+HCM_CENTER,HCM,Trung tâm TP.HCM,urban_center,10.7769,106.7009,True
+HCM_THU_DAU_MOT,HCM,Thủ Dầu Một,regional_center,10.9804,106.6519,True
+HCM_VUNG_TAU,HCM,Vũng Tàu,regional_center,10.346,107.0843,True
+DNI_BIEN_HOA,DNI,Biên Hòa,urban_center,10.9574,106.8426,True
+DNI_DONG_XOAI,DNI,Đồng Xoài,regional_center,11.5349,106.8832,True
+DNI_LONG_KHANH,DNI,Long Khánh,regional_center,10.9265,107.2447,True
+TNI_CENTER,TNI,Trung tâm Tây Ninh,urban_center,11.31,106.0983,True
+TNI_TAN_AN,TNI,Tân An,regional_center,10.5359,106.4137,True
+TNI_MOC_BAI,TNI,Mộc Bài,regional_center,11.0415,106.181,True
+CT_CENTER,CT,Trung tâm Cần Thơ,urban_center,10.0452,105.7469,True
+CT_VI_THANH,CT,Vị Thanh,regional_center,9.7845,105.4701,True
+CT_SOC_TRANG,CT,Sóc Trăng,regional_center,9.6037,105.98,True
+VL_CENTER,VL,Trung tâm Vĩnh Long,urban_center,10.2396,105.9572,True
+VL_BEN_TRE,VL,Bến Tre,regional_center,10.2434,106.3756,True
+VL_TRA_VINH,VL,Trà Vinh,regional_center,9.9347,106.3453,True
+DTH_CAO_LANH,DTH,Cao Lãnh,urban_center,10.4602,105.632,True
+DTH_MY_THO,DTH,Mỹ Tho,regional_center,10.36,106.36,True
+DTH_SA_DEC,DTH,Sa Đéc,regional_center,10.2909,105.7564,True
+AG_LONG_XUYEN,AG,Long Xuyên,urban_center,10.3864,105.4352,True
+AG_RACH_GIA,AG,Rạch Giá,regional_center,10.0125,105.0809,True
+AG_CHAU_DOC,AG,Châu Đốc,regional_center,10.7026,105.116,True
+CM_CENTER,CM,Trung tâm Cà Mau,urban_center,9.1769,105.1524,True
+CM_BAC_LIEU,CM,Bạc Liêu,regional_center,9.2941,105.7216,True
+CM_NAM_CAN,CM,Năm Căn,regional_center,8.7589,104.9968,True

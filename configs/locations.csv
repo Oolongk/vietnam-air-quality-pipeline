@@ -1,11 +1,35 @@
-location_id,location_name,region,admin_type,is_active
-HN,Hà Nội,Miền Bắc,Thành phố,true
-HCM,TP.HCM,Miền Nam,Thành phố,true
-DN,Đà Nẵng,Miền Trung,Thành phố,true
-HP,Hải Phòng,Miền Bắc,Thành phố,true
-CT,Cần Thơ,Miền Nam,Thành phố,true
-HUE,Huế,Miền Trung,Thành phố,true
-QN,Quảng Ninh,Miền Bắc,Tỉnh,true
-KH,Khánh Hòa,Miền Trung,Tỉnh,true
-LD,Lâm Đồng,Miền Trung,Tỉnh,true
-TH,Thanh Hóa,Miền Bắc,Tỉnh,true
+﻿location_id,location_name,region,admin_type,is_active
+HN,Hà Nội,Miền Bắc,Thành phố,True
+CB,Cao Bằng,Miền Bắc,Tỉnh,True
+TQ,Tuyên Quang,Miền Bắc,Tỉnh,True
+DB,Điện Biên,Miền Bắc,Tỉnh,True
+LCH,Lai Châu,Miền Bắc,Tỉnh,True
+SL,Sơn La,Miền Bắc,Tỉnh,True
+LCA,Lào Cai,Miền Bắc,Tỉnh,True
+TN,Thái Nguyên,Miền Bắc,Tỉnh,True
+LS,Lạng Sơn,Miền Bắc,Tỉnh,True
+QN,Quảng Ninh,Miền Bắc,Tỉnh,True
+BN,Bắc Ninh,Miền Bắc,Tỉnh,True
+PT,Phú Thọ,Miền Bắc,Tỉnh,True
+HP,Hải Phòng,Miền Bắc,Thành phố,True
+HY,Hưng Yên,Miền Bắc,Tỉnh,True
+NB,Ninh Bình,Miền Bắc,Tỉnh,True
+TH,Thanh Hóa,Miền Bắc,Tỉnh,True
+NA,Nghệ An,Miền Trung,Tỉnh,True
+HT,Hà Tĩnh,Miền Trung,Tỉnh,True
+QT,Quảng Trị,Miền Trung,Tỉnh,True
+HUE,Huế,Miền Trung,Thành phố,True
+DN,Đà Nẵng,Miền Trung,Thành phố,True
+QNG,Quảng Ngãi,Miền Trung,Tỉnh,True
+GL,Gia Lai,Miền Trung,Tỉnh,True
+KH,Khánh Hòa,Miền Trung,Tỉnh,True
+DLK,Đắk Lắk,Miền Trung,Tỉnh,True
+LD,Lâm Đồng,Miền Trung,Tỉnh,True
+HCM,TP.HCM,Miền Nam,Thành phố,True
+DNI,Đồng Nai,Miền Nam,Tỉnh,True
+TNI,Tây Ninh,Miền Nam,Tỉnh,True
+CT,Cần Thơ,Miền Nam,Thành phố,True
+VL,Vĩnh Long,Miền Nam,Tỉnh,True
+DTH,Đồng Tháp,Miền Nam,Tỉnh,True
+AG,An Giang,Miền Nam,Tỉnh,True
+CM,Cà Mau,Miền Nam,Tỉnh,True

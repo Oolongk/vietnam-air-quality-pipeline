@@ -7,6 +7,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from dotenv import load_dotenv
 
 import boto3
 from botocore.client import BaseClient
@@ -70,12 +71,10 @@ class S3SnapshotUploadSettings:
     def from_environment(
         cls,
     ) -> "S3SnapshotUploadSettings":
+        load_dotenv()
+
         bucket_name = _required_environment(
             "AWS_SNAPSHOT_BUCKET"
-        )
-
-        _validate_bucket_name(
-            bucket_name
         )
 
         region_name = (
