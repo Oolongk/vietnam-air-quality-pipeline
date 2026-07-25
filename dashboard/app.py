@@ -200,10 +200,34 @@ def load_alerts(
         limit=100
     )
 
-default_snapshot_url = os.getenv(
-    "PUBLIC_SNAPSHOT_BASE_URL",
-    "",
-).strip()
+def get_default_snapshot_url() -> str:
+    environment_url = os.getenv(
+        "PUBLIC_SNAPSHOT_BASE_URL",
+        "",
+    ).strip()
+
+    if environment_url:
+        return environment_url
+
+    try:
+        secret_url = st.secrets[
+            "PUBLIC_SNAPSHOT_BASE_URL"
+        ]
+
+    except (
+        KeyError,
+        FileNotFoundError,
+    ):
+        return ""
+
+    return str(
+        secret_url
+    ).strip()
+
+
+default_snapshot_url = (
+    get_default_snapshot_url()
+)
 
 st.sidebar.header(
     "Cấu hình"
