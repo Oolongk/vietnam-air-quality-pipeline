@@ -273,6 +273,7 @@ def _load_location_dimension() -> pd.DataFrame:
     dataframe = pd.read_csv(
         LOCATION_CONFIG,
         encoding="utf-8-sig",
+        keep_default_na=False,
     )
 
     if "location_id" not in dataframe.columns:

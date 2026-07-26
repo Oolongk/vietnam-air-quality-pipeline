@@ -1,4 +1,5 @@
 from __future__ import annotations
+import src.snapshot.snapshot_publisher as snapshot_publisher_module
 
 import copy
 import json
@@ -16,7 +17,6 @@ from src.snapshot import (
     SnapshotSettings,
     SnapshotValidationError,
 )
-
 
 BATCH_ID = (
     "20260723T010000Z_snapshot_test"
@@ -397,7 +397,7 @@ def build_settings(
             output_directory
         ),
         request_timeout_seconds=5.0,
-        latest_limit=2000,
+        latest_limit=5000,
         top_polluted_limit=100,
         location_limit=2000,
         point_limit=168,
@@ -564,6 +564,19 @@ def test_publish_creates_complete_snapshot_tree(
             "air-quality/history"
         )
     )
+    
+    latest_call = next(
+        call
+        for call in session.calls
+        if call["path"] == (
+            "/api/v1/"
+            "air-quality/latest"
+        )
+    )
+
+    assert latest_call["params"] == {
+        "limit": 5000,
+    }
 
     assert history_call["params"] == {
         "point_id": "HN_CENTER",
@@ -811,3 +824,49 @@ def test_settings_reject_invalid_history_hours(
         ),
     ):
         SnapshotSettings.from_environment()
+        
+def test_settings_use_5000_as_default_latest_limit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        snapshot_publisher_module,
+        "load_dotenv",
+        lambda: False,
+    )
+
+    environment_names = (
+        "SNAPSHOT_API_BASE_URL",
+        "API_BASE_URL",
+        "SNAPSHOT_OUTPUT_DIRECTORY",
+        "SNAPSHOT_REQUEST_TIMEOUT_SECONDS",
+        "SNAPSHOT_LATEST_LIMIT",
+        "SNAPSHOT_TOP_POLLUTED_LIMIT",
+        "SNAPSHOT_LOCATION_LIMIT",
+        "SNAPSHOT_POINT_LIMIT",
+        "SNAPSHOT_HISTORY_HOURS",
+        "SNAPSHOT_ALERTS_LIMIT",
+    )
+
+    for environment_name in (
+        environment_names
+    ):
+        monkeypatch.delenv(
+            environment_name,
+            raising=False,
+        )
+
+    monkeypatch.chdir(
+        tmp_path
+    )
+
+    settings = (
+        SnapshotSettings
+        .from_environment()
+    )
+
+    assert settings.latest_limit == 5000
+
+    assert settings.api_base_url == (
+        "http://127.0.0.1:8000"
+    )

@@ -255,3 +255,11 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.log
+
+# Pytest and coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+step29-coverage.txt
+step29-final-coverage.txt
