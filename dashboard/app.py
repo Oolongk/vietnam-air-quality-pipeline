@@ -19,6 +19,7 @@ st.set_page_config(
     page_title="Vietnam Air Quality Dashboard",
     page_icon="🌏",
     layout="wide",
+    initial_sidebar_state="collapsed",
 )
 
 
@@ -139,6 +140,12 @@ def inject_dashboard_styles() -> None:
             --aq-border: #dbe4ee;
             --aq-text: #172033;
             --aq-muted: #667085;
+        }
+
+        [data-testid="stSidebar"],
+        [data-testid="collapsedControl"],
+        [data-testid="stSidebarCollapsedControl"] {
+            display: none !important;
         }
 
         [data-testid="stAppViewContainer"] {
@@ -801,34 +808,13 @@ def get_default_snapshot_url() -> str:
 inject_dashboard_styles()
 render_dashboard_header()
 
-default_snapshot_url = get_default_snapshot_url()
-snapshot_url = default_snapshot_url
-
-st.sidebar.header("Vietnam Air Quality")
-st.sidebar.caption("Theo dõi snapshot công khai và trạng thái xử lý dữ liệu.")
-
-with st.sidebar.expander("Cấu hình kỹ thuật", expanded=not bool(default_snapshot_url)):
-    override_snapshot_url = st.text_input(
-        label="Public Snapshot URL",
-        value="",
-        placeholder="https://xxxx.lambda-url.ap-southeast-2.on.aws",
-        type="password",
-        help="Để trống để dùng URL từ Environment hoặc Streamlit Secrets.",
-    )
-    if override_snapshot_url.strip():
-        snapshot_url = override_snapshot_url.strip()
-    elif default_snapshot_url:
-        st.caption("Đang dùng URL từ Environment hoặc Streamlit Secrets.")
-
-if st.sidebar.button("Làm mới dữ liệu", use_container_width=True):
-    st.cache_data.clear()
-    st.rerun()
+snapshot_url = get_default_snapshot_url()
 
 if not snapshot_url.strip():
     st.warning("Chưa cấu hình Public Snapshot URL.")
     st.info(
-        "Đặt biến môi trường `PUBLIC_SNAPSHOT_BASE_URL`, cấu hình Streamlit Secrets "
-        "hoặc nhập URL trong phần Cấu hình kỹ thuật."
+        "Đặt biến môi trường `PUBLIC_SNAPSHOT_BASE_URL` hoặc cấu hình "
+        "giá trị này trong Streamlit Secrets."
     )
     st.stop()
 
@@ -840,13 +826,6 @@ except AirQualitySnapshotError as error:
     st.stop()
 
 health_status = clean_text(health_payload.get("status"), "UNKNOWN")
-database_name = clean_text(health_payload.get("database"), "UNKNOWN")
-
-if health_status.upper() in {"HEALTHY", "SUCCESS"}:
-    st.sidebar.success(f"Snapshot: {translate_status(health_status)}")
-else:
-    st.sidebar.warning(f"Snapshot: {translate_status(health_status)}")
-st.sidebar.caption(f"Database: `{database_name}`")
 
 try:
     latest_payload = load_latest_air_quality(snapshot_url)
@@ -929,9 +908,6 @@ latest_forecast_time = (
     if "forecast_time" in nearest_forecast_df.columns
     else None
 )
-
-st.sidebar.caption(f"Batch: `{batch_id}`")
-st.sidebar.caption(f"Cập nhật dữ liệu: {format_datetime(latest_forecast_time)}")
 
 (
     map_tab,
