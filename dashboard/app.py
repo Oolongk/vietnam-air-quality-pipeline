@@ -826,6 +826,7 @@ except AirQualitySnapshotError as error:
     st.stop()
 
 health_status = clean_text(health_payload.get("status"), "UNKNOWN")
+database_name = clean_text(health_payload.get("database"), "UNKNOWN")
 
 try:
     latest_payload = load_latest_air_quality(snapshot_url)
