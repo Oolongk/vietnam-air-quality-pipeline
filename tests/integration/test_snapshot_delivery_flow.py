@@ -11,11 +11,11 @@ from src.snapshot import (
     SnapshotPublisher,
     SnapshotSettings,
 )
-from tests.test_s3_snapshot_uploader import (
+from tests.unit.publishing.test_s3_snapshot_uploader import (
     BUCKET_NAME,
     FakeS3Client,
 )
-from tests.test_snapshot_publisher import (
+from tests.unit.publishing.test_snapshot_publisher import (
     FakeSession,
     build_api_payloads,
 )

@@ -1,3 +1,4 @@
 streamlit
 requests>=2.32,<3.0
 pandas>=2.2,<3.0
+pydeck>=0.9,<1.0

@@ -316,7 +316,7 @@ class AirQualitySnapshotClient:
 
     def get_latest_air_quality(
         self,
-        limit: int = 2000,
+        limit: int = 5000,
     ) -> dict[str, Any]:
         payload = self._get_release_file(
             "air_quality/latest.json"
