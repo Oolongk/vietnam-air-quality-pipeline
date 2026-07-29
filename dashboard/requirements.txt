@@ -1,4 +1,5 @@
-streamlit
+streamlit==1.59.2
 requests>=2.32,<3.0
 pandas>=2.2,<3.0
 pydeck>=0.9,<1.0
+altair>=5.5,<6.0

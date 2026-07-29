@@ -166,30 +166,36 @@ services:
 
     container_name: air-quality-dashboard
 
+    init: true
+
+    env_file:
+      - .env
+
     environment:
-      API_BASE_URL: http://api:8000
+      PUBLIC_SNAPSHOT_BASE_URL: >-
+        ${PUBLIC_SNAPSHOT_BASE_URL:?Set PUBLIC_SNAPSHOT_BASE_URL in .env}
       PYTHONPATH: /app
       TZ: Asia/Ho_Chi_Minh
 
     ports:
       - "127.0.0.1:${DASHBOARD_PORT:-8501}:8501"
 
-    depends_on:
-      api:
-        condition: service_healthy
-
     healthcheck:
       test:
         [
-          "CMD-SHELL",
-          "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health', timeout=5)\""
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=5)"
         ]
       interval: 20s
       timeout: 10s
       retries: 10
-      start_period: 30s
+      start_period: 40s
 
     restart: unless-stopped
+
+    stop_grace_period: 20s
 
     networks:
       - air_quality_network

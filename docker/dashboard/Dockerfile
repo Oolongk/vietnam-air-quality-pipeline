@@ -1,21 +1,32 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
 ENV PYTHONPATH=/app
+ENV PATH="/usr/local/bin:${PATH}"
 
 WORKDIR /app
 
-COPY requirements-dashboard.txt /app/requirements-dashboard.txt
+COPY dashboard/requirements.txt /app/requirements-dashboard.txt
 
-RUN python -m pip install --upgrade pip \
+RUN python -m pip install --upgrade pip setuptools wheel \
     && python -m pip install \
         --no-cache-dir \
-        -r /app/requirements-dashboard.txt
+        -r /app/requirements-dashboard.txt \
+    && python -c "import streamlit; print('Installed Streamlit:', streamlit.__version__)"
 
+COPY .streamlit /app/.streamlit
 COPY dashboard /app/dashboard
+COPY docker/dashboard/entrypoint.sh /usr/local/bin/dashboard-entrypoint
+
+RUN chmod 0755 /usr/local/bin/dashboard-entrypoint \
+    && test -f /app/dashboard/app.py \
+    && test -f /app/dashboard/snapshot_client.py \
+    && python -m py_compile \
+        /app/dashboard/app.py \
+        /app/dashboard/snapshot_client.py
 
 EXPOSE 8501
 
-CMD ["python", "-m", "streamlit", "run", "dashboard/app.py", "--server.address=0.0.0.0", "--server.port=8501", "--server.headless=true", "--browser.gatherUsageStats=false"]
+ENTRYPOINT ["/usr/local/bin/dashboard-entrypoint"]
