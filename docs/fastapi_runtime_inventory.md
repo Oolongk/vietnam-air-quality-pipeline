@@ -68,11 +68,11 @@ The MinIO setup, inspection, connection tests and
 `scripts.sync_local_lake_to_minio` are maintenance tools. They are not DAG
 stages and are not legacy production entrypoints.
 
-## Removal candidate
+## Removed obsolete helper
 
-`src.utils.logging_config` currently has no project reference. It remains in the
-repository until the final full-suite test and Git diff. Remove it only in a
-separate commit after confirming it is still unreferenced.
+`src.utils.logging_config` was an empty, unreferenced module. It was removed
+after the full-suite test and Git review confirmed that the active pipeline did
+not depend on it.
 
 ## Machine-readable inventory
 

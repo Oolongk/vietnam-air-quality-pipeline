@@ -59,7 +59,7 @@ class S3SnapshotUploadSettings:
 
         region_name = os.getenv(
             "AWS_SNAPSHOT_REGION",
-            "ap-southeast-1",
+            "ap-southeast-2",
         ).strip()
 
         if not region_name:

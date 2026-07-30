@@ -17,12 +17,34 @@ ACTIVE_DAG_ENTRYPOINTS: tuple[str, ...] = (
     "scripts.upload_public_snapshots_to_s3",
 )
 
-LEGACY_LOCAL_ENTRYPOINTS: tuple[str, ...] = (
-    "scripts.extract_all_monitoring_points",
-    "scripts.transform_latest_raw_batch",
-    "scripts.run_data_quality_latest_batch",
-    "scripts.load_latest_clean_batch",
-    "scripts.sync_latest_pipeline_health_logs",
+LEGACY_LOCAL_REPLACEMENTS: tuple[
+    tuple[str, str],
+    ...,
+] = (
+    (
+        "scripts.extract_all_monitoring_points",
+        "scripts.extract_all_points_to_minio",
+    ),
+    (
+        "scripts.transform_latest_raw_batch",
+        "scripts.transform_latest_minio_batch",
+    ),
+    (
+        "scripts.run_data_quality_latest_batch",
+        "scripts.run_latest_minio_data_quality",
+    ),
+    (
+        "scripts.load_latest_clean_batch",
+        "scripts.load_latest_minio_clean_batch",
+    ),
+    (
+        "scripts.sync_latest_pipeline_health_logs",
+        "scripts.sync_latest_minio_pipeline_health",
+    ),
+)
+
+LEGACY_LOCAL_ENTRYPOINTS: tuple[str, ...] = tuple(
+    module for module, _replacement in LEGACY_LOCAL_REPLACEMENTS
 )
 
 LEGACY_LOCAL_MODULES: tuple[str, ...] = (
@@ -60,7 +82,7 @@ SNAPSHOT_REQUIRED_API_ROUTES: tuple[str, ...] = (
     "/api/v1/data-quality/latest",
 )
 
-UNUSED_CANDIDATES: tuple[str, ...] = ("src.utils.logging_config",)
+UNUSED_CANDIDATES: tuple[str, ...] = ()
 
 
 def module_to_path(module_name: str) -> str:
@@ -86,14 +108,14 @@ def runtime_catalog() -> dict[str, Any]:
         "legacy_local_entrypoints": [
             {
                 "module": module,
-                "replacement": ACTIVE_DAG_ENTRYPOINTS[index],
+                "replacement": replacement,
                 "execution_policy": (
                     "disabled_by_default; set "
                     "ALLOW_LEGACY_LOCAL_PIPELINE=true only for "
                     "deliberate recovery or historical verification"
                 ),
             }
-            for index, module in enumerate(LEGACY_LOCAL_ENTRYPOINTS)
+            for module, replacement in LEGACY_LOCAL_REPLACEMENTS
         ],
         "legacy_local_modules": list(LEGACY_LOCAL_MODULES),
         "maintenance_entrypoints": list(MAINTENANCE_ENTRYPOINTS),

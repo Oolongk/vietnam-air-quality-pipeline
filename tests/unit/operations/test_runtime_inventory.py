@@ -16,6 +16,7 @@ from src.operations.legacy_runtime import (
 from src.operations.runtime_inventory import (
     ACTIVE_DAG_ENTRYPOINTS,
     LEGACY_LOCAL_ENTRYPOINTS,
+    LEGACY_LOCAL_REPLACEMENTS,
     SNAPSHOT_REQUIRED_API_ROUTES,
     runtime_catalog,
 )
@@ -26,6 +27,24 @@ def test_checked_in_runtime_catalog_matches_code() -> None:
         Path("contracts/runtime_components.v1.json").read_text(encoding="utf-8")
     )
     assert checked_in == runtime_catalog()
+
+
+def test_legacy_replacements_match_pipeline_functions() -> None:
+    expected_replacements = {
+        "scripts.extract_all_monitoring_points": (
+            "scripts.extract_all_points_to_minio"
+        ),
+        "scripts.transform_latest_raw_batch": ("scripts.transform_latest_minio_batch"),
+        "scripts.run_data_quality_latest_batch": (
+            "scripts.run_latest_minio_data_quality"
+        ),
+        "scripts.load_latest_clean_batch": ("scripts.load_latest_minio_clean_batch"),
+        "scripts.sync_latest_pipeline_health_logs": (
+            "scripts.sync_latest_minio_pipeline_health"
+        ),
+    }
+
+    assert dict(LEGACY_LOCAL_REPLACEMENTS) == expected_replacements
 
 
 def test_dag_uses_only_active_entrypoints() -> None:

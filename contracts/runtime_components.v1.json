@@ -36,27 +36,27 @@
     {
       "execution_policy": "disabled_by_default; set ALLOW_LEGACY_LOCAL_PIPELINE=true only for deliberate recovery or historical verification",
       "module": "scripts.extract_all_monitoring_points",
-      "replacement": "scripts.sync_dimensions_to_timescaledb"
-    },
-    {
-      "execution_policy": "disabled_by_default; set ALLOW_LEGACY_LOCAL_PIPELINE=true only for deliberate recovery or historical verification",
-      "module": "scripts.transform_latest_raw_batch",
       "replacement": "scripts.extract_all_points_to_minio"
     },
     {
       "execution_policy": "disabled_by_default; set ALLOW_LEGACY_LOCAL_PIPELINE=true only for deliberate recovery or historical verification",
-      "module": "scripts.run_data_quality_latest_batch",
+      "module": "scripts.transform_latest_raw_batch",
       "replacement": "scripts.transform_latest_minio_batch"
     },
     {
       "execution_policy": "disabled_by_default; set ALLOW_LEGACY_LOCAL_PIPELINE=true only for deliberate recovery or historical verification",
-      "module": "scripts.load_latest_clean_batch",
+      "module": "scripts.run_data_quality_latest_batch",
       "replacement": "scripts.run_latest_minio_data_quality"
     },
     {
       "execution_policy": "disabled_by_default; set ALLOW_LEGACY_LOCAL_PIPELINE=true only for deliberate recovery or historical verification",
-      "module": "scripts.sync_latest_pipeline_health_logs",
+      "module": "scripts.load_latest_clean_batch",
       "replacement": "scripts.load_latest_minio_clean_batch"
+    },
+    {
+      "execution_policy": "disabled_by_default; set ALLOW_LEGACY_LOCAL_PIPELINE=true only for deliberate recovery or historical verification",
+      "module": "scripts.sync_latest_pipeline_health_logs",
+      "replacement": "scripts.sync_latest_minio_pipeline_health"
     }
   ],
   "legacy_local_modules": [
@@ -79,10 +79,5 @@
     "scripts.test_timescaledb_connection"
   ],
   "project": "vietnam-air-quality-pipeline",
-  "unused_candidates": [
-    {
-      "action": "retain until the final full-suite and Git review; then remove in a dedicated commit if still unreferenced",
-      "module": "src.utils.logging_config"
-    }
-  ]
+  "unused_candidates": []
 }

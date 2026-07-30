@@ -13,6 +13,7 @@ from src.snapshot import (
     S3SnapshotUploadSettings,
     S3SnapshotValidationError,
 )
+import src.snapshot.s3_uploader as s3_uploader_module
 
 SNAPSHOT_ID = "20260723T090000Z_s3test01"
 
@@ -429,6 +430,33 @@ def test_unsafe_snapshot_id_is_rejected(
         match=("snapshot_id không an toàn"),
     ):
         uploader.upload()
+
+
+def test_settings_default_to_sydney_region(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        s3_uploader_module,
+        "load_dotenv",
+        lambda: None,
+    )
+    monkeypatch.setenv(
+        "AWS_SNAPSHOT_BUCKET",
+        BUCKET_NAME,
+    )
+    monkeypatch.delenv(
+        "AWS_SNAPSHOT_REGION",
+        raising=False,
+    )
+    monkeypatch.setenv(
+        "AWS_SNAPSHOT_INPUT_DIRECTORY",
+        str(tmp_path / "public_snapshots"),
+    )
+
+    settings = S3SnapshotUploadSettings.from_environment()
+
+    assert settings.region_name == "ap-southeast-2"
 
 
 def test_settings_read_sydney_region(
