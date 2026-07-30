@@ -1,21 +1,19 @@
 from __future__ import annotations
 
+from html import escape
 import math
 import os
-from html import escape
 from textwrap import dedent
 from typing import Any
 
 import altair as alt
 import pandas as pd
 import pydeck as pdk
-import streamlit as st
-
 from snapshot_client import (
     AirQualitySnapshotClient,
     AirQualitySnapshotError,
 )
-
+import streamlit as st
 
 st.set_page_config(
     page_title="Chất lượng không khí Việt Nam",
@@ -26,10 +24,7 @@ st.set_page_config(
 
 
 VIETNAM_TIMEZONE = "Asia/Ho_Chi_Minh"
-CARTO_LIGHT_MAP_STYLE = (
-    "https://basemaps.cartocdn.com/gl/"
-    "positron-gl-style/style.json"
-)
+CARTO_LIGHT_MAP_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
 
 NUMERIC_COLUMNS = [
     "latitude",
@@ -778,12 +773,7 @@ def format_relative_age(value: pd.Timestamp | None) -> str:
 
     age_seconds = max(
         0,
-        int(
-            (
-                pd.Timestamp.now(tz="UTC")
-                - value.tz_convert("UTC")
-            ).total_seconds()
-        ),
+        int((pd.Timestamp.now(tz="UTC") - value.tz_convert("UTC")).total_seconds()),
     )
 
     if age_seconds < 60:
@@ -808,11 +798,7 @@ def get_data_age_minutes(value: pd.Timestamp | None) -> int | None:
     return max(
         0,
         int(
-            (
-                pd.Timestamp.now(tz="UTC")
-                - value.tz_convert("UTC")
-            ).total_seconds()
-            // 60
+            (pd.Timestamp.now(tz="UTC") - value.tz_convert("UTC")).total_seconds() // 60
         ),
     )
 
@@ -957,9 +943,7 @@ def select_nearest_forecast_records(
         )
 
     now_utc = pd.Timestamp.now(tz="UTC")
-    working["_forecast_distance"] = (
-        working["forecast_time"] - now_utc
-    ).abs()
+    working["_forecast_distance"] = (working["forecast_time"] - now_utc).abs()
 
     working = working.sort_values(
         by=[
@@ -1017,9 +1001,7 @@ def build_location_summary_dataframe(
         .astype(str)
         .str.strip()
     )
-    working = working.loc[
-        working["location_id"].ne("")
-    ].copy()
+    working = working.loc[working["location_id"].ne("")].copy()
 
     for column_name in [
         "latitude",
@@ -1035,31 +1017,28 @@ def build_location_summary_dataframe(
             errors="coerce",
         )
 
-    summary = (
-        working.groupby(
-            "location_id",
-            as_index=False,
-            dropna=False,
-        )
-        .agg(
-            location_name=(
-                "location_name",
-                first_non_empty_value,
-            ),
-            latitude=("latitude", "mean"),
-            longitude=("longitude", "mean"),
-            monitoring_point_count=("point_id", "nunique"),
-            average_us_aqi=("us_aqi", "mean"),
-            maximum_us_aqi=("us_aqi", "max"),
-            average_pm2_5=("pm2_5", "mean"),
-            average_pm10=("pm10", "mean"),
-            average_ozone=("ozone", "mean"),
-            average_nitrogen_dioxide=(
-                "nitrogen_dioxide",
-                "mean",
-            ),
-            forecast_time=("forecast_time", "max"),
-        )
+    summary = working.groupby(
+        "location_id",
+        as_index=False,
+        dropna=False,
+    ).agg(
+        location_name=(
+            "location_name",
+            first_non_empty_value,
+        ),
+        latitude=("latitude", "mean"),
+        longitude=("longitude", "mean"),
+        monitoring_point_count=("point_id", "nunique"),
+        average_us_aqi=("us_aqi", "mean"),
+        maximum_us_aqi=("us_aqi", "max"),
+        average_pm2_5=("pm2_5", "mean"),
+        average_pm10=("pm10", "mean"),
+        average_ozone=("ozone", "mean"),
+        average_nitrogen_dioxide=(
+            "nitrogen_dioxide",
+            "mean",
+        ),
+        forecast_time=("forecast_time", "max"),
     )
 
     worst_points = (
@@ -1105,18 +1084,10 @@ def build_location_summary_dataframe(
         ),
         axis=1,
     )
-    summary["aqi_level"] = summary[
-        "average_us_aqi"
-    ].apply(classify_aqi)
-    summary["fill_color"] = summary[
-        "average_us_aqi"
-    ].apply(get_aqi_color)
+    summary["aqi_level"] = summary["average_us_aqi"].apply(classify_aqi)
+    summary["fill_color"] = summary["average_us_aqi"].apply(get_aqi_color)
     summary["marker_radius"] = (
-        summary["average_us_aqi"]
-        .fillna(0)
-        .clip(lower=0, upper=300)
-        .mul(110)
-        .add(22000)
+        summary["average_us_aqi"].fillna(0).clip(lower=0, upper=300).mul(110).add(22000)
     )
 
     round_columns = [
@@ -1129,9 +1100,7 @@ def build_location_summary_dataframe(
         "latitude",
         "longitude",
     ]
-    summary[round_columns] = summary[
-        round_columns
-    ].round(2)
+    summary[round_columns] = summary[round_columns].round(2)
 
     return summary.sort_values(
         ["average_us_aqi", "maximum_us_aqi"],
@@ -1169,9 +1138,7 @@ def get_selected_location_from_map(
     if not selected_objects:
         return None
 
-    location_id = clean_text(
-        selected_objects[0].get("location_id")
-    )
+    location_id = clean_text(selected_objects[0].get("location_id"))
     return location_id or None
 
 
@@ -1199,15 +1166,10 @@ def calculate_available_time_hours(
     if len(timestamps) == 1:
         return 1
 
-    available_hours = int(
-        round(
-            (
-                timestamps.iloc[-1]
-                - timestamps.iloc[0]
-            ).total_seconds()
-            / 3600
-        )
-    ) + 1
+    available_hours = (
+        int(round((timestamps.iloc[-1] - timestamps.iloc[0]).total_seconds() / 3600))
+        + 1
+    )
 
     return max(1, available_hours)
 
@@ -1226,11 +1188,7 @@ def filter_by_time_range(
         errors="coerce",
         utc=True,
     )
-    working = (
-        working.dropna(subset=[time_column])
-        .sort_values(time_column)
-        .copy()
-    )
+    working = working.dropna(subset=[time_column]).sort_values(time_column).copy()
 
     if working.empty:
         return working
@@ -1253,10 +1211,7 @@ def filter_by_time_range(
     # Khi snapshot nằm ngoài thời điểm hiện tại, dùng cửa sổ mới nhất
     # nhưng vẫn giữ dữ liệu của tất cả tỉnh và điểm theo dõi.
     latest_time = working[time_column].max()
-    fallback_start = (
-        latest_time
-        - pd.Timedelta(hours=max(hours - 1, 0))
-    )
+    fallback_start = latest_time - pd.Timedelta(hours=max(hours - 1, 0))
 
     return working.loc[
         working[time_column].between(
@@ -1276,9 +1231,7 @@ def calculate_nearest_hour_delta(
         return None
 
     hourly = (
-        dataframe[
-            ["forecast_time", value_column]
-        ]
+        dataframe[["forecast_time", value_column]]
         .dropna()
         .groupby("forecast_time")[value_column]
         .mean()
@@ -1289,20 +1242,13 @@ def calculate_nearest_hour_delta(
         return None
 
     now_utc = pd.Timestamp.now(tz="UTC")
-    distances = (
-        hourly.index.to_series() - now_utc
-    ).abs()
-    nearest_position = int(
-        distances.to_numpy().argmin()
-    )
+    distances = (hourly.index.to_series() - now_utc).abs()
+    nearest_position = int(distances.to_numpy().argmin())
 
     if nearest_position == 0:
         return None
 
-    return float(
-        hourly.iloc[nearest_position]
-        - hourly.iloc[nearest_position - 1]
-    )
+    return float(hourly.iloc[nearest_position] - hourly.iloc[nearest_position - 1])
 
 
 def to_vietnam_local_naive(
@@ -1313,9 +1259,7 @@ def to_vietnam_local_naive(
         errors="coerce",
         utc=True,
     )
-    return timestamps.dt.tz_convert(
-        VIETNAM_TIMEZONE
-    ).dt.tz_localize(None)
+    return timestamps.dt.tz_convert(VIETNAM_TIMEZONE).dt.tz_localize(None)
 
 
 def build_aqi_chart(
@@ -1342,12 +1286,8 @@ def build_aqi_chart(
             .properties(height=height)
         )
 
-    working = working.dropna(
-        subset=["forecast_time", "us_aqi"]
-    ).copy()
-    working["Thời gian"] = to_vietnam_local_naive(
-        working["forecast_time"]
-    )
+    working = working.dropna(subset=["forecast_time", "us_aqi"]).copy()
+    working["Thời gian"] = to_vietnam_local_naive(working["forecast_time"])
     working["Chỉ số AQI"] = pd.to_numeric(
         working["us_aqi"],
         errors="coerce",
@@ -1355,9 +1295,7 @@ def build_aqi_chart(
 
     grouping_columns = ["Thời gian"]
     if series_column and series_column in working.columns:
-        working["Khu vực"] = working[
-            series_column
-        ].astype(str)
+        working["Khu vực"] = working[series_column].astype(str)
         grouping_columns.append("Khu vực")
 
     working = (
@@ -1378,23 +1316,14 @@ def build_aqi_chart(
                 500,
                 max(
                     100,
-                    math.ceil(
-                        (float(observed_maximum) + 25)
-                        / 50
-                    )
-                    * 50,
+                    math.ceil((float(observed_maximum) + 25) / 50) * 50,
                 ),
             )
         )
 
     visible_bands = AQI_BANDS.copy()
-    visible_bands["Đến"] = (
-        visible_bands["Đến"]
-        .clip(upper=chart_maximum)
-    )
-    visible_bands = visible_bands.loc[
-        visible_bands["Từ"].lt(chart_maximum)
-    ].copy()
+    visible_bands["Đến"] = visible_bands["Đến"].clip(upper=chart_maximum)
+    visible_bands = visible_bands.loc[visible_bands["Từ"].lt(chart_maximum)].copy()
 
     bands = (
         alt.Chart(visible_bands)
@@ -1478,13 +1407,8 @@ def build_aqi_chart(
             )
         )
 
-    now_local = (
-        pd.Timestamp.now(tz=VIETNAM_TIMEZONE)
-        .tz_localize(None)
-    )
-    now_dataframe = pd.DataFrame(
-        {"Thời gian hiện tại": [now_local]}
-    )
+    now_local = pd.Timestamp.now(tz=VIETNAM_TIMEZONE).tz_localize(None)
+    now_dataframe = pd.DataFrame({"Thời gian hiện tại": [now_local]})
 
     now_rule = (
         alt.Chart(now_dataframe)
@@ -1528,25 +1452,15 @@ def build_pollutant_chart(
         return alt.Chart(pd.DataFrame())
 
     available_columns = [
-        column
-        for column in pollutant_columns
-        if column in dataframe.columns
+        column for column in pollutant_columns if column in dataframe.columns
     ]
     if not available_columns:
         return alt.Chart(pd.DataFrame())
 
-    working = dataframe[
-        ["forecast_time", *available_columns]
-    ].copy()
-    working["Thời gian"] = to_vietnam_local_naive(
-        working["forecast_time"]
-    )
-    working = working.drop(
-        columns=["forecast_time"]
-    )
-    working = working.rename(
-        columns=POLLUTANT_LABELS
-    )
+    working = dataframe[["forecast_time", *available_columns]].copy()
+    working["Thời gian"] = to_vietnam_local_naive(working["forecast_time"])
+    working = working.drop(columns=["forecast_time"])
+    working = working.rename(columns=POLLUTANT_LABELS)
 
     melted = working.melt(
         id_vars=["Thời gian"],
@@ -1650,18 +1564,14 @@ def stop_with_retry(
 
 @st.cache_data(ttl=60, show_spinner=False)
 def load_health(snapshot_url: str) -> dict[str, Any]:
-    return AirQualitySnapshotClient(
-        snapshot_url
-    ).get_health()
+    return AirQualitySnapshotClient(snapshot_url).get_health()
 
 
 @st.cache_data(ttl=60, show_spinner=False)
 def load_latest_air_quality(
     snapshot_url: str,
 ) -> dict[str, Any]:
-    return AirQualitySnapshotClient(
-        snapshot_url
-    ).get_latest_air_quality(limit=5000)
+    return AirQualitySnapshotClient(snapshot_url).get_latest_air_quality(limit=5000)
 
 
 @st.cache_data(ttl=60, show_spinner=False)
@@ -1669,11 +1579,9 @@ def load_point_history(
     snapshot_url: str,
     point_id: str,
 ) -> dict[str, Any]:
-    return AirQualitySnapshotClient(
-        snapshot_url
-    ).get_point_history(
+    return AirQualitySnapshotClient(snapshot_url).get_point_history(
         point_id=point_id,
-        limit=168,
+        limit=720,
     )
 
 
@@ -1681,25 +1589,19 @@ def load_point_history(
 def load_pipeline_health(
     snapshot_url: str,
 ) -> dict[str, Any]:
-    return AirQualitySnapshotClient(
-        snapshot_url
-    ).get_pipeline_health()
+    return AirQualitySnapshotClient(snapshot_url).get_pipeline_health()
 
 
 @st.cache_data(ttl=60, show_spinner=False)
 def load_data_quality(
     snapshot_url: str,
 ) -> dict[str, Any]:
-    return AirQualitySnapshotClient(
-        snapshot_url
-    ).get_data_quality()
+    return AirQualitySnapshotClient(snapshot_url).get_data_quality()
 
 
 @st.cache_data(ttl=60, show_spinner=False)
 def load_alerts(snapshot_url: str) -> dict[str, Any]:
-    return AirQualitySnapshotClient(
-        snapshot_url
-    ).get_latest_alerts(limit=100)
+    return AirQualitySnapshotClient(snapshot_url).get_latest_alerts(limit=100)
 
 
 def get_default_snapshot_url() -> str:
@@ -1711,9 +1613,7 @@ def get_default_snapshot_url() -> str:
         return environment_url
 
     try:
-        secret_url = st.secrets[
-            "PUBLIC_SNAPSHOT_BASE_URL"
-        ]
+        secret_url = st.secrets["PUBLIC_SNAPSHOT_BASE_URL"]
     except (KeyError, FileNotFoundError):
         return ""
 
@@ -1731,12 +1631,9 @@ render_dashboard_header()
 snapshot_url = get_default_snapshot_url()
 
 if not snapshot_url:
-    st.warning(
-        "Website chưa được cấu hình địa chỉ dữ liệu công khai."
-    )
+    st.warning("Website chưa được cấu hình địa chỉ dữ liệu công khai.")
     st.info(
-        "Đặt `PUBLIC_SNAPSHOT_BASE_URL` trong biến môi trường "
-        "hoặc Streamlit Secrets."
+        "Đặt `PUBLIC_SNAPSHOT_BASE_URL` trong biến môi trường hoặc Streamlit Secrets."
     )
     st.stop()
 
@@ -1748,16 +1645,11 @@ except AirQualitySnapshotError as error:
     health_load_error = str(error)
 
 try:
-    latest_payload = load_latest_air_quality(
-        snapshot_url
-    )
+    latest_payload = load_latest_air_quality(snapshot_url)
 except AirQualitySnapshotError as error:
     stop_with_retry(
         "Không thể tải dữ liệu chất lượng không khí.",
-        (
-            "Nguồn dữ liệu có thể đang tạm thời gián đoạn. "
-            f"Chi tiết: {error}"
-        ),
+        (f"Nguồn dữ liệu có thể đang tạm thời gián đoạn. Chi tiết: {error}"),
         key="retry_latest_air_quality",
     )
 
@@ -1805,9 +1697,7 @@ point_ids = sorted(
 )
 
 point_name_lookup = (
-    air_quality_df[
-        ["point_id", "point_name"]
-    ]
+    air_quality_df[["point_id", "point_name"]]
     .dropna(subset=["point_id"])
     .drop_duplicates(
         subset=["point_id"],
@@ -1822,9 +1712,7 @@ point_name_lookup = (
 )
 
 point_location_lookup = (
-    air_quality_df[
-        ["point_id", "location_id"]
-    ]
+    air_quality_df[["point_id", "location_id"]]
     .dropna(subset=["point_id"])
     .drop_duplicates(
         subset=["point_id"],
@@ -1840,27 +1728,21 @@ point_location_lookup = (
 
 
 def get_point_display_name(point_id: str) -> str:
-    point_name = clean_text(
-        point_name_lookup.get(point_id)
-    )
+    point_name = clean_text(point_name_lookup.get(point_id))
     return point_name or point_id
 
 
-nearest_forecast_df = select_nearest_forecast_records(
-    air_quality_df
-)
-location_summary_df = build_location_summary_dataframe(
-    nearest_forecast_df
-)
+nearest_forecast_df = select_nearest_forecast_records(air_quality_df)
+location_summary_df = build_location_summary_dataframe(nearest_forecast_df)
 
 location_labels = {
     clean_text(row.location_id): clean_text(
         row.location_label,
         clean_text(row.location_id),
     )
-    for row in location_summary_df[
-        ["location_id", "location_label"]
-    ].itertuples(index=False)
+    for row in location_summary_df[["location_id", "location_label"]].itertuples(
+        index=False
+    )
 }
 
 nearest_forecast_df["location_id"] = (
@@ -1872,9 +1754,8 @@ nearest_forecast_df["location_id"] = (
     .astype(str)
     .str.strip()
 )
-nearest_forecast_df["location_label"] = (
-    nearest_forecast_df["location_id"]
-    .map(location_labels)
+nearest_forecast_df["location_label"] = nearest_forecast_df["location_id"].map(
+    location_labels
 )
 
 average_aqi = (
@@ -1902,13 +1783,9 @@ data_updated_at = get_data_updated_at(
     health_payload=health_payload,
     dataframe=air_quality_df,
 )
-data_age_minutes = get_data_age_minutes(
-    data_updated_at
-)
+data_age_minutes = get_data_age_minutes(data_updated_at)
 
-available_time_hours = calculate_available_time_hours(
-    air_quality_df
-)
+available_time_hours = calculate_available_time_hours(air_quality_df)
 available_time_range_options = {
     label: hours
     for label, hours in TIME_RANGE_OPTIONS.items()
@@ -1917,9 +1794,7 @@ available_time_range_options = {
 
 if not available_time_range_options:
     available_time_range_options = {
-        f"{available_time_hours} giờ hiện có": (
-            available_time_hours
-        )
+        f"{available_time_hours} giờ hiện có": (available_time_hours)
     }
 
 requested_hours = read_query_parameter(
@@ -1927,17 +1802,14 @@ requested_hours = read_query_parameter(
     "24",
 )
 try:
-    requested_hours_integer = int(
-        requested_hours
-    )
+    requested_hours_integer = int(requested_hours)
 except ValueError:
     requested_hours_integer = 24
 
 default_time_label = next(
     (
         label
-        for label, hours
-        in available_time_range_options.items()
+        for label, hours in available_time_range_options.items()
         if hours == requested_hours_integer
     ),
     next(iter(available_time_range_options)),
@@ -1961,31 +1833,19 @@ with toolbar_refresh:
 with toolbar_time:
     selected_time_label = st.selectbox(
         "Khoảng dữ liệu trên biểu đồ",
-        options=list(
-            available_time_range_options
-        ),
-        index=list(
-            available_time_range_options
-        ).index(default_time_label),
+        options=list(available_time_range_options),
+        index=list(available_time_range_options).index(default_time_label),
         key="global_time_range",
     )
-    selected_time_hours = (
-        available_time_range_options[
-            selected_time_label
-        ]
-    )
+    selected_time_hours = available_time_range_options[selected_time_label]
     update_query_parameter(
         "hours",
         str(selected_time_hours),
     )
 
 with toolbar_status:
-    updated_text = format_datetime(
-        data_updated_at
-    )
-    relative_text = format_relative_age(
-        data_updated_at
-    )
+    updated_text = format_datetime(data_updated_at)
+    relative_text = format_relative_age(data_updated_at)
     st.markdown(
         (
             '<div class="aq-toolbar-note">'
@@ -2019,14 +1879,14 @@ elif data_age_minutes > 120:
     )
 elif data_age_minutes > 60:
     st.warning(
-        "Dữ liệu đã cũ hơn 1 giờ. Hãy thử làm mới để "
-        "kiểm tra bản dữ liệu mới hơn."
+        "Dữ liệu đã cũ hơn 1 giờ. Hãy thử làm mới để kiểm tra bản dữ liệu mới hơn."
     )
 
 (
     map_tab,
     analytics_tab,
     point_tab,
+    history_tab,
     alert_tab,
     operations_tab,
 ) = st.tabs(
@@ -2034,6 +1894,7 @@ elif data_age_minutes > 60:
         "Bản đồ AQI",
         "Phân tích",
         "Điểm theo dõi",
+        "Lịch sử AQI",
         "Cảnh báo",
         "Trạng thái hệ thống",
     ]
@@ -2048,8 +1909,7 @@ elif data_age_minutes > 60:
 with map_tab:
     st.subheader("Bản đồ chất lượng không khí")
     st.caption(
-        "Tìm tỉnh/thành hoặc bấm vào một chấm trên bản đồ "
-        "để xem thông tin chi tiết."
+        "Tìm tỉnh/thành hoặc bấm vào một chấm trên bản đồ để xem thông tin chi tiết."
     )
     render_aqi_legend()
 
@@ -2059,17 +1919,13 @@ with map_tab:
     )
 
     sorted_location_ids = (
-        location_summary_df.sort_values(
-            "location_label"
-        )["location_id"]
+        location_summary_df.sort_values("location_label")["location_id"]
         .astype(str)
         .tolist()
     )
     location_options = ["", *sorted_location_ids]
 
-    requested_location_id = read_query_parameter(
-        "location"
-    )
+    requested_location_id = read_query_parameter("location")
     if requested_location_id not in sorted_location_ids:
         requested_location_id = ""
 
@@ -2077,9 +1933,7 @@ with map_tab:
         selected_location_search = st.selectbox(
             "Tìm tỉnh/thành",
             options=location_options,
-            index=location_options.index(
-                requested_location_id
-            ),
+            index=location_options.index(requested_location_id),
             format_func=lambda location_id: (
                 "Toàn quốc"
                 if not location_id
@@ -2097,14 +1951,10 @@ with map_tab:
             options=list(AQI_FILTER_OPTIONS),
             key="map_aqi_threshold",
         )
-        selected_threshold = AQI_FILTER_OPTIONS[
-            selected_threshold_label
-        ]
+        selected_threshold = AQI_FILTER_OPTIONS[selected_threshold_label]
 
     if selected_location_search:
-        st.session_state[
-            "selected_location_id"
-        ] = selected_location_search
+        st.session_state["selected_location_id"] = selected_location_search
         update_query_parameter(
             "location",
             selected_location_search,
@@ -2119,10 +1969,7 @@ with map_tab:
         "selected_location_id",
         "",
     )
-    valid_location_ids = set(
-        location_summary_df["location_id"]
-        .astype(str)
-    )
+    valid_location_ids = set(location_summary_df["location_id"].astype(str))
     if selected_location_id not in valid_location_ids:
         selected_location_id = (
             selected_location_search
@@ -2130,34 +1977,31 @@ with map_tab:
             else ""
         )
 
-    map_data = location_summary_df[
-        [
-            "location_id",
-            "location_label",
-            "latitude",
-            "longitude",
-            "average_us_aqi",
-            "maximum_us_aqi",
-            "monitoring_point_count",
-            "aqi_level",
-            "fill_color",
-            "marker_radius",
+    map_data = (
+        location_summary_df[
+            [
+                "location_id",
+                "location_label",
+                "latitude",
+                "longitude",
+                "average_us_aqi",
+                "maximum_us_aqi",
+                "monitoring_point_count",
+                "aqi_level",
+                "fill_color",
+                "marker_radius",
+            ]
         ]
-    ].dropna(
-        subset=["latitude", "longitude"]
-    ).copy()
+        .dropna(subset=["latitude", "longitude"])
+        .copy()
+    )
 
     if selected_threshold is not None:
         map_data = map_data.loc[
-            map_data["average_us_aqi"]
-            .fillna(-1)
-            .gt(selected_threshold)
+            map_data["average_us_aqi"].fillna(-1).gt(selected_threshold)
         ].copy()
 
-    map_data["monitoring_point_count"] = (
-        map_data["monitoring_point_count"]
-        .astype(int)
-    )
+    map_data["monitoring_point_count"] = map_data["monitoring_point_count"].astype(int)
 
     overview_1, overview_2, overview_3, overview_4 = st.columns(4)
     overview_1.metric(
@@ -2179,32 +2023,20 @@ with map_tab:
     )
 
     if map_data.empty:
-        st.warning(
-            "Không có tỉnh/thành nào phù hợp với bộ lọc AQI hiện tại."
-        )
+        st.warning("Không có tỉnh/thành nào phù hợp với bộ lọc AQI hiện tại.")
     else:
         if not selected_location_id:
-            detail_location_id = str(
-                location_summary_df.iloc[0][
-                    "location_id"
-                ]
-            )
+            detail_location_id = str(location_summary_df.iloc[0]["location_id"])
         else:
             detail_location_id = selected_location_id
 
         detail_location_row = location_summary_df.loc[
-            location_summary_df["location_id"]
-            .astype(str)
-            .eq(detail_location_id)
+            location_summary_df["location_id"].astype(str).eq(detail_location_id)
         ].iloc[0]
 
         if selected_location_id:
-            map_latitude = float(
-                detail_location_row["latitude"]
-            )
-            map_longitude = float(
-                detail_location_row["longitude"]
-            )
+            map_latitude = float(detail_location_row["latitude"])
+            map_longitude = float(detail_location_row["longitude"])
             map_zoom = 7.5
         else:
             map_latitude = 16.2
@@ -2236,9 +2068,7 @@ with map_tab:
             )
 
             selected_map_data = map_data.loc[
-                map_data["location_id"]
-                .astype(str)
-                .eq(detail_location_id)
+                map_data["location_id"].astype(str).eq(detail_location_id)
             ].copy()
             selected_layer = pdk.Layer(
                 "ScatterplotLayer",
@@ -2295,29 +2125,21 @@ with map_tab:
                 key="location_aqi_map",
             )
 
-        selected_from_map = get_selected_location_from_map(
-            map_event
-        )
+        selected_from_map = get_selected_location_from_map(map_event)
         if selected_from_map in valid_location_ids:
-            st.session_state[
-                "selected_location_id"
-            ] = selected_from_map
+            st.session_state["selected_location_id"] = selected_from_map
             update_query_parameter(
                 "location",
                 selected_from_map,
             )
             detail_location_id = selected_from_map
             detail_location_row = location_summary_df.loc[
-                location_summary_df["location_id"]
-                .astype(str)
-                .eq(detail_location_id)
+                location_summary_df["location_id"].astype(str).eq(detail_location_id)
             ].iloc[0]
 
         selected_points_df = (
             nearest_forecast_df.loc[
-                nearest_forecast_df["location_id"]
-                .astype(str)
-                .eq(detail_location_id)
+                nearest_forecast_df["location_id"].astype(str).eq(detail_location_id)
             ]
             .copy()
             .sort_values(
@@ -2332,9 +2154,7 @@ with map_tab:
                 "### "
                 + escape(
                     clean_text(
-                        detail_location_row[
-                            "location_label"
-                        ],
+                        detail_location_row["location_label"],
                         detail_location_id,
                     )
                 )
@@ -2349,18 +2169,14 @@ with map_tab:
             metric_1.metric(
                 "AQI trung bình",
                 format_number(
-                    detail_location_row[
-                        "average_us_aqi"
-                    ],
+                    detail_location_row["average_us_aqi"],
                     1,
                 ),
             )
             metric_2.metric(
                 "AQI cao nhất",
                 format_number(
-                    detail_location_row[
-                        "maximum_us_aqi"
-                    ],
+                    detail_location_row["maximum_us_aqi"],
                     0,
                 ),
             )
@@ -2369,85 +2185,42 @@ with map_tab:
                 detail_location_row["aqi_level"],
                 "Không có dữ liệu",
             )
-            st.markdown(
-                f"**Mức chất lượng không khí:** {aqi_level}"
-            )
-            render_health_recommendation(
-                detail_location_row[
-                    "average_us_aqi"
-                ]
-            )
+            st.markdown(f"**Mức chất lượng không khí:** {aqi_level}")
+            render_health_recommendation(detail_location_row["average_us_aqi"])
 
             pollutant_1, pollutant_2 = st.columns(2)
             pollutant_1.metric(
                 "PM2.5 trung bình (µg/m³)",
-                format_number(
-                    detail_location_row[
-                        "average_pm2_5"
-                    ]
-                ),
+                format_number(detail_location_row["average_pm2_5"]),
             )
             pollutant_2.metric(
                 "PM10 trung bình (µg/m³)",
-                format_number(
-                    detail_location_row[
-                        "average_pm10"
-                    ]
-                ),
+                format_number(detail_location_row["average_pm10"]),
             )
 
             pollutant_3, pollutant_4 = st.columns(2)
             pollutant_3.metric(
                 "O₃ trung bình (µg/m³)",
-                format_number(
-                    detail_location_row[
-                        "average_ozone"
-                    ]
-                ),
+                format_number(detail_location_row["average_ozone"]),
             )
             pollutant_4.metric(
                 "NO₂ trung bình (µg/m³)",
-                format_number(
-                    detail_location_row[
-                        "average_nitrogen_dioxide"
-                    ]
-                ),
+                format_number(detail_location_row["average_nitrogen_dioxide"]),
             )
 
-            worst_point_name = clean_text(
-                detail_location_row.get(
-                    "worst_point_name"
-                )
+            worst_point_name = clean_text(detail_location_row.get("worst_point_name"))
+            worst_point_id = clean_text(detail_location_row.get("worst_point_id"))
+            worst_point_text = worst_point_name or get_point_display_name(
+                worst_point_id
             )
-            worst_point_id = clean_text(
-                detail_location_row.get(
-                    "worst_point_id"
-                )
-            )
-            worst_point_text = (
-                worst_point_name
-                or get_point_display_name(
-                    worst_point_id
-                )
-            )
-            st.markdown(
-                "**Điểm có AQI cao nhất:** "
-                + escape(worst_point_text)
-            )
+            st.markdown("**Điểm có AQI cao nhất:** " + escape(worst_point_text))
             st.caption(
                 "Thời điểm dữ liệu: "
-                + format_datetime(
-                    detail_location_row.get(
-                        "forecast_time"
-                    )
-                )
+                + format_datetime(detail_location_row.get("forecast_time"))
             )
 
         with st.expander(
-            (
-                f"Xem chi tiết "
-                f"{len(selected_points_df)} điểm theo dõi"
-            ),
+            (f"Xem chi tiết {len(selected_points_df)} điểm theo dõi"),
             expanded=False,
         ):
             st.caption(
@@ -2472,25 +2245,20 @@ with map_tab:
                 ]
                 if column in selected_points_df.columns
             ]
-            point_detail_df = selected_points_df[
-                detail_columns
-            ].copy()
+            point_detail_df = selected_points_df[detail_columns].copy()
 
             if "point_type" in point_detail_df.columns:
-                point_detail_df["point_type"] = (
-                    point_detail_df["point_type"]
-                    .apply(translate_point_type)
+                point_detail_df["point_type"] = point_detail_df["point_type"].apply(
+                    translate_point_type
                 )
             if "us_aqi" in point_detail_df.columns:
-                point_detail_df["aqi_level"] = (
-                    point_detail_df["us_aqi"]
-                    .apply(classify_aqi)
+                point_detail_df["aqi_level"] = point_detail_df["us_aqi"].apply(
+                    classify_aqi
                 )
             if "forecast_time" in point_detail_df.columns:
-                point_detail_df["forecast_time"] = (
-                    point_detail_df["forecast_time"]
-                    .apply(format_datetime)
-                )
+                point_detail_df["forecast_time"] = point_detail_df[
+                    "forecast_time"
+                ].apply(format_datetime)
 
             point_detail_df = point_detail_df.rename(
                 columns={
@@ -2516,18 +2284,10 @@ with map_tab:
 
             st.download_button(
                 "Tải danh sách điểm của tỉnh này",
-                data=point_detail_df.to_csv(
-                    index=False
-                ).encode("utf-8-sig"),
-                file_name=(
-                    f"air_quality_"
-                    f"{detail_location_id}.csv"
-                ),
+                data=point_detail_df.to_csv(index=False).encode("utf-8-sig"),
+                file_name=(f"air_quality_{detail_location_id}.csv"),
                 mime="text/csv",
-                key=(
-                    f"download_location_"
-                    f"{detail_location_id}"
-                ),
+                key=(f"download_location_{detail_location_id}"),
             )
 
 
@@ -2539,8 +2299,7 @@ with map_tab:
 with analytics_tab:
     st.subheader("Phân tích và so sánh dữ liệu")
     st.caption(
-        "So sánh tối đa 3 tỉnh/thành và xem xu hướng "
-        "trong khoảng thời gian đã chọn."
+        "So sánh tối đa 3 tỉnh/thành và xem xu hướng trong khoảng thời gian đã chọn."
     )
 
     metric_1, metric_2, metric_3 = st.columns(3)
@@ -2564,9 +2323,7 @@ with analytics_tab:
     )
 
     with ranking_column:
-        st.markdown(
-            "#### Tỉnh/thành có AQI cao"
-        )
+        st.markdown("#### Tỉnh/thành có AQI cao")
         ranking_df = (
             location_summary_df[
                 [
@@ -2574,9 +2331,7 @@ with analytics_tab:
                     "average_us_aqi",
                 ]
             ]
-            .dropna(
-                subset=["average_us_aqi"]
-            )
+            .dropna(subset=["average_us_aqi"])
             .head(15)
             .rename(
                 columns={
@@ -2621,9 +2376,7 @@ with analytics_tab:
         )
 
     with distribution_column:
-        st.markdown(
-            "#### Phân bố mức chất lượng không khí"
-        )
+        st.markdown("#### Phân bố mức chất lượng không khí")
         distribution_series = (
             location_summary_df["aqi_level"]
             .value_counts()
@@ -2633,8 +2386,7 @@ with analytics_tab:
             )
         )
         distribution_df = (
-            distribution_series
-            .loc[lambda series: series.gt(0)]
+            distribution_series.loc[lambda series: series.gt(0)]
             .rename_axis("Mức AQI")
             .reset_index(name="Số tỉnh/thành")
         )
@@ -2655,12 +2407,8 @@ with analytics_tab:
                 color=alt.Color(
                     "Mức AQI:N",
                     scale=alt.Scale(
-                        domain=AQI_BANDS[
-                            "Mức AQI"
-                        ].tolist(),
-                        range=AQI_BANDS[
-                            "Màu"
-                        ].tolist(),
+                        domain=AQI_BANDS["Mức AQI"].tolist(),
+                        range=AQI_BANDS["Màu"].tolist(),
                     ),
                     legend=None,
                 ),
@@ -2676,9 +2424,7 @@ with analytics_tab:
             use_container_width=True,
         )
 
-    st.markdown(
-        "#### So sánh tỉnh/thành"
-    )
+    st.markdown("#### So sánh tỉnh/thành")
 
     sorted_location_labels = sorted(
         {
@@ -2686,8 +2432,7 @@ with analytics_tab:
                 label,
                 location_id,
             )
-            for location_id, label
-            in location_labels.items()
+            for location_id, label in location_labels.items()
         }
     )
 
@@ -2696,9 +2441,7 @@ with analytics_tab:
         options=sorted_location_labels,
         default=[],
         max_selections=3,
-        placeholder=(
-            "Để trống để xem trung bình toàn quốc"
-        ),
+        placeholder=("Để trống để xem trung bình toàn quốc"),
         key="comparison_locations",
     )
 
@@ -2717,18 +2460,12 @@ with analytics_tab:
         .str.strip()
     )
 
-    comparison_df["location_label"] = (
-        comparison_df["location_id"]
-        .map(location_labels)
-    )
+    comparison_df["location_label"] = comparison_df["location_id"].map(location_labels)
 
     if "location_name" in comparison_df.columns:
-        comparison_df["location_label"] = (
-            comparison_df["location_label"]
-            .where(
-                comparison_df["location_label"].notna(),
-                comparison_df["location_name"],
-            )
+        comparison_df["location_label"] = comparison_df["location_label"].where(
+            comparison_df["location_label"].notna(),
+            comparison_df["location_name"],
         )
 
     comparison_df["location_label"] = (
@@ -2743,8 +2480,7 @@ with analytics_tab:
 
     if selected_comparison_locations:
         comparison_df = comparison_df.loc[
-            comparison_df["location_label"]
-            .isin(selected_comparison_locations)
+            comparison_df["location_label"].isin(selected_comparison_locations)
         ].copy()
 
     valid_comparison_df = comparison_df.dropna(
@@ -2766,15 +2502,10 @@ with analytics_tab:
             .tolist()
         )
         if available_labels:
-            st.caption(
-                "Các tỉnh/thành đang có dữ liệu: "
-                + ", ".join(available_labels)
-            )
+            st.caption("Các tỉnh/thành đang có dữ liệu: " + ", ".join(available_labels))
     else:
         comparison_series_column = (
-            "location_label"
-            if selected_comparison_locations
-            else None
+            "location_label" if selected_comparison_locations else None
         )
         aqi_comparison_chart = build_aqi_chart(
             valid_comparison_df,
@@ -2786,17 +2517,11 @@ with analytics_tab:
         )
 
         displayed_locations = (
-            valid_comparison_df["location_id"]
-            .astype(str)
-            .nunique()
-            if "location_id"
-            in valid_comparison_df.columns
+            valid_comparison_df["location_id"].astype(str).nunique()
+            if "location_id" in valid_comparison_df.columns
             else 0
         )
-        displayed_times = (
-            valid_comparison_df["forecast_time"]
-            .nunique()
-        )
+        displayed_times = valid_comparison_df["forecast_time"].nunique()
         st.caption(
             f"Biểu đồ đang dùng {len(valid_comparison_df):,} bản ghi, "
             f"{displayed_locations} tỉnh/thành và "
@@ -2808,9 +2533,7 @@ with analytics_tab:
         "đánh dấu thời điểm hiện tại; phần bên phải chủ yếu là dự báo."
     )
 
-    st.markdown(
-        "#### Bộ lọc dữ liệu chi tiết"
-    )
+    st.markdown("#### Bộ lọc dữ liệu chi tiết")
     filter_1, filter_2 = st.columns(2)
 
     with filter_1:
@@ -2834,17 +2557,11 @@ with analytics_tab:
     )
     if selected_analytics_location:
         analytics_df = analytics_df.loc[
-            analytics_df["location_id"]
-            .astype(str)
-            .eq(selected_analytics_location)
+            analytics_df["location_id"].astype(str).eq(selected_analytics_location)
         ].copy()
 
     available_points = sorted(
-        analytics_df["point_id"]
-        .dropna()
-        .astype(str)
-        .unique()
-        .tolist()
+        analytics_df["point_id"].dropna().astype(str).unique().tolist()
     )
 
     with filter_2:
@@ -2853,17 +2570,13 @@ with analytics_tab:
             options=available_points,
             default=[],
             format_func=get_point_display_name,
-            placeholder=(
-                "Để trống để xem toàn bộ"
-            ),
+            placeholder=("Để trống để xem toàn bộ"),
             key="analytics_point_filter",
         )
 
     if selected_points:
         analytics_df = analytics_df.loc[
-            analytics_df["point_id"]
-            .astype(str)
-            .isin(selected_points)
+            analytics_df["point_id"].astype(str).isin(selected_points)
         ].copy()
 
     available_metrics = [
@@ -2889,11 +2602,9 @@ with analytics_tab:
             ]
             if column in available_metrics
         ],
-        format_func=lambda column: (
-            POLLUTANT_LABELS.get(
-                column,
-                column,
-            )
+        format_func=lambda column: POLLUTANT_LABELS.get(
+            column,
+            column,
         ),
         key="analytics_pollutants",
     )
@@ -2907,13 +2618,9 @@ with analytics_tab:
             use_container_width=True,
         )
     else:
-        st.info(
-            "Chọn ít nhất một chất ô nhiễm để hiển thị biểu đồ."
-        )
+        st.info("Chọn ít nhất một chất ô nhiễm để hiển thị biểu đồ.")
 
-    st.markdown(
-        "#### Dữ liệu đã lọc"
-    )
+    st.markdown("#### Dữ liệu đã lọc")
     st.caption(
         "Bảng dưới đây giữ tên cột kỹ thuật để phục vụ "
         "việc kiểm tra dữ liệu và nguồn gốc lần xử lý."
@@ -2945,13 +2652,9 @@ with analytics_tab:
         if column in analytics_df.columns
     ]
 
-    technical_df = analytics_df[
-        technical_columns
-    ].copy()
+    technical_df = analytics_df[technical_columns].copy()
     if "forecast_time" in technical_df.columns:
-        technical_df = technical_df.sort_values(
-            "forecast_time"
-        )
+        technical_df = technical_df.sort_values("forecast_time")
 
     st.dataframe(
         technical_df,
@@ -2960,9 +2663,7 @@ with analytics_tab:
     )
     st.download_button(
         "Tải dữ liệu đã lọc",
-        data=technical_df.to_csv(
-            index=False
-        ).encode("utf-8-sig"),
+        data=technical_df.to_csv(index=False).encode("utf-8-sig"),
         file_name="air_quality_filtered.csv",
         mime="text/csv",
         key="download_analytics",
@@ -2975,23 +2676,12 @@ with analytics_tab:
 
 
 with point_tab:
-    st.subheader(
-        "Chi tiết điểm theo dõi"
-    )
-    st.caption(
-        "Tìm một vị trí đại diện để xem chỉ số gần nhất "
-        "và xu hướng theo giờ."
-    )
+    st.subheader("Chi tiết điểm theo dõi")
+    st.caption("Tìm một vị trí đại diện để xem chỉ số gần nhất và xu hướng theo giờ.")
 
-    requested_point_id = read_query_parameter(
-        "point"
-    )
+    requested_point_id = read_query_parameter("point")
     if requested_point_id not in point_ids:
-        requested_point_id = (
-            point_ids[0]
-            if point_ids
-            else ""
-        )
+        requested_point_id = point_ids[0] if point_ids else ""
 
     selected_point_id = st.selectbox(
         "Tìm điểm theo dõi",
@@ -3014,13 +2704,9 @@ with point_tab:
             snapshot_url,
             selected_point_id,
         )
-        point_df = records_to_dataframe(
-            point_payload.get("data", [])
-        )
+        point_df = records_to_dataframe(point_payload.get("data", []))
     except AirQualitySnapshotError as error:
-        st.error(
-            "Không thể tải dữ liệu cho điểm theo dõi này."
-        )
+        st.error("Không thể tải dữ liệu cho điểm theo dõi này.")
         st.info(str(error))
         if st.button(
             "Thử tải lại điểm này",
@@ -3036,38 +2722,21 @@ with point_tab:
     )
 
     if point_df.empty:
-        st.info(
-            "Điểm theo dõi này chưa có dữ liệu trong "
-            "khoảng thời gian đã chọn."
-        )
+        st.info("Điểm theo dõi này chưa có dữ liệu trong khoảng thời gian đã chọn.")
     else:
-        point_df = point_df.sort_values(
-            "forecast_time"
-        )
-        nearest_point_df = (
-            select_nearest_forecast_records(
-                point_df
-            )
-        )
+        point_df = point_df.sort_values("forecast_time")
+        nearest_point_df = select_nearest_forecast_records(point_df)
         first_record = (
-            nearest_point_df.iloc[0]
-            if not nearest_point_df.empty
-            else point_df.iloc[0]
+            nearest_point_df.iloc[0] if not nearest_point_df.empty else point_df.iloc[0]
         )
 
         selected_point_name = clean_text(
             first_record.get("point_name"),
-            get_point_display_name(
-                selected_point_id
-            ),
+            get_point_display_name(selected_point_id),
         )
         selected_location_id = clean_text(
             first_record.get("location_id"),
-            clean_text(
-                point_location_lookup.get(
-                    selected_point_id
-                )
-            ),
+            clean_text(point_location_lookup.get(selected_point_id)),
         )
         selected_location_name = clean_text(
             first_record.get("location_name"),
@@ -3076,13 +2745,9 @@ with point_tab:
                 selected_location_id,
             ),
         )
-        selected_point_type = translate_point_type(
-            first_record.get("point_type")
-        )
+        selected_point_type = translate_point_type(first_record.get("point_type"))
 
-        st.markdown(
-            f"### {escape(selected_point_name)}"
-        )
+        st.markdown(f"### {escape(selected_point_name)}")
         detail_parts = [
             part
             for part in [
@@ -3092,9 +2757,7 @@ with point_tab:
             if part
         ]
         if detail_parts:
-            st.caption(
-                " · ".join(detail_parts)
-            )
+            st.caption(" · ".join(detail_parts))
 
         latitude = first_record.get("latitude")
         longitude = first_record.get("longitude")
@@ -3105,9 +2768,7 @@ with point_tab:
             and not pd.isna(longitude)
         ):
             st.caption(
-                "Tọa độ đại diện: "
-                f"{float(latitude):.5f}, "
-                f"{float(longitude):.5f}"
+                f"Tọa độ đại diện: {float(latitude):.5f}, {float(longitude):.5f}"
             )
 
         current_aqi = first_record.get("us_aqi")
@@ -3119,15 +2780,11 @@ with point_tab:
         metric_1, metric_2, metric_3 = st.columns(3)
         metric_1.metric(
             "PM2.5 gần nhất (µg/m³)",
-            format_number(
-                first_record.get("pm2_5")
-            ),
+            format_number(first_record.get("pm2_5")),
         )
         metric_2.metric(
             "PM10 gần nhất (µg/m³)",
-            format_number(
-                first_record.get("pm10")
-            ),
+            format_number(first_record.get("pm10")),
         )
         metric_3.metric(
             "AQI gần nhất",
@@ -3138,21 +2795,12 @@ with point_tab:
             delta=format_delta(point_aqi_delta),
         )
 
-        current_level = classify_aqi(
-            current_aqi
-        )
-        st.markdown(
-            "**Mức chất lượng không khí gần nhất:** "
-            f"{current_level}"
-        )
-        render_health_recommendation(
-            current_aqi
-        )
+        current_level = classify_aqi(current_aqi)
+        st.markdown(f"**Mức chất lượng không khí gần nhất:** {current_level}")
+        render_health_recommendation(current_aqi)
 
         if "us_aqi" in point_df.columns:
-            st.markdown(
-                "#### Xu hướng chỉ số AQI"
-            )
+            st.markdown("#### Xu hướng chỉ số AQI")
             st.altair_chart(
                 build_aqi_chart(point_df),
                 use_container_width=True,
@@ -3175,9 +2823,7 @@ with point_tab:
         ]
 
         if pollutant_columns:
-            st.markdown(
-                "#### Xu hướng các chất ô nhiễm"
-            )
+            st.markdown("#### Xu hướng các chất ô nhiễm")
             st.altair_chart(
                 build_pollutant_chart(
                     point_df,
@@ -3200,13 +2846,10 @@ with point_tab:
             ]
             if column in point_df.columns
         ]
-        point_display_df = point_df[
-            point_display_columns
-        ].copy()
+        point_display_df = point_df[point_display_columns].copy()
         if "forecast_time" in point_display_df.columns:
-            point_display_df["forecast_time"] = (
-                point_display_df["forecast_time"]
-                .apply(format_datetime)
+            point_display_df["forecast_time"] = point_display_df["forecast_time"].apply(
+                format_datetime
             )
 
         point_display_df = point_display_df.rename(
@@ -3223,27 +2866,575 @@ with point_tab:
         )
         st.download_button(
             "Tải dữ liệu của điểm này",
-            data=point_display_df.to_csv(
-                index=False
-            ).encode("utf-8-sig"),
-            file_name=(
-                f"air_quality_"
-                f"{selected_point_id}.csv"
-            ),
+            data=point_display_df.to_csv(index=False).encode("utf-8-sig"),
+            file_name=(f"air_quality_{selected_point_id}.csv"),
             mime="text/csv",
             key="download_point",
         )
 
 
 # -----------------------------------------------------------------------------
-# Trang 4: Cảnh báo
+# Trang 4: Lịch sử AQI
+# -----------------------------------------------------------------------------
+
+
+with history_tab:
+    st.subheader("Lịch sử chất lượng không khí")
+    st.caption(
+        "Chọn tỉnh/thành, điểm theo dõi và khoảng ngày "
+        "để xem lại AQI đã được hệ thống lưu trước đó."
+    )
+
+    history_location_ids = sorted(
+        {
+            clean_text(location_id)
+            for location_id in point_location_lookup.values()
+            if clean_text(location_id)
+        },
+        key=lambda location_id: location_labels.get(
+            location_id,
+            location_id,
+        ),
+    )
+
+    if not history_location_ids:
+        st.info("Chưa có thông tin tỉnh/thành cho dữ liệu lịch sử.")
+    else:
+        requested_history_location = read_query_parameter("history_location")
+        if requested_history_location not in history_location_ids:
+            requested_history_location = history_location_ids[0]
+
+        history_filter_1, history_filter_2 = st.columns(
+            2,
+            gap="medium",
+        )
+
+        with history_filter_1:
+            selected_history_location = st.selectbox(
+                "Tỉnh/thành",
+                options=history_location_ids,
+                index=history_location_ids.index(requested_history_location),
+                format_func=lambda location_id: location_labels.get(
+                    location_id,
+                    location_id,
+                ),
+                key="history_location_filter",
+            )
+
+        update_query_parameter(
+            "history_location",
+            selected_history_location,
+        )
+
+        history_point_ids = sorted(
+            [
+                point_id
+                for point_id in point_ids
+                if clean_text(point_location_lookup.get(point_id))
+                == selected_history_location
+            ],
+            key=get_point_display_name,
+        )
+
+        with history_filter_2:
+            requested_history_point = read_query_parameter("history_point")
+            if requested_history_point not in history_point_ids:
+                requested_history_point = (
+                    history_point_ids[0] if history_point_ids else ""
+                )
+
+            selected_history_point = (
+                st.selectbox(
+                    "Điểm theo dõi",
+                    options=history_point_ids,
+                    index=(
+                        history_point_ids.index(requested_history_point)
+                        if requested_history_point in history_point_ids
+                        else 0
+                    ),
+                    format_func=(get_point_display_name),
+                    key="history_point_filter",
+                )
+                if history_point_ids
+                else ""
+            )
+
+        update_query_parameter(
+            "history_point",
+            selected_history_point,
+        )
+
+        if not selected_history_point:
+            st.info("Tỉnh/thành này chưa có điểm theo dõi.")
+        else:
+            try:
+                history_payload = load_point_history(
+                    snapshot_url,
+                    selected_history_point,
+                )
+                history_df = records_to_dataframe(
+                    history_payload.get(
+                        "data",
+                        [],
+                    )
+                )
+            except AirQualitySnapshotError as error:
+                st.error("Không thể tải dữ liệu lịch sử cho điểm này.")
+                st.info(str(error))
+                if st.button(
+                    "Thử tải lại lịch sử",
+                    key="retry_history_page",
+                ):
+                    load_point_history.clear()
+                    st.rerun()
+
+                history_df = pd.DataFrame()
+
+            required_history_columns = {
+                "forecast_time",
+                "us_aqi",
+            }
+
+            if history_df.empty or not required_history_columns.issubset(
+                history_df.columns
+            ):
+                st.info("Điểm theo dõi này chưa có dữ liệu lịch sử phù hợp.")
+            else:
+                history_df = (
+                    history_df.dropna(subset=["forecast_time"])
+                    .sort_values("forecast_time")
+                    .copy()
+                )
+
+                history_df["_forecast_time_vn"] = history_df[
+                    "forecast_time"
+                ].dt.tz_convert(VIETNAM_TIMEZONE)
+                history_df["_history_date"] = history_df["_forecast_time_vn"].dt.date
+
+                include_current_forecast = st.checkbox(
+                    ("Bao gồm hôm nay và dữ liệu dự báo"),
+                    value=False,
+                    help=("Mặc định trang chỉ hiển thị các ngày đã kết thúc."),
+                    key=("history_include_current_forecast"),
+                )
+
+                today_vn = pd.Timestamp.now(tz=VIETNAM_TIMEZONE).date()
+
+                if not include_current_forecast:
+                    history_df = history_df.loc[
+                        history_df["_history_date"] < today_vn
+                    ].copy()
+
+                if history_df.empty:
+                    st.info("Chưa có ngày lịch sử phù hợp với bộ lọc này.")
+                else:
+                    minimum_history_date = history_df["_history_date"].min()
+                    maximum_history_date = history_df["_history_date"].max()
+                    default_start_date = max(
+                        minimum_history_date,
+                        (
+                            pd.Timestamp(maximum_history_date) - pd.Timedelta(days=6)
+                        ).date(),
+                    )
+
+                    date_filter_1, date_filter_2 = st.columns(
+                        2,
+                        gap="medium",
+                    )
+
+                    with date_filter_1:
+                        selected_start_date = st.date_input(
+                            "Từ ngày",
+                            value=(default_start_date),
+                            min_value=(minimum_history_date),
+                            max_value=(maximum_history_date),
+                            format="DD/MM/YYYY",
+                            key=(f"history_start_{selected_history_point}"),
+                        )
+
+                    with date_filter_2:
+                        selected_end_date = st.date_input(
+                            "Đến ngày",
+                            value=(maximum_history_date),
+                            min_value=(minimum_history_date),
+                            max_value=(maximum_history_date),
+                            format="DD/MM/YYYY",
+                            key=(f"history_end_{selected_history_point}"),
+                        )
+
+                    if selected_start_date > selected_end_date:
+                        st.error("Ngày bắt đầu không được lớn hơn ngày kết thúc.")
+                    else:
+                        filtered_history_df = history_df.loc[
+                            history_df["_history_date"].between(
+                                selected_start_date,
+                                selected_end_date,
+                                inclusive="both",
+                            )
+                        ].copy()
+
+                        if filtered_history_df.empty:
+                            st.info("Không có dữ liệu trong khoảng ngày đã chọn.")
+                        else:
+                            for column in [
+                                "us_aqi",
+                                "pm2_5",
+                                "pm10",
+                                "ozone",
+                                "nitrogen_dioxide",
+                            ]:
+                                if column not in filtered_history_df.columns:
+                                    filtered_history_df[column] = pd.NA
+
+                            valid_aqi = pd.to_numeric(
+                                filtered_history_df["us_aqi"],
+                                errors="coerce",
+                            ).dropna()
+
+                            average_history_aqi = (
+                                valid_aqi.mean() if not valid_aqi.empty else pd.NA
+                            )
+                            minimum_history_aqi = (
+                                valid_aqi.min() if not valid_aqi.empty else pd.NA
+                            )
+                            maximum_history_aqi = (
+                                valid_aqi.max() if not valid_aqi.empty else pd.NA
+                            )
+
+                            worst_time_text = "N/A"
+                            if not valid_aqi.empty:
+                                worst_index = pd.to_numeric(
+                                    filtered_history_df["us_aqi"],
+                                    errors="coerce",
+                                ).idxmax()
+                                worst_time_text = format_datetime(
+                                    filtered_history_df.loc[
+                                        worst_index,
+                                        "forecast_time",
+                                    ]
+                                )
+
+                            (
+                                history_metric_1,
+                                history_metric_2,
+                                history_metric_3,
+                                history_metric_4,
+                            ) = st.columns(4)
+
+                            history_metric_1.metric(
+                                "Số ngày có dữ liệu",
+                                filtered_history_df["_history_date"].nunique(),
+                            )
+                            history_metric_2.metric(
+                                "AQI trung bình",
+                                format_number(
+                                    average_history_aqi,
+                                    1,
+                                ),
+                            )
+                            history_metric_3.metric(
+                                "AQI thấp nhất",
+                                format_number(
+                                    minimum_history_aqi,
+                                    0,
+                                ),
+                            )
+                            history_metric_4.metric(
+                                "AQI cao nhất",
+                                format_number(
+                                    maximum_history_aqi,
+                                    0,
+                                ),
+                            )
+
+                            st.caption(
+                                "Thời điểm AQI cao nhất: "
+                                f"{worst_time_text} · "
+                                f"{len(filtered_history_df):,} "
+                                "bản ghi theo giờ."
+                            )
+
+                            render_aqi_legend()
+
+                            history_view_mode = st.radio(
+                                "Kiểu hiển thị AQI",
+                                options=[
+                                    "Theo giờ",
+                                    "Theo ngày",
+                                ],
+                                horizontal=True,
+                                key=(f"history_view_{selected_history_point}"),
+                            )
+
+                            daily_summary_df = (
+                                filtered_history_df.groupby(
+                                    "_history_date",
+                                    as_index=False,
+                                )
+                                .agg(
+                                    average_us_aqi=(
+                                        "us_aqi",
+                                        "mean",
+                                    ),
+                                    minimum_us_aqi=(
+                                        "us_aqi",
+                                        "min",
+                                    ),
+                                    maximum_us_aqi=(
+                                        "us_aqi",
+                                        "max",
+                                    ),
+                                    available_hours=(
+                                        "forecast_time",
+                                        "nunique",
+                                    ),
+                                    average_pm2_5=(
+                                        "pm2_5",
+                                        "mean",
+                                    ),
+                                    maximum_pm2_5=(
+                                        "pm2_5",
+                                        "max",
+                                    ),
+                                    average_pm10=(
+                                        "pm10",
+                                        "mean",
+                                    ),
+                                    maximum_pm10=(
+                                        "pm10",
+                                        "max",
+                                    ),
+                                    average_ozone=(
+                                        "ozone",
+                                        "mean",
+                                    ),
+                                    maximum_ozone=(
+                                        "ozone",
+                                        "max",
+                                    ),
+                                )
+                                .sort_values("_history_date")
+                            )
+
+                            numeric_daily_columns = [
+                                column
+                                for column in (daily_summary_df.columns)
+                                if column != "_history_date"
+                            ]
+                            daily_summary_df[numeric_daily_columns] = daily_summary_df[
+                                numeric_daily_columns
+                            ].round(1)
+
+                            if history_view_mode == "Theo giờ":
+                                st.markdown("#### Diễn biến AQI theo giờ")
+                                st.altair_chart(
+                                    build_aqi_chart(
+                                        filtered_history_df,
+                                        height=460,
+                                    ),
+                                    use_container_width=True,
+                                )
+                            else:
+                                st.markdown("#### Tổng hợp AQI theo ngày")
+                                daily_chart_df = (
+                                    daily_summary_df[
+                                        [
+                                            "_history_date",
+                                            "average_us_aqi",
+                                            "maximum_us_aqi",
+                                        ]
+                                    ]
+                                    .rename(
+                                        columns={
+                                            "_history_date": ("Ngày"),
+                                            "average_us_aqi": ("AQI trung bình"),
+                                            "maximum_us_aqi": ("AQI cao nhất"),
+                                        }
+                                    )
+                                    .melt(
+                                        id_vars=["Ngày"],
+                                        var_name=("Loại chỉ số"),
+                                        value_name="AQI",
+                                    )
+                                )
+
+                                daily_chart = (
+                                    alt.Chart(daily_chart_df)
+                                    .mark_line(
+                                        point=True,
+                                        strokeWidth=3,
+                                    )
+                                    .encode(
+                                        x=alt.X(
+                                            "Ngày:T",
+                                            title="Ngày",
+                                        ),
+                                        y=alt.Y(
+                                            "AQI:Q",
+                                            title=("Chỉ số AQI"),
+                                        ),
+                                        color=alt.Color(
+                                            "Loại chỉ số:N",
+                                            title=None,
+                                        ),
+                                        tooltip=[
+                                            alt.Tooltip(
+                                                "Ngày:T",
+                                                title="Ngày",
+                                                format=("%d/%m/%Y"),
+                                            ),
+                                            alt.Tooltip(
+                                                ("Loại chỉ số:N"),
+                                                title=("Chỉ số"),
+                                            ),
+                                            alt.Tooltip(
+                                                "AQI:Q",
+                                                format=".1f",
+                                            ),
+                                        ],
+                                    )
+                                    .properties(height=440)
+                                    .interactive()
+                                )
+                                st.altair_chart(
+                                    daily_chart,
+                                    use_container_width=True,
+                                )
+
+                            pollutant_columns = [
+                                column
+                                for column in [
+                                    "pm2_5",
+                                    "pm10",
+                                    "ozone",
+                                    "nitrogen_dioxide",
+                                ]
+                                if column in filtered_history_df.columns
+                            ]
+
+                            if pollutant_columns:
+                                st.markdown("#### Diễn biến các chất ô nhiễm")
+                                st.altair_chart(
+                                    build_pollutant_chart(
+                                        filtered_history_df,
+                                        pollutant_columns,
+                                        height=420,
+                                    ),
+                                    use_container_width=True,
+                                )
+
+                            st.markdown("#### Bảng tổng hợp theo ngày")
+
+                            daily_display_df = daily_summary_df.rename(
+                                columns={
+                                    "_history_date": "Ngày",
+                                    "average_us_aqi": ("AQI trung bình"),
+                                    "minimum_us_aqi": ("AQI thấp nhất"),
+                                    "maximum_us_aqi": ("AQI cao nhất"),
+                                    "available_hours": ("Số giờ có dữ liệu"),
+                                    "average_pm2_5": ("PM2.5 trung bình"),
+                                    "maximum_pm2_5": ("PM2.5 cao nhất"),
+                                    "average_pm10": ("PM10 trung bình"),
+                                    "maximum_pm10": ("PM10 cao nhất"),
+                                    "average_ozone": ("O₃ trung bình"),
+                                    "maximum_ozone": ("O₃ cao nhất"),
+                                }
+                            )
+                            daily_display_df["Ngày"] = daily_display_df["Ngày"].apply(
+                                lambda value: pd.Timestamp(value).strftime("%d/%m/%Y")
+                            )
+
+                            st.dataframe(
+                                daily_display_df,
+                                width="stretch",
+                                hide_index=True,
+                            )
+
+                            history_download_df = filtered_history_df[
+                                [
+                                    column
+                                    for column in [
+                                        "forecast_time",
+                                        "location_id",
+                                        "location_name",
+                                        "point_id",
+                                        "point_name",
+                                        "pm2_5",
+                                        "pm10",
+                                        "ozone",
+                                        "nitrogen_dioxide",
+                                        "sulphur_dioxide",
+                                        "carbon_monoxide",
+                                        "us_aqi",
+                                        "source",
+                                        "batch_id",
+                                    ]
+                                    if column in filtered_history_df.columns
+                                ]
+                            ].copy()
+                            if "forecast_time" in history_download_df.columns:
+                                history_download_df["forecast_time"] = (
+                                    history_download_df["forecast_time"].apply(
+                                        format_datetime
+                                    )
+                                )
+
+                            download_1, download_2 = st.columns(2)
+                            with download_1:
+                                st.download_button(
+                                    ("Tải dữ liệu theo giờ"),
+                                    data=(
+                                        history_download_df.to_csv(index=False).encode(
+                                            "utf-8-sig"
+                                        )
+                                    ),
+                                    file_name=(
+                                        "aqi_history_hourly_"
+                                        f"{selected_history_point}_"
+                                        f"{selected_start_date}_"
+                                        f"{selected_end_date}.csv"
+                                    ),
+                                    mime="text/csv",
+                                    use_container_width=True,
+                                    key=("download_history_hourly"),
+                                )
+
+                            with download_2:
+                                st.download_button(
+                                    ("Tải tổng hợp theo ngày"),
+                                    data=(
+                                        daily_display_df.to_csv(index=False).encode(
+                                            "utf-8-sig"
+                                        )
+                                    ),
+                                    file_name=(
+                                        "aqi_history_daily_"
+                                        f"{selected_history_point}_"
+                                        f"{selected_start_date}_"
+                                        f"{selected_end_date}.csv"
+                                    ),
+                                    mime="text/csv",
+                                    use_container_width=True,
+                                    key=("download_history_daily"),
+                                )
+
+                            st.caption(
+                                "Dữ liệu lịch sử là "
+                                "dữ liệu mô hình Open-Meteo "
+                                "đã được pipeline lưu tại "
+                                "thời điểm trước đó, không "
+                                "phải số đo chính thức từ "
+                                "trạm quan trắc."
+                            )
+
+
+# -----------------------------------------------------------------------------
+# Trang 5: Cảnh báo
 # -----------------------------------------------------------------------------
 
 
 with alert_tab:
-    st.subheader(
-        "Cảnh báo chất lượng không khí"
-    )
+    st.subheader("Cảnh báo chất lượng không khí")
     st.caption(
         "Theo dõi các điểm có AQI vượt ngưỡng và lọc "
         "theo mức độ, tỉnh/thành hoặc trạng thái."
@@ -3251,13 +3442,9 @@ with alert_tab:
 
     try:
         alert_payload = load_alerts(snapshot_url)
-        alert_df = records_to_dataframe(
-            alert_payload.get("data", [])
-        )
+        alert_df = records_to_dataframe(alert_payload.get("data", []))
     except AirQualitySnapshotError as error:
-        st.warning(
-            "Dữ liệu cảnh báo đang tạm thời không truy cập được."
-        )
+        st.warning("Dữ liệu cảnh báo đang tạm thời không truy cập được.")
         st.caption(str(error))
         if st.button(
             "Thử tải lại cảnh báo",
@@ -3268,33 +3455,23 @@ with alert_tab:
         alert_df = pd.DataFrame()
 
     if alert_df.empty:
-        st.info(
-            "Không có cảnh báo trong bản dữ liệu hiện tại."
-        )
+        st.info("Không có cảnh báo trong bản dữ liệu hiện tại.")
     else:
         if "point_id" in alert_df.columns:
             alert_df["point_name"] = (
-                alert_df["point_id"]
-                .astype(str)
-                .map(point_name_lookup)
+                alert_df["point_id"].astype(str).map(point_name_lookup)
             )
             alert_df["point_name"] = alert_df.apply(
                 lambda row: clean_text(
                     row.get("point_name"),
-                    get_point_display_name(
-                        clean_text(
-                            row.get("point_id")
-                        )
-                    ),
+                    get_point_display_name(clean_text(row.get("point_id"))),
                 ),
                 axis=1,
             )
 
         if "location_id" in alert_df.columns:
             alert_df["location_label"] = (
-                alert_df["location_id"]
-                .astype(str)
-                .map(location_labels)
+                alert_df["location_id"].astype(str).map(location_labels)
             )
             alert_df["location_label"] = alert_df.apply(
                 lambda row: clean_text(
@@ -3309,35 +3486,17 @@ with alert_tab:
 
         total_alerts = len(alert_df)
         critical_alerts = (
-            int(
-                alert_df["severity"]
-                .astype(str)
-                .str.upper()
-                .eq("CRITICAL")
-                .sum()
-            )
+            int(alert_df["severity"].astype(str).str.upper().eq("CRITICAL").sum())
             if "severity" in alert_df.columns
             else 0
         )
         high_alerts = (
-            int(
-                alert_df["severity"]
-                .astype(str)
-                .str.upper()
-                .eq("HIGH")
-                .sum()
-            )
+            int(alert_df["severity"].astype(str).str.upper().eq("HIGH").sum())
             if "severity" in alert_df.columns
             else 0
         )
         open_alerts = (
-            int(
-                alert_df["status"]
-                .astype(str)
-                .str.upper()
-                .eq("OPEN")
-                .sum()
-            )
+            int(alert_df["status"].astype(str).str.upper().eq("OPEN").sum())
             if "status" in alert_df.columns
             else total_alerts
         )
@@ -3386,11 +3545,7 @@ with alert_tab:
         with filter_2:
             alert_location_values = (
                 sorted(
-                    alert_df["location_label"]
-                    .dropna()
-                    .astype(str)
-                    .unique()
-                    .tolist()
+                    alert_df["location_label"].dropna().astype(str).unique().tolist()
                 )
                 if "location_label" in alert_df.columns
                 else []
@@ -3424,9 +3579,7 @@ with alert_tab:
                     *alert_status_values,
                 ],
                 format_func=lambda value: (
-                    value
-                    if value.startswith("Tất cả")
-                    else translate_status(value)
+                    value if value.startswith("Tất cả") else translate_status(value)
                 ),
                 key="alert_status_filter",
             )
@@ -3441,23 +3594,15 @@ with alert_tab:
                 .isin(selected_severities)
             ].copy()
         elif severity_values:
-            filtered_alert_df = filtered_alert_df.iloc[
-                0:0
-            ].copy()
+            filtered_alert_df = filtered_alert_df.iloc[0:0].copy()
 
-        if (
-            selected_alert_location
-            != "Tất cả tỉnh/thành"
-        ):
+        if selected_alert_location != "Tất cả tỉnh/thành":
             filtered_alert_df = filtered_alert_df.loc[
-                filtered_alert_df[
-                    "location_label"
-                ].eq(selected_alert_location)
+                filtered_alert_df["location_label"].eq(selected_alert_location)
             ].copy()
 
         if (
-            selected_alert_status
-            != "Tất cả trạng thái"
+            selected_alert_status != "Tất cả trạng thái"
             and "status" in filtered_alert_df.columns
         ):
             filtered_alert_df = filtered_alert_df.loc[
@@ -3467,9 +3612,7 @@ with alert_tab:
                 .eq(selected_alert_status)
             ].copy()
 
-        st.markdown(
-            "#### Danh sách cảnh báo"
-        )
+        st.markdown("#### Danh sách cảnh báo")
 
         alert_display_columns = [
             column
@@ -3485,24 +3628,19 @@ with alert_tab:
             ]
             if column in filtered_alert_df.columns
         ]
-        alert_display_df = filtered_alert_df[
-            alert_display_columns
-        ].copy()
+        alert_display_df = filtered_alert_df[alert_display_columns].copy()
 
         if "alert_time" in alert_display_df.columns:
-            alert_display_df["alert_time"] = (
-                alert_display_df["alert_time"]
-                .apply(format_datetime)
+            alert_display_df["alert_time"] = alert_display_df["alert_time"].apply(
+                format_datetime
             )
         if "severity" in alert_display_df.columns:
-            alert_display_df["severity"] = (
-                alert_display_df["severity"]
-                .apply(translate_alert_severity)
+            alert_display_df["severity"] = alert_display_df["severity"].apply(
+                translate_alert_severity
             )
         if "status" in alert_display_df.columns:
-            alert_display_df["status"] = (
-                alert_display_df["status"]
-                .apply(translate_status)
+            alert_display_df["status"] = alert_display_df["status"].apply(
+                translate_status
             )
 
         alert_display_df = alert_display_df.rename(
@@ -3519,9 +3657,7 @@ with alert_tab:
         )
 
         if alert_display_df.empty:
-            st.info(
-                "Không có cảnh báo phù hợp với bộ lọc hiện tại."
-            )
+            st.info("Không có cảnh báo phù hợp với bộ lọc hiện tại.")
         else:
             st.dataframe(
                 alert_display_df,
@@ -3530,9 +3666,7 @@ with alert_tab:
             )
             st.download_button(
                 "Tải danh sách cảnh báo",
-                data=alert_display_df.to_csv(
-                    index=False
-                ).encode("utf-8-sig"),
+                data=alert_display_df.to_csv(index=False).encode("utf-8-sig"),
                 file_name="air_quality_alerts.csv",
                 mime="text/csv",
                 key="download_alerts",
@@ -3540,26 +3674,19 @@ with alert_tab:
 
 
 # -----------------------------------------------------------------------------
-# Trang 5: Trạng thái hệ thống
+# Trang 6: Trạng thái hệ thống
 # -----------------------------------------------------------------------------
 
 
 with operations_tab:
-    st.subheader(
-        "Trạng thái hoạt động của hệ thống"
-    )
+    st.subheader("Trạng thái hoạt động của hệ thống")
     st.caption(
-        "Theo dõi các bước xử lý, số lượng dữ liệu và "
-        "kết quả kiểm tra chất lượng."
+        "Theo dõi các bước xử lý, số lượng dữ liệu và kết quả kiểm tra chất lượng."
     )
 
     try:
-        pipeline_payload = load_pipeline_health(
-            snapshot_url
-        )
-        pipeline_df = records_to_dataframe(
-            pipeline_payload.get("data", [])
-        )
+        pipeline_payload = load_pipeline_health(snapshot_url)
+        pipeline_df = records_to_dataframe(pipeline_payload.get("data", []))
         pipeline_status = clean_text(
             pipeline_payload.get("status"),
             "UNKNOWN",
@@ -3569,9 +3696,7 @@ with operations_tab:
             "UNKNOWN",
         )
     except AirQualitySnapshotError as error:
-        st.warning(
-            "Trạng thái quy trình xử lý đang tạm thời không truy cập được."
-        )
+        st.warning("Trạng thái quy trình xử lý đang tạm thời không truy cập được.")
         st.caption(str(error))
         pipeline_payload = {}
         pipeline_df = pd.DataFrame()
@@ -3579,32 +3704,19 @@ with operations_tab:
         pipeline_batch_id = "UNKNOWN"
 
     failed_stage_count = (
-        int(
-            (
-                ~pipeline_df["status"]
-                .astype(str)
-                .str.upper()
-                .eq("SUCCESS")
-            ).sum()
-        )
-        if (
-            "status" in pipeline_df.columns
-            and not pipeline_df.empty
-        )
+        int((~pipeline_df["status"].astype(str).str.upper().eq("SUCCESS")).sum())
+        if ("status" in pipeline_df.columns and not pipeline_df.empty)
         else 0
     )
     total_duration = (
-        pipeline_df["duration_seconds"]
-        .sum(min_count=1)
-        if (
-            "duration_seconds"
-            in pipeline_df.columns
-            and not pipeline_df.empty
-        )
+        pipeline_df["duration_seconds"].sum(min_count=1)
+        if ("duration_seconds" in pipeline_df.columns and not pipeline_df.empty)
         else pd.NA
     )
 
-    pipeline_metric_1, pipeline_metric_2, pipeline_metric_3, pipeline_metric_4 = st.columns(4)
+    pipeline_metric_1, pipeline_metric_2, pipeline_metric_3, pipeline_metric_4 = (
+        st.columns(4)
+    )
     pipeline_metric_1.metric(
         "Quy trình xử lý",
         translate_status(pipeline_status),
@@ -3629,9 +3741,7 @@ with operations_tab:
         + " giây",
     )
 
-    st.caption(
-        f"Mã lần xử lý hiện tại: `{pipeline_batch_id}`"
-    )
+    st.caption(f"Mã lần xử lý hiện tại: `{pipeline_batch_id}`")
 
     pipeline_display_df = pd.DataFrame()
 
@@ -3651,30 +3761,24 @@ with operations_tab:
             ]
             if column in pipeline_df.columns
         ]
-        pipeline_display_df = pipeline_df[
-            pipeline_display_columns
-        ].copy()
+        pipeline_display_df = pipeline_df[pipeline_display_columns].copy()
 
         if "stage_name" in pipeline_display_df.columns:
-            pipeline_display_df["stage_name"] = (
-                pipeline_display_df["stage_name"]
-                .apply(translate_stage)
+            pipeline_display_df["stage_name"] = pipeline_display_df["stage_name"].apply(
+                translate_stage
             )
         if "status" in pipeline_display_df.columns:
-            pipeline_display_df["status"] = (
-                pipeline_display_df["status"]
-                .apply(translate_status)
+            pipeline_display_df["status"] = pipeline_display_df["status"].apply(
+                translate_status
             )
         for datetime_column in [
             "started_at",
             "finished_at",
         ]:
             if datetime_column in pipeline_display_df.columns:
-                pipeline_display_df[datetime_column] = (
-                    pipeline_display_df[
-                        datetime_column
-                    ].apply(format_datetime)
-                )
+                pipeline_display_df[datetime_column] = pipeline_display_df[
+                    datetime_column
+                ].apply(format_datetime)
 
         pipeline_display_df = pipeline_display_df.rename(
             columns={
@@ -3696,29 +3800,19 @@ with operations_tab:
         )
         st.download_button(
             "Tải trạng thái quy trình xử lý",
-            data=pipeline_display_df.to_csv(
-                index=False
-            ).encode("utf-8-sig"),
+            data=pipeline_display_df.to_csv(index=False).encode("utf-8-sig"),
             file_name="pipeline_health.csv",
             mime="text/csv",
             key="download_pipeline_health",
         )
     else:
-        st.info(
-            "Chưa có dữ liệu về quy trình xử lý."
-        )
+        st.info("Chưa có dữ liệu về quy trình xử lý.")
 
-    st.subheader(
-        "Kiểm tra chất lượng dữ liệu"
-    )
+    st.subheader("Kiểm tra chất lượng dữ liệu")
 
     try:
-        quality_payload = load_data_quality(
-            snapshot_url
-        )
-        quality_df = records_to_dataframe(
-            quality_payload.get("data", [])
-        )
+        quality_payload = load_data_quality(snapshot_url)
+        quality_df = records_to_dataframe(quality_payload.get("data", []))
     except AirQualitySnapshotError as error:
         st.warning(
             "Kết quả kiểm tra chất lượng dữ liệu đang tạm thời không truy cập được."
@@ -3740,17 +3834,14 @@ with operations_tab:
         0,
     )
     bad_record_count = (
-        quality_df["bad_records_count"]
-        .sum(min_count=1)
-        if (
-            "bad_records_count"
-            in quality_df.columns
-            and not quality_df.empty
-        )
+        quality_df["bad_records_count"].sum(min_count=1)
+        if ("bad_records_count" in quality_df.columns and not quality_df.empty)
         else 0
     )
 
-    quality_metric_1, quality_metric_2, quality_metric_3, quality_metric_4 = st.columns(4)
+    quality_metric_1, quality_metric_2, quality_metric_3, quality_metric_4 = st.columns(
+        4
+    )
     quality_metric_1.metric(
         "Chất lượng dữ liệu",
         translate_status(quality_status),
@@ -3782,19 +3873,15 @@ with operations_tab:
             ]
             if column in quality_df.columns
         ]
-        quality_display_df = quality_df[
-            quality_display_columns
-        ].copy()
+        quality_display_df = quality_df[quality_display_columns].copy()
 
         if "status" in quality_display_df.columns:
-            quality_display_df["status"] = (
-                quality_display_df["status"]
-                .apply(translate_status)
+            quality_display_df["status"] = quality_display_df["status"].apply(
+                translate_status
             )
         if "checked_at" in quality_display_df.columns:
-            quality_display_df["checked_at"] = (
-                quality_display_df["checked_at"]
-                .apply(format_datetime)
+            quality_display_df["checked_at"] = quality_display_df["checked_at"].apply(
+                format_datetime
             )
 
         quality_display_df = quality_display_df.rename(
@@ -3814,17 +3901,13 @@ with operations_tab:
         )
         st.download_button(
             "Tải kết quả kiểm tra chất lượng",
-            data=quality_display_df.to_csv(
-                index=False
-            ).encode("utf-8-sig"),
+            data=quality_display_df.to_csv(index=False).encode("utf-8-sig"),
             file_name="data_quality.csv",
             mime="text/csv",
             key="download_data_quality",
         )
     else:
-        st.info(
-            "Chưa có kết quả kiểm tra chất lượng dữ liệu."
-        )
+        st.info("Chưa có kết quả kiểm tra chất lượng dữ liệu.")
 
     with st.expander(
         "Thông tin kỹ thuật",
@@ -3836,15 +3919,9 @@ with operations_tab:
             "batch_id": batch_id,
             "record_count": record_count,
             "point_count": len(point_ids),
-            "location_count": len(
-                location_summary_df
-            ),
-            "latest_forecast_time": format_datetime(
-                latest_forecast_time
-            ),
-            "data_updated_at": format_datetime(
-                data_updated_at
-            ),
+            "location_count": len(location_summary_df),
+            "latest_forecast_time": format_datetime(latest_forecast_time),
+            "data_updated_at": format_datetime(data_updated_at),
         }
         st.json(technical_health)
 
