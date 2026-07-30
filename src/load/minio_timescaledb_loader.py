@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import os
 from pathlib import Path
 from typing import Any
 
-import pandas as pd
-import psycopg
 from dotenv import load_dotenv
 from minio import Minio
+import pandas as pd
+import psycopg
 from psycopg import sql
 
 from src.quality.minio_quality_processor import (
@@ -25,7 +25,6 @@ from src.utils.minio_object_io import (
     put_json_object,
 )
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 load_dotenv(
@@ -34,9 +33,7 @@ load_dotenv(
 )
 
 
-FACT_TABLE_NAME = (
-    "fact_air_quality_hourly"
-)
+FACT_TABLE_NAME = "fact_air_quality_hourly"
 
 MANDATORY_DATAFRAME_COLUMNS: set[str] = {
     "point_id",
@@ -56,9 +53,7 @@ LOGICAL_KEY_COLUMNS: tuple[str, ...] = (
 )
 
 
-class MinioTimescaleDBLoadError(
-    RuntimeError
-):
+class MinioTimescaleDBLoadError(RuntimeError):
     """Lỗi khi load Clean Parquet từ MinIO vào TimescaleDB."""
 
 
@@ -68,9 +63,7 @@ def _first_environment_value(
     required: bool = True,
 ) -> str:
     for variable_name in variable_names:
-        value = os.getenv(
-            variable_name
-        )
+        value = os.getenv(variable_name)
 
         if value is not None:
             cleaned_value = value.strip()
@@ -82,13 +75,10 @@ def _first_environment_value(
         return default
 
     if required:
-        names_text = ", ".join(
-            variable_names
-        )
+        names_text = ", ".join(variable_names)
 
         raise MinioTimescaleDBLoadError(
-            "Thiếu biến môi trường database. "
-            f"Cần một trong các biến: {names_text}"
+            f"Thiếu biến môi trường database. Cần một trong các biến: {names_text}"
         )
 
     return ""
@@ -121,9 +111,7 @@ class TimescaleDBSettings:
         )
 
         try:
-            port = int(
-                raw_port
-            )
+            port = int(raw_port)
         except ValueError as error:
             raise MinioTimescaleDBLoadError(
                 "Database port phải là số nguyên."
@@ -170,8 +158,7 @@ class TimescaleDBSettings:
             )
         except psycopg.Error as error:
             raise MinioTimescaleDBLoadError(
-                "Không thể kết nối TimescaleDB: "
-                f"{error}"
+                f"Không thể kết nối TimescaleDB: {error}"
             ) from error
 
 
@@ -183,35 +170,21 @@ def prepare_fact_dataframe(
         dataframe,
         pd.DataFrame,
     ):
-        raise TypeError(
-            "dataframe phải là Pandas DataFrame."
-        )
+        raise TypeError("dataframe phải là Pandas DataFrame.")
 
     if dataframe.empty:
-        raise MinioTimescaleDBLoadError(
-            "Clean DataFrame không có record."
-        )
+        raise MinioTimescaleDBLoadError("Clean DataFrame không có record.")
 
-    missing_columns = (
-        MANDATORY_DATAFRAME_COLUMNS
-        - set(dataframe.columns)
-    )
+    missing_columns = MANDATORY_DATAFRAME_COLUMNS - set(dataframe.columns)
 
     if missing_columns:
-        missing_text = ", ".join(
-            sorted(missing_columns)
-        )
+        missing_text = ", ".join(sorted(missing_columns))
 
         raise MinioTimescaleDBLoadError(
-            "Clean DataFrame thiếu các cột: "
-            f"{missing_text}"
+            f"Clean DataFrame thiếu các cột: {missing_text}"
         )
 
-    prepared = (
-        dataframe
-        .copy()
-        .reset_index(drop=True)
-    )
+    prepared = dataframe.copy().reset_index(drop=True)
 
     for column_name in (
         "point_id",
@@ -219,60 +192,32 @@ def prepare_fact_dataframe(
         "source",
         "batch_id",
     ):
-        prepared[column_name] = (
-            prepared[column_name]
-            .astype("string")
-            .str.strip()
-        )
+        prepared[column_name] = prepared[column_name].astype("string").str.strip()
 
-        invalid_mask = (
-            prepared[column_name].isna()
-            | prepared[column_name].eq("")
-        )
+        invalid_mask = prepared[column_name].isna() | prepared[column_name].eq("")
 
         if invalid_mask.any():
-            raise MinioTimescaleDBLoadError(
-                f"{column_name} có giá trị rỗng."
-            )
+            raise MinioTimescaleDBLoadError(f"{column_name} có giá trị rỗng.")
 
-    prepared["forecast_time"] = (
-        pd.to_datetime(
-            prepared["forecast_time"],
-            errors="coerce",
-            utc=True,
-        )
+    prepared["forecast_time"] = pd.to_datetime(
+        prepared["forecast_time"],
+        errors="coerce",
+        utc=True,
     )
 
-    if prepared[
-        "forecast_time"
-    ].isna().any():
-        raise MinioTimescaleDBLoadError(
-            "forecast_time có timestamp không hợp lệ."
-        )
+    if prepared["forecast_time"].isna().any():
+        raise MinioTimescaleDBLoadError("forecast_time có timestamp không hợp lệ.")
 
-    prepared["ingested_at"] = (
-        pd.to_datetime(
-            prepared["ingested_at"],
-            errors="coerce",
-            utc=True,
-        )
+    prepared["ingested_at"] = pd.to_datetime(
+        prepared["ingested_at"],
+        errors="coerce",
+        utc=True,
     )
 
-    if prepared[
-        "ingested_at"
-    ].isna().any():
-        raise MinioTimescaleDBLoadError(
-            "ingested_at có timestamp không hợp lệ."
-        )
+    if prepared["ingested_at"].isna().any():
+        raise MinioTimescaleDBLoadError("ingested_at có timestamp không hợp lệ.")
 
-    distinct_batch_ids = sorted(
-        prepared[
-            "batch_id"
-        ]
-        .dropna()
-        .unique()
-        .tolist()
-    )
+    distinct_batch_ids = sorted(prepared["batch_id"].dropna().unique().tolist())
 
     if len(distinct_batch_ids) != 1:
         raise MinioTimescaleDBLoadError(
@@ -282,46 +227,28 @@ def prepare_fact_dataframe(
         )
 
     if expected_batch_id is not None:
-        normalized_expected_batch_id = (
-            str(
-                expected_batch_id
-            )
-            .strip()
-        )
+        normalized_expected_batch_id = str(expected_batch_id).strip()
 
         if not normalized_expected_batch_id:
-            raise MinioTimescaleDBLoadError(
-                "expected_batch_id không được rỗng."
-            )
+            raise MinioTimescaleDBLoadError("expected_batch_id không được rỗng.")
 
-        actual_batch_id = str(
-            distinct_batch_ids[0]
-        )
+        actual_batch_id = str(distinct_batch_ids[0])
 
-        if (
-            actual_batch_id
-            != normalized_expected_batch_id
-        ):
+        if actual_batch_id != normalized_expected_batch_id:
             raise MinioTimescaleDBLoadError(
                 "batch_id trong Clean Parquet "
                 "không khớp Data Quality summary. "
                 f"Expected: {normalized_expected_batch_id}; "
                 f"Actual: {actual_batch_id}"
             )
-    
-    duplicate_mask = (
-        prepared.duplicated(
-            subset=list(
-                LOGICAL_KEY_COLUMNS
-            ),
-            keep=False,
-        )
+
+    duplicate_mask = prepared.duplicated(
+        subset=list(LOGICAL_KEY_COLUMNS),
+        keep=False,
     )
 
     if duplicate_mask.any():
-        duplicate_count = int(
-            duplicate_mask.sum()
-        )
+        duplicate_count = int(duplicate_mask.sum())
 
         raise MinioTimescaleDBLoadError(
             "Clean DataFrame có "
@@ -345,39 +272,24 @@ def _get_table_columns(
               AND table_name = %s
             ORDER BY ordinal_position
             """,
-            (
-                table_name,
-            ),
+            (table_name,),
         )
 
         rows = cursor.fetchall()
 
     if not rows:
-        raise MinioTimescaleDBLoadError(
-            f"Không tìm thấy bảng {table_name}."
-        )
+        raise MinioTimescaleDBLoadError(f"Không tìm thấy bảng {table_name}.")
 
-    return {
-        str(row[0])
-        for row in rows
-    }
+    return {str(row[0]) for row in rows}
 
 
 def _validate_dimensions(
     connection: psycopg.Connection,
     dataframe: pd.DataFrame,
 ) -> None:
-    location_ids = sorted(
-        dataframe[
-            "location_id"
-        ].dropna().unique().tolist()
-    )
+    location_ids = sorted(dataframe["location_id"].dropna().unique().tolist())
 
-    point_ids = sorted(
-        dataframe[
-            "point_id"
-        ].dropna().unique().tolist()
-    )
+    point_ids = sorted(dataframe["point_id"].dropna().unique().tolist())
 
     with connection.cursor() as cursor:
         cursor.execute(
@@ -386,15 +298,10 @@ def _validate_dimensions(
             FROM dim_location
             WHERE location_id = ANY(%s)
             """,
-            (
-                location_ids,
-            ),
+            (location_ids,),
         )
 
-        existing_locations = {
-            str(row[0])
-            for row in cursor.fetchall()
-        }
+        existing_locations = {str(row[0]) for row in cursor.fetchall()}
 
         cursor.execute(
             """
@@ -402,44 +309,27 @@ def _validate_dimensions(
             FROM dim_monitoring_point
             WHERE point_id = ANY(%s)
             """,
-            (
-                point_ids,
-            ),
+            (point_ids,),
         )
 
-        existing_points = {
-            str(row[0])
-            for row in cursor.fetchall()
-        }
+        existing_points = {str(row[0]) for row in cursor.fetchall()}
 
-    missing_locations = (
-        set(location_ids)
-        - existing_locations
-    )
+    missing_locations = set(location_ids) - existing_locations
 
-    missing_points = (
-        set(point_ids)
-        - existing_points
-    )
+    missing_points = set(point_ids) - existing_points
 
     if missing_locations:
-        missing_text = ", ".join(
-            sorted(missing_locations)
-        )
+        missing_text = ", ".join(sorted(missing_locations))
 
         raise MinioTimescaleDBLoadError(
-            "dim_location thiếu các location_id: "
-            f"{missing_text}"
+            f"dim_location thiếu các location_id: {missing_text}"
         )
 
     if missing_points:
-        missing_text = ", ".join(
-            sorted(missing_points)
-        )
+        missing_text = ", ".join(sorted(missing_points))
 
         raise MinioTimescaleDBLoadError(
-            "dim_monitoring_point thiếu các point_id: "
-            f"{missing_text}"
+            f"dim_monitoring_point thiếu các point_id: {missing_text}"
         )
 
 
@@ -453,8 +343,7 @@ def _resolve_time_column(
         return "datetime"
 
     raise MinioTimescaleDBLoadError(
-        "fact_air_quality_hourly thiếu "
-        "forecast_time hoặc datetime."
+        "fact_air_quality_hourly thiếu forecast_time hoặc datetime."
     )
 
 
@@ -463,37 +352,35 @@ def _build_column_mapping(
     dataframe_columns: set[str],
     time_column: str,
 ) -> list[tuple[str, str]]:
-    candidates: list[
-    tuple[str, str]
-] = [
-    (
-        "point_id",
-        "point_id",
-    ),
-    (
-        "location_id",
-        "location_id",
-    ),
-    (
-        "point_name",
-        "point_name",
-    ),
-    (
-        "point_type",
-        "point_type",
-    ),
-    (
-        "latitude",
-        "latitude",
-    ),
-    (
-        "longitude",
-        "longitude",
-    ),
-    (
-        time_column,
-        "forecast_time",
-    ),
+    candidates: list[tuple[str, str]] = [
+        (
+            "point_id",
+            "point_id",
+        ),
+        (
+            "location_id",
+            "location_id",
+        ),
+        (
+            "point_name",
+            "point_name",
+        ),
+        (
+            "point_type",
+            "point_type",
+        ),
+        (
+            "latitude",
+            "latitude",
+        ),
+        (
+            "longitude",
+            "longitude",
+        ),
+        (
+            time_column,
+            "forecast_time",
+        ),
         (
             "pm2_5",
             "pm2_5",
@@ -581,18 +468,10 @@ def _build_column_mapping(
             database_column,
             dataframe_column,
         ) in candidates
-        if (
-            database_column
-            in table_columns
-            and dataframe_column
-            in dataframe_columns
-        )
+        if (database_column in table_columns and dataframe_column in dataframe_columns)
     ]
 
-    mapped_database_columns = {
-        database_column
-        for database_column, _ in mapping
-    }
+    mapped_database_columns = {database_column for database_column, _ in mapping}
 
     mandatory_database_columns = {
         "point_id",
@@ -601,19 +480,13 @@ def _build_column_mapping(
         "source",
     }
 
-    missing_mandatory = (
-        mandatory_database_columns
-        - mapped_database_columns
-    )
+    missing_mandatory = mandatory_database_columns - mapped_database_columns
 
     if missing_mandatory:
-        missing_text = ", ".join(
-            sorted(missing_mandatory)
-        )
+        missing_text = ", ".join(sorted(missing_mandatory))
 
         raise MinioTimescaleDBLoadError(
-            "Không thể map các cột database: "
-            f"{missing_text}"
+            f"Không thể map các cột database: {missing_text}"
         )
 
     return mapping
@@ -623,14 +496,15 @@ def _python_scalar(
     value: Any,
 ) -> Any:
     try:
-        missing_value = pd.isna(
-            value
-        )
+        missing_value = pd.isna(value)
 
-        if isinstance(
-            missing_value,
-            bool,
-        ) and missing_value:
+        if (
+            isinstance(
+                missing_value,
+                bool,
+            )
+            and missing_value
+        ):
             return None
     except (
         TypeError,
@@ -667,29 +541,13 @@ def _existing_logical_keys(
     dataframe: pd.DataFrame,
     time_column: str,
 ) -> set[tuple[str, datetime, str]]:
-    point_ids = (
-        dataframe[
-            "point_id"
-        ].unique().tolist()
-    )
+    point_ids = dataframe["point_id"].unique().tolist()
 
-    sources = (
-        dataframe[
-            "source"
-        ].unique().tolist()
-    )
+    sources = dataframe["source"].unique().tolist()
 
-    minimum_time = (
-        dataframe[
-            "forecast_time"
-        ].min().to_pydatetime()
-    )
+    minimum_time = dataframe["forecast_time"].min().to_pydatetime()
 
-    maximum_time = (
-        dataframe[
-            "forecast_time"
-        ].max().to_pydatetime()
-    )
+    maximum_time = dataframe["forecast_time"].max().to_pydatetime()
 
     query = sql.SQL(
         """
@@ -704,12 +562,8 @@ def _existing_logical_keys(
           AND source = ANY(%s)
         """
     ).format(
-        time_column=sql.Identifier(
-            time_column
-        ),
-        table_name=sql.Identifier(
-            FACT_TABLE_NAME
-        ),
+        time_column=sql.Identifier(time_column),
+        table_name=sql.Identifier(FACT_TABLE_NAME),
     )
 
     with connection.cursor() as cursor:
@@ -728,11 +582,7 @@ def _existing_logical_keys(
     return {
         (
             str(row[0]),
-            pd.Timestamp(
-                row[1]
-            ).tz_convert(
-                "UTC"
-            ).to_pydatetime(),
+            pd.Timestamp(row[1]).tz_convert("UTC").to_pydatetime(),
             str(row[2]),
         )
         for row in rows
@@ -744,13 +594,9 @@ def upsert_fact_dataframe(
     dataframe: pd.DataFrame,
     expected_batch_id: str | None = None,
 ) -> dict[str, Any]:
-    prepared_dataframe = (
-        prepare_fact_dataframe(
-            dataframe,
-            expected_batch_id=(
-                expected_batch_id
-            ),
-        )
+    prepared_dataframe = prepare_fact_dataframe(
+        dataframe,
+        expected_batch_id=(expected_batch_id),
     )
 
     _validate_dimensions(
@@ -758,45 +604,29 @@ def upsert_fact_dataframe(
         dataframe=prepared_dataframe,
     )
 
-    table_columns = (
-        _get_table_columns(
-            connection=connection,
-            table_name=FACT_TABLE_NAME,
-        )
+    table_columns = _get_table_columns(
+        connection=connection,
+        table_name=FACT_TABLE_NAME,
     )
 
-    time_column = (
-        _resolve_time_column(
-            table_columns
-        )
+    time_column = _resolve_time_column(table_columns)
+
+    column_mapping = _build_column_mapping(
+        table_columns=table_columns,
+        dataframe_columns=set(prepared_dataframe.columns),
+        time_column=time_column,
     )
 
-    column_mapping = (
-        _build_column_mapping(
-            table_columns=table_columns,
-            dataframe_columns=set(
-                prepared_dataframe.columns
-            ),
-            time_column=time_column,
-        )
-    )
-
-    existing_keys = (
-        _existing_logical_keys(
-            connection=connection,
-            dataframe=prepared_dataframe,
-            time_column=time_column,
-        )
+    existing_keys = _existing_logical_keys(
+        connection=connection,
+        dataframe=prepared_dataframe,
+        time_column=time_column,
     )
 
     dataframe_keys = [
         (
             str(row.point_id),
-            pd.Timestamp(
-                row.forecast_time
-            ).tz_convert(
-                "UTC"
-            ).to_pydatetime(),
+            pd.Timestamp(row.forecast_time).tz_convert("UTC").to_pydatetime(),
             str(row.source),
         )
         for row in (
@@ -806,21 +636,13 @@ def upsert_fact_dataframe(
                     "forecast_time",
                     "source",
                 ]
-            ].itertuples(
-                index=False
-            )
+            ].itertuples(index=False)
         )
     ]
 
-    updated_rows = sum(
-        key in existing_keys
-        for key in dataframe_keys
-    )
+    updated_rows = sum(key in existing_keys for key in dataframe_keys)
 
-    inserted_rows = (
-        len(prepared_dataframe)
-        - updated_rows
-    )
+    inserted_rows = len(prepared_dataframe) - updated_rows
 
     database_columns = [
         database_column
@@ -847,60 +669,30 @@ def upsert_fact_dataframe(
     update_columns = [
         column_name
         for column_name in database_columns
-        if column_name
-        not in conflict_columns
+        if column_name not in conflict_columns
     ]
 
-    insert_identifiers = sql.SQL(
-        ", "
-    ).join(
-        sql.Identifier(
-            column_name
-        )
-        for column_name
-        in database_columns
+    insert_identifiers = sql.SQL(", ").join(
+        sql.Identifier(column_name) for column_name in database_columns
     )
 
-    placeholders = sql.SQL(
-        ", "
-    ).join(
-        sql.Placeholder()
-        for _ in database_columns
-    )
+    placeholders = sql.SQL(", ").join(sql.Placeholder() for _ in database_columns)
 
-    conflict_identifiers = sql.SQL(
-        ", "
-    ).join(
-        sql.Identifier(
-            column_name
-        )
-        for column_name
-        in conflict_columns
+    conflict_identifiers = sql.SQL(", ").join(
+        sql.Identifier(column_name) for column_name in conflict_columns
     )
 
     if update_columns:
-        update_expression = sql.SQL(
-            ", "
-        ).join(
-            sql.SQL(
-                "{column_name} = "
-                "EXCLUDED.{column_name}"
-            ).format(
-                column_name=sql.Identifier(
-                    column_name
-                )
+        update_expression = sql.SQL(", ").join(
+            sql.SQL("{column_name} = EXCLUDED.{column_name}").format(
+                column_name=sql.Identifier(column_name)
             )
-            for column_name
-            in update_columns
+            for column_name in update_columns
         )
 
-        upsert_action = sql.SQL(
-            "DO UPDATE SET "
-        ) + update_expression
+        upsert_action = sql.SQL("DO UPDATE SET ") + update_expression
     else:
-        upsert_action = sql.SQL(
-            "DO NOTHING"
-        )
+        upsert_action = sql.SQL("DO NOTHING")
 
     query = sql.SQL(
         """
@@ -913,36 +705,19 @@ def upsert_fact_dataframe(
         {upsert_action}
         """
     ).format(
-        table_name=sql.Identifier(
-            FACT_TABLE_NAME
-        ),
-        insert_columns=(
-            insert_identifiers
-        ),
+        table_name=sql.Identifier(FACT_TABLE_NAME),
+        insert_columns=(insert_identifiers),
         placeholders=placeholders,
-        conflict_columns=(
-            conflict_identifiers
-        ),
+        conflict_columns=(conflict_identifiers),
         upsert_action=upsert_action,
     )
 
-    records = (
-        prepared_dataframe[
-            dataframe_columns
-        ].to_dict(
-            orient="records"
-        )
-    )
+    records = prepared_dataframe[dataframe_columns].to_dict(orient="records")
 
     values = [
         tuple(
-            _python_scalar(
-                record[
-                    dataframe_column
-                ]
-            )
-            for dataframe_column
-            in dataframe_columns
+            _python_scalar(record[dataframe_column])
+            for dataframe_column in dataframe_columns
         )
         for record in records
     ]
@@ -956,27 +731,15 @@ def upsert_fact_dataframe(
 
     except psycopg.Error as error:
         raise MinioTimescaleDBLoadError(
-            "Không thể upsert "
-            "fact_air_quality_hourly: "
-            f"{error}"
+            f"Không thể upsert fact_air_quality_hourly: {error}"
         ) from error
 
     return {
-        "processed_rows": (
-            len(prepared_dataframe)
-        ),
-        "inserted_rows": (
-            inserted_rows
-        ),
-        "updated_rows": (
-            updated_rows
-        ),
-        "database_columns": (
-            database_columns
-        ),
-        "time_column": (
-            time_column
-        ),
+        "processed_rows": (len(prepared_dataframe)),
+        "inserted_rows": (inserted_rows),
+        "updated_rows": (updated_rows),
+        "database_columns": (database_columns),
+        "time_column": (time_column),
     }
 
 
@@ -985,21 +748,12 @@ def load_latest_minio_clean_batch(
     minio_client: Minio | None = None,
     database_settings: TimescaleDBSettings | None = None,
 ) -> dict[str, Any]:
-    resolved_minio_settings = (
-        minio_settings
-        or MinioSettings.from_environment()
-    )
+    resolved_minio_settings = minio_settings or MinioSettings.from_environment()
 
-    resolved_minio_client = (
-        minio_client
-        or get_minio_client(
-            resolved_minio_settings
-        )
-    )
+    resolved_minio_client = minio_client or get_minio_client(resolved_minio_settings)
 
     resolved_database_settings = (
-        database_settings
-        or TimescaleDBSettings.from_environment()
+        database_settings or TimescaleDBSettings.from_environment()
     )
 
     ensure_buckets(
@@ -1015,11 +769,7 @@ def load_latest_minio_clean_batch(
         client=resolved_minio_client,
     )
 
-    clean_object_name = (
-        quality_summary.get(
-            "clean_object_name"
-        )
-    )
+    clean_object_name = quality_summary.get("clean_object_name")
 
     if (
         not isinstance(
@@ -1028,10 +778,7 @@ def load_latest_minio_clean_batch(
         )
         or not clean_object_name.strip()
     ):
-        raise MinioTimescaleDBLoadError(
-            "Data Quality summary thiếu "
-            "clean_object_name."
-        )
+        raise MinioTimescaleDBLoadError("Data Quality summary thiếu clean_object_name.")
 
     batch_id = str(
         quality_summary.get(
@@ -1062,43 +809,25 @@ def load_latest_minio_clean_batch(
         )
     ):
         raise MinioTimescaleDBLoadError(
-            "Data Quality summary thiếu "
-            "batch_id hoặc partition."
+            "Data Quality summary thiếu batch_id hoặc partition."
         )
 
-    started_at = datetime.now(
-        timezone.utc
+    started_at = datetime.now(timezone.utc)
+
+    clean_dataframe = get_parquet_object(
+        bucket_name=(resolved_minio_settings.clean_bucket),
+        object_name=(clean_object_name),
+        settings=(resolved_minio_settings),
+        client=(resolved_minio_client),
     )
 
-    clean_dataframe = (
-        get_parquet_object(
-            bucket_name=(
-                resolved_minio_settings
-                .clean_bucket
-            ),
-            object_name=(
-                clean_object_name
-            ),
-            settings=(
-                resolved_minio_settings
-            ),
-            client=(
-                resolved_minio_client
-            ),
-        )
-    )
-
-    connection = (
-        resolved_database_settings.connect()
-    )
+    connection = resolved_database_settings.connect()
 
     try:
-        load_result = (
-            upsert_fact_dataframe(
-                connection=connection,
-                dataframe=clean_dataframe,
-                expected_batch_id=batch_id,
-            )
+        load_result = upsert_fact_dataframe(
+            connection=connection,
+            dataframe=clean_dataframe,
+            expected_batch_id=batch_id,
         )
 
         connection.commit()
@@ -1110,9 +839,7 @@ def load_latest_minio_clean_batch(
     finally:
         connection.close()
 
-    finished_at = datetime.now(
-        timezone.utc
-    )
+    finished_at = datetime.now(timezone.utc)
 
     load_summary_object_name = (
         "pipeline/load/timescaledb/"
@@ -1123,9 +850,7 @@ def load_latest_minio_clean_batch(
     )
 
     load_summary = {
-        "pipeline_name": (
-            "air_quality_timescaledb_load"
-        ),
+        "pipeline_name": ("air_quality_timescaledb_load"),
         "source": "open_meteo",
         "storage_backend": "minio",
         "database": "timescaledb",
@@ -1133,85 +858,30 @@ def load_latest_minio_clean_batch(
         "batch_id": batch_id,
         "partition_date": partition_date,
         "partition_hour": partition_hour,
-        "started_at": (
-            started_at.isoformat()
-        ),
-        "finished_at": (
-            finished_at.isoformat()
-        ),
-        "duration_seconds": (
-            finished_at
-            - started_at
-        ).total_seconds(),
-        "quality_summary_bucket": (
-            resolved_minio_settings
-            .clean_bucket
-        ),
-        "quality_summary_object_name": (
-            quality_summary_object_name
-        ),
-        "clean_bucket": (
-            resolved_minio_settings
-            .clean_bucket
-        ),
-        "clean_object_name": (
-            clean_object_name
-        ),
-        "input_rows": (
-            len(clean_dataframe)
-        ),
-        "processed_rows": (
-            load_result[
-                "processed_rows"
-            ]
-        ),
-        "inserted_rows": (
-            load_result[
-                "inserted_rows"
-            ]
-        ),
-        "updated_rows": (
-            load_result[
-                "updated_rows"
-            ]
-        ),
-        "fact_table": (
-            FACT_TABLE_NAME
-        ),
-        "database_time_column": (
-            load_result[
-                "time_column"
-            ]
-        ),
-        "database_columns": (
-            load_result[
-                "database_columns"
-            ]
-        ),
-        "summary_bucket": (
-            resolved_minio_settings
-            .mart_bucket
-        ),
-        "summary_object_name": (
-            load_summary_object_name
-        ),
+        "started_at": (started_at.isoformat()),
+        "finished_at": (finished_at.isoformat()),
+        "duration_seconds": (finished_at - started_at).total_seconds(),
+        "quality_summary_bucket": (resolved_minio_settings.clean_bucket),
+        "quality_summary_object_name": (quality_summary_object_name),
+        "clean_bucket": (resolved_minio_settings.clean_bucket),
+        "clean_object_name": (clean_object_name),
+        "input_rows": (len(clean_dataframe)),
+        "processed_rows": (load_result["processed_rows"]),
+        "inserted_rows": (load_result["inserted_rows"]),
+        "updated_rows": (load_result["updated_rows"]),
+        "fact_table": (FACT_TABLE_NAME),
+        "database_time_column": (load_result["time_column"]),
+        "database_columns": (load_result["database_columns"]),
+        "summary_bucket": (resolved_minio_settings.mart_bucket),
+        "summary_object_name": (load_summary_object_name),
     }
 
     put_json_object(
-        bucket_name=(
-            resolved_minio_settings
-            .mart_bucket
-        ),
-        object_name=(
-            load_summary_object_name
-        ),
+        bucket_name=(resolved_minio_settings.mart_bucket),
+        object_name=(load_summary_object_name),
         data=load_summary,
-        settings=(
-            resolved_minio_settings
-        ),
-        client=(
-            resolved_minio_client
-        ),
+        settings=(resolved_minio_settings),
+        client=(resolved_minio_client),
     )
 
     return load_summary

@@ -38,31 +38,20 @@ def create_test_file(
 def test_builds_expected_sync_plan(
     tmp_path: Path,
 ) -> None:
-    local_lake_root = (
-        tmp_path
-        / "local_lake"
-    )
+    local_lake_root = tmp_path / "local_lake"
 
     create_test_file(
-        local_lake_root
-        / "raw"
-        / "open_meteo"
-        / "data.json",
+        local_lake_root / "raw" / "open_meteo" / "data.json",
         "{}",
     )
 
     create_test_file(
-        local_lake_root
-        / "clean"
-        / "air_quality"
-        / "data.parquet",
+        local_lake_root / "clean" / "air_quality" / "data.parquet",
         "test parquet",
     )
 
     create_test_file(
-        local_lake_root
-        / "alerts"
-        / "alert_summary.json",
+        local_lake_root / "alerts" / "alert_summary.json",
         "{}",
     )
 
@@ -100,15 +89,10 @@ def test_builds_expected_sync_plan(
 def test_ignores_temporary_files(
     tmp_path: Path,
 ) -> None:
-    local_lake_root = (
-        tmp_path
-        / "local_lake"
-    )
+    local_lake_root = tmp_path / "local_lake"
 
     create_test_file(
-        local_lake_root
-        / "raw"
-        / "data.json.tmp",
+        local_lake_root / "raw" / "data.json.tmp",
         "{}",
     )
 

@@ -12,9 +12,20 @@ COPY requirements-api.txt /app/requirements-api.txt
 RUN python -m pip install --upgrade pip \
     && python -m pip install \
         --no-cache-dir \
-        -r /app/requirements-api.txt
+        -r /app/requirements-api.txt \
+    && python -m pip check
 
+# The API reuses the canonical database configuration from src.utils.db.
+RUN mkdir -p /app/src/utils
+COPY src/__init__.py /app/src/__init__.py
+COPY src/utils/__init__.py /app/src/utils/__init__.py
+COPY src/utils/db.py /app/src/utils/db.py
 COPY api /app/api
+
+RUN python -m py_compile \
+        /app/api/main.py \
+        /app/api/database.py \
+        /app/src/utils/db.py
 
 EXPOSE 8000
 

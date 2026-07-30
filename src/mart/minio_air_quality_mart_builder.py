@@ -1,18 +1,17 @@
 from __future__ import annotations
 
-import json
-import re
 from datetime import datetime, timezone
 from io import BytesIO
+import json
 from pathlib import Path
+import re
 from typing import Any
 
-import pandas as pd
 from minio import Minio
+import pandas as pd
 
 from src.utils.minio_client import MinioSettings, get_minio_client
 from src.utils.minio_object_io import list_object_names
-
 
 CLEAN_PREFIX = "clean/air_quality/hourly"
 MART_PREFIX = "air_quality"
@@ -83,9 +82,7 @@ def _read_parquet(
         payload = response.read()
 
         if not payload:
-            raise MinioMartBuildError(
-                f"Parquet rỗng: {bucket_name}/{object_name}"
-            )
+            raise MinioMartBuildError(f"Parquet rỗng: {bucket_name}/{object_name}")
 
         return pd.read_parquet(BytesIO(payload))
 
@@ -157,9 +154,7 @@ def _partition_parts(
     match = PARTITION_PATTERN.search(object_name)
 
     if match is None:
-        raise MinioMartBuildError(
-            f"Object không đúng partition Clean: {object_name}"
-        )
+        raise MinioMartBuildError(f"Object không đúng partition Clean: {object_name}")
 
     return (
         match.group("date"),
@@ -185,9 +180,7 @@ def _find_clean_objects(
     ]
 
     if not object_names:
-        raise MinioMartBuildError(
-            f"Không tìm thấy data.parquet dưới '{CLEAN_PREFIX}'."
-        )
+        raise MinioMartBuildError(f"Không tìm thấy data.parquet dưới '{CLEAN_PREFIX}'.")
 
     return sorted(
         object_names,
@@ -207,14 +200,11 @@ def _normalize_clean(
 
     if missing_columns:
         raise MinioMartBuildError(
-            f"'{object_name}' thiếu cột: "
-            f"{', '.join(missing_columns)}"
+            f"'{object_name}' thiếu cột: {', '.join(missing_columns)}"
         )
 
     if dataframe.empty:
-        raise MinioMartBuildError(
-            f"'{object_name}' không có dữ liệu."
-        )
+        raise MinioMartBuildError(f"'{object_name}' không có dữ liệu.")
 
     result = dataframe.copy()
 
@@ -230,10 +220,7 @@ def _normalize_clean(
         utc=True,
     )
 
-    invalid_times = (
-        result["forecast_time"].isna()
-        | result["ingested_at"].isna()
-    )
+    invalid_times = result["forecast_time"].isna() | result["ingested_at"].isna()
 
     if invalid_times.any():
         raise MinioMartBuildError(
@@ -253,8 +240,7 @@ def _normalize_clean(
 
     if duplicate_count:
         raise MinioMartBuildError(
-            f"'{object_name}' có "
-            f"{duplicate_count} logical duplicate."
+            f"'{object_name}' có {duplicate_count} logical duplicate."
         )
 
     return result
@@ -358,21 +344,16 @@ def build_current_aqi(
     mart_created_at: datetime,
 ) -> pd.DataFrame:
     snapshot_hour = (
-        latest_clean["ingested_at"]
-        .max()
-        .tz_convert(LOCAL_TIMEZONE)
-        .floor("h")
+        latest_clean["ingested_at"].max().tz_convert(LOCAL_TIMEZONE).floor("h")
     )
 
     result = latest_clean.copy()
 
     result["_distance"] = (
-        result["forecast_time"] - snapshot_hour
-    ).abs().dt.total_seconds()
-
-    result["_past"] = (
-        result["forecast_time"] < snapshot_hour
+        (result["forecast_time"] - snapshot_hour).abs().dt.total_seconds()
     )
+
+    result["_past"] = result["forecast_time"] < snapshot_hour
 
     result = (
         result.sort_values(
@@ -407,9 +388,7 @@ def build_current_aqi(
         }
     )
 
-    result["mart_created_at"] = pd.Timestamp(
-        mart_created_at
-    )
+    result["mart_created_at"] = pd.Timestamp(mart_created_at)
 
     columns = [
         "point_id",
@@ -543,42 +522,29 @@ def build_location_summary(
         "longitude",
     ]
 
-    summary[float_columns] = (
-        summary[float_columns]
-        .astype("Float64")
-        .round(2)
-    )
+    summary[float_columns] = summary[float_columns].astype("Float64").round(2)
 
     for column_name in [
         "minimum_us_aqi",
         "maximum_us_aqi",
         "worst_point_us_aqi",
     ]:
-        summary[column_name] = (
-            summary[column_name]
-            .round()
-            .astype("Int64")
-        )
+        summary[column_name] = summary[column_name].round().astype("Int64")
 
-    summary["mart_created_at"] = pd.Timestamp(
-        mart_created_at
-    )
+    summary["mart_created_at"] = pd.Timestamp(mart_created_at)
 
-    return (
-        summary.sort_values(
-            [
-                "aqi_severity",
-                "maximum_us_aqi",
-                "location_id",
-            ],
-            ascending=[
-                False,
-                False,
-                True,
-            ],
-        )
-        .reset_index(drop=True)
-    )
+    return summary.sort_values(
+        [
+            "aqi_severity",
+            "maximum_us_aqi",
+            "location_id",
+        ],
+        ascending=[
+            False,
+            False,
+            True,
+        ],
+    ).reset_index(drop=True)
 
 
 def build_daily_summary(
@@ -609,10 +575,7 @@ def build_daily_summary(
         "us_aqi",
     )
 
-    history["forecast_date"] = (
-        history["forecast_time"]
-        .dt.strftime("%Y-%m-%d")
-    )
+    history["forecast_date"] = history["forecast_time"].dt.strftime("%Y-%m-%d")
 
     keys = [
         "forecast_date",
@@ -645,42 +608,27 @@ def build_daily_summary(
         maximum_ozone=("ozone", "max"),
         good_hours=(
             "aqi_level",
-            lambda values: int(
-                (values == "Good").sum()
-            ),
+            lambda values: int((values == "Good").sum()),
         ),
         moderate_hours=(
             "aqi_level",
-            lambda values: int(
-                (values == "Moderate").sum()
-            ),
+            lambda values: int((values == "Moderate").sum()),
         ),
         sensitive_group_hours=(
             "aqi_level",
-            lambda values: int(
-                (
-                    values
-                    == "Unhealthy for Sensitive Groups"
-                ).sum()
-            ),
+            lambda values: int((values == "Unhealthy for Sensitive Groups").sum()),
         ),
         unhealthy_hours=(
             "aqi_level",
-            lambda values: int(
-                (values == "Unhealthy").sum()
-            ),
+            lambda values: int((values == "Unhealthy").sum()),
         ),
         very_unhealthy_hours=(
             "aqi_level",
-            lambda values: int(
-                (values == "Very Unhealthy").sum()
-            ),
+            lambda values: int((values == "Very Unhealthy").sum()),
         ),
         hazardous_hours=(
             "aqi_level",
-            lambda values: int(
-                (values == "Hazardous").sum()
-            ),
+            lambda values: int((values == "Hazardous").sum()),
         ),
         source_batch_count=("batch_id", "nunique"),
         latest_source_ingested_at=("ingested_at", "max"),
@@ -738,14 +686,8 @@ def build_daily_summary(
         "maximum_us_aqi",
     )
 
-    summary["coverage_status"] = (
-        summary["available_hours"].map(
-            lambda value: (
-                "COMPLETE"
-                if int(value) >= 24
-                else "PARTIAL"
-            )
-        )
+    summary["coverage_status"] = summary["available_hours"].map(
+        lambda value: "COMPLETE" if int(value) >= 24 else "PARTIAL"
     )
 
     float_columns = [
@@ -758,60 +700,39 @@ def build_daily_summary(
         "maximum_ozone",
     ]
 
-    summary[float_columns] = (
-        summary[float_columns]
-        .astype("Float64")
-        .round(2)
-    )
+    summary[float_columns] = summary[float_columns].astype("Float64").round(2)
 
     for column_name in [
         "minimum_us_aqi",
         "maximum_us_aqi",
     ]:
-        summary[column_name] = (
-            summary[column_name]
-            .round()
-            .astype("Int64")
-        )
+        summary[column_name] = summary[column_name].round().astype("Int64")
 
-    summary["mart_created_at"] = pd.Timestamp(
-        mart_created_at
-    )
+    summary["mart_created_at"] = pd.Timestamp(mart_created_at)
 
-    return (
-        summary.sort_values(
-            [
-                "forecast_date",
-                "maximum_us_aqi",
-                "location_id",
-                "point_id",
-            ],
-            ascending=[
-                False,
-                False,
-                True,
-                True,
-            ],
-        )
-        .reset_index(drop=True)
-    )
+    return summary.sort_values(
+        [
+            "forecast_date",
+            "maximum_us_aqi",
+            "location_id",
+            "point_id",
+        ],
+        ascending=[
+            False,
+            False,
+            True,
+            True,
+        ],
+    ).reset_index(drop=True)
 
 
 def build_latest_minio_mart(
     settings: MinioSettings | None = None,
     client: Minio | None = None,
 ) -> dict[str, Any]:
-    resolved_settings = (
-        settings
-        or MinioSettings.from_environment()
-    )
+    resolved_settings = settings or MinioSettings.from_environment()
 
-    resolved_client = (
-        client
-        or get_minio_client(
-            resolved_settings
-        )
-    )
+    resolved_client = client or get_minio_client(resolved_settings)
 
     started_at = _utc_now()
 
@@ -864,18 +785,14 @@ def build_latest_minio_mart(
             )
 
     if not valid_history:
-        raise MinioMartBuildError(
-            "Không có Clean Parquet lịch sử hợp lệ."
-        )
+        raise MinioMartBuildError("Không có Clean Parquet lịch sử hợp lệ.")
 
     clean_history = pd.concat(
         valid_history,
         ignore_index=True,
     )
 
-    location_dimension = (
-        _load_location_dimension()
-    )
+    location_dimension = _load_location_dimension()
 
     latest_clean = _enrich_locations(
         latest_clean,
@@ -904,29 +821,15 @@ def build_latest_minio_mart(
         mart_created_at,
     )
 
-    partition = (
-        f"date={partition_date}/"
-        f"hour={partition_hour}/"
-        f"batch_id={batch_id}"
-    )
+    partition = f"date={partition_date}/hour={partition_hour}/batch_id={batch_id}"
 
     outputs = {
-        "current_aqi": (
-            f"{MART_PREFIX}/current_aqi/"
-            f"{partition}/data.parquet"
-        ),
+        "current_aqi": (f"{MART_PREFIX}/current_aqi/{partition}/data.parquet"),
         "location_summary": (
-            f"{MART_PREFIX}/location_summary/"
-            f"{partition}/data.parquet"
+            f"{MART_PREFIX}/location_summary/{partition}/data.parquet"
         ),
-        "daily_summary": (
-            f"{MART_PREFIX}/daily_summary/"
-            f"{partition}/data.parquet"
-        ),
-        "mart_summary": (
-            f"{MART_PREFIX}/build_summary/"
-            f"{partition}/mart_summary.json"
-        ),
+        "daily_summary": (f"{MART_PREFIX}/daily_summary/{partition}/data.parquet"),
+        "mart_summary": (f"{MART_PREFIX}/build_summary/{partition}/mart_summary.json"),
     }
 
     _put_parquet(
@@ -957,61 +860,32 @@ def build_latest_minio_mart(
         "stage_name": "mart",
         "status": "SUCCESS",
         "source": "minio_clean",
-        "source_bucket": (
-            resolved_settings.clean_bucket
-        ),
+        "source_bucket": (resolved_settings.clean_bucket),
         "latest_source_object": latest_object,
-        "valid_source_object_count": (
-            len(valid_history)
-        ),
-        "skipped_source_object_count": (
-            len(skipped_objects)
-        ),
-        "skipped_source_objects": (
-            skipped_objects[:20]
-        ),
-        "location_dimension_rows": (
-            len(location_dimension)
-        ),
+        "valid_source_object_count": (len(valid_history)),
+        "skipped_source_object_count": (len(skipped_objects)),
+        "skipped_source_objects": (skipped_objects[:20]),
+        "location_dimension_rows": (len(location_dimension)),
         "batch_id": batch_id,
         "partition_date": partition_date,
         "partition_hour": partition_hour,
         "started_at": started_at.isoformat(),
         "finished_at": finished_at.isoformat(),
         "duration_seconds": round(
-            (
-                finished_at
-                - started_at
-            ).total_seconds(),
+            (finished_at - started_at).total_seconds(),
             3,
         ),
         "current_aqi_rows": len(current_aqi),
-        "location_summary_rows": (
-            len(location_summary)
-        ),
-        "daily_summary_rows": (
-            len(daily_summary)
-        ),
-                "latest_clean_records": (
-            len(latest_clean)
-        ),
-        "history_input_records": (
-            len(clean_history)
-        ),
-        "input_records": (
-            len(clean_history)
-        ),
+        "location_summary_rows": (len(location_summary)),
+        "daily_summary_rows": (len(daily_summary)),
+        "latest_clean_records": (len(latest_clean)),
+        "history_input_records": (len(clean_history)),
+        "input_records": (len(clean_history)),
         "output_records": (
-            len(current_aqi)
-            + len(location_summary)
-            + len(daily_summary)
+            len(current_aqi) + len(location_summary) + len(daily_summary)
         ),
-        "failed_records": (
-            len(skipped_objects)
-        ),
-        "mart_bucket": (
-            resolved_settings.mart_bucket
-        ),
+        "failed_records": (len(skipped_objects)),
+        "mart_bucket": (resolved_settings.mart_bucket),
         "outputs": outputs,
     }
 

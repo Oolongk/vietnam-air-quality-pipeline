@@ -7,7 +7,6 @@ from src.ingestion.air_quality_extractor import (
     extract_active_monitoring_points,
 )
 
-
 TEST_TIMEZONE = timezone(
     timedelta(hours=7),
     name="Asia/Ho_Chi_Minh",
@@ -28,17 +27,13 @@ class FakeOpenMeteoClient:
         return {
             "schema_version": "1.0",
             "source": "open_meteo",
-            "ingested_at": (
-                "2026-07-11T05:00:00+00:00"
-            ),
+            "ingested_at": ("2026-07-11T05:00:00+00:00"),
             "request": {
                 "point_id": point_id,
                 "location_id": location_id,
                 "latitude": latitude,
                 "longitude": longitude,
-                "forecast_hours": (
-                    forecast_hours
-                ),
+                "forecast_hours": (forecast_hours),
                 "timezone": timezone_name,
                 "domain": domain,
                 "hourly_variables": [
@@ -74,9 +69,7 @@ class FakeOpenMeteoClient:
         }
 
 
-class PartiallyFailingClient(
-    FakeOpenMeteoClient
-):
+class PartiallyFailingClient(FakeOpenMeteoClient):
     def fetch_hourly_air_quality(
         self,
         point_id: str,
@@ -88,9 +81,7 @@ class PartiallyFailingClient(
         domain: str = "cams_global",
     ) -> dict:
         if point_id == "HCM_CENTER":
-            raise ValueError(
-                "Lỗi giả lập cho HCM_CENTER."
-            )
+            raise ValueError("Lỗi giả lập cho HCM_CENTER.")
 
         return super().fetch_hourly_air_quality(
             point_id=point_id,
@@ -135,9 +126,7 @@ def test_extract_writes_one_raw_file_per_active_point(
     tmp_path: Path,
 ) -> None:
     summary = extract_active_monitoring_points(
-        monitoring_points=(
-            build_monitoring_points()
-        ),
+        monitoring_points=(build_monitoring_points()),
         client=FakeOpenMeteoClient(),
         raw_root=tmp_path,
         forecast_hours=2,
@@ -167,37 +156,20 @@ def test_extract_writes_one_raw_file_per_active_point(
         / "batch_id=test_batch"
     )
 
-    assert (
-        batch_directory
-        / "point_id=HN_CENTER"
-        / "data.json"
-    ).exists()
+    assert (batch_directory / "point_id=HN_CENTER" / "data.json").exists()
 
-    assert (
-        batch_directory
-        / "point_id=HCM_CENTER"
-        / "data.json"
-    ).exists()
+    assert (batch_directory / "point_id=HCM_CENTER" / "data.json").exists()
 
-    assert not (
-        batch_directory
-        / "point_id=DN_DISABLED"
-        / "data.json"
-    ).exists()
+    assert not (batch_directory / "point_id=DN_DISABLED" / "data.json").exists()
 
-    assert (
-        batch_directory
-        / "run_summary.json"
-    ).exists()
+    assert (batch_directory / "run_summary.json").exists()
 
 
 def test_extract_reports_partial_success(
     tmp_path: Path,
 ) -> None:
     summary = extract_active_monitoring_points(
-        monitoring_points=(
-            build_monitoring_points()
-        ),
+        monitoring_points=(build_monitoring_points()),
         client=PartiallyFailingClient(),
         raw_root=tmp_path,
         forecast_hours=2,
@@ -212,14 +184,8 @@ def test_extract_reports_partial_success(
         batch_id="partial_batch",
     )
 
-    assert (
-        summary["status"]
-        == "PARTIAL_SUCCESS"
-    )
+    assert summary["status"] == "PARTIAL_SUCCESS"
     assert summary["succeeded_points"] == 1
     assert summary["failed_points"] == 1
     assert summary["records_extracted"] == 2
-    assert (
-        summary["failures"][0]["point_id"]
-        == "HCM_CENTER"
-    )
+    assert summary["failures"][0]["point_id"] == "HCM_CENTER"

@@ -11,7 +11,6 @@ from src.quality.data_quality_checks import (
     run_air_quality_data_quality,
 )
 
-
 BATCH_ID = "20260720T120000Z_test"
 
 
@@ -74,12 +73,7 @@ def _valid_dataframe(
         tzinfo=timezone.utc,
     )
 
-    ingested_at = (
-        forecast_start
-        + timedelta(
-            hours=freshness_offset_hours
-        )
-    )
+    ingested_at = forecast_start + timedelta(hours=freshness_offset_hours)
 
     point_rows = [
         (
@@ -107,9 +101,7 @@ def _valid_dataframe(
         latitude,
         longitude,
     ) in point_rows:
-        for hour_index in range(
-            forecast_hours
-        ):
+        for hour_index in range(forecast_hours):
             rows.append(
                 {
                     "point_id": point_id,
@@ -119,10 +111,7 @@ def _valid_dataframe(
                     "latitude": latitude,
                     "longitude": longitude,
                     "forecast_time": (
-                        forecast_start
-                        + timedelta(
-                            hours=hour_index
-                        )
+                        forecast_start + timedelta(hours=hour_index)
                     ).isoformat(),
                     "pm2_5": 10.0,
                     "pm10": 20.0,
@@ -140,9 +129,7 @@ def _valid_dataframe(
                     "source": "open_meteo",
                     "batch_id": BATCH_ID,
                     "schema_version": "1.0",
-                    "ingested_at": (
-                        ingested_at.isoformat()
-                    ),
+                    "ingested_at": (ingested_at.isoformat()),
                 }
             )
 
@@ -153,20 +140,13 @@ def _check_by_name(
     checks: list[dict[str, object]],
     check_name: str,
 ) -> dict[str, object]:
-    return next(
-        check
-        for check in checks
-        if check["check_name"]
-        == check_name
-    )
+    return next(check for check in checks if check["check_name"] == check_name)
 
 
 def test_valid_batch_passes_with_score_100() -> None:
     result = run_air_quality_data_quality(
         dataframe=_valid_dataframe(),
-        monitoring_points=(
-            _monitoring_points()
-        ),
+        monitoring_points=(_monitoring_points()),
         locations=_locations(),
         expected_forecast_hours=3,
         expected_batch_id=BATCH_ID,
@@ -191,9 +171,7 @@ def test_negative_pollutant_creates_bad_record_and_warn() -> None:
 
     result = run_air_quality_data_quality(
         dataframe=dataframe,
-        monitoring_points=(
-            _monitoring_points()
-        ),
+        monitoring_points=(_monitoring_points()),
         locations=_locations(),
         expected_forecast_hours=3,
         expected_batch_id=BATCH_ID,
@@ -205,10 +183,7 @@ def test_negative_pollutant_creates_bad_record_and_warn() -> None:
     )
 
     assert result.quality_status == "WARN"
-    assert (
-        result.pipeline_status
-        == "PARTIAL_SUCCESS"
-    )
+    assert result.pipeline_status == "PARTIAL_SUCCESS"
     assert result.valid_count == 5
     assert result.bad_count == 1
     assert check["status"] == "FAILED"
@@ -223,17 +198,11 @@ def test_negative_pollutant_creates_bad_record_and_warn() -> None:
 
 
 def test_missing_forecast_hour_fails_batch() -> None:
-    dataframe = (
-        _valid_dataframe()
-        .iloc[:-1]
-        .reset_index(drop=True)
-    )
+    dataframe = _valid_dataframe().iloc[:-1].reset_index(drop=True)
 
     result = run_air_quality_data_quality(
         dataframe=dataframe,
-        monitoring_points=(
-            _monitoring_points()
-        ),
+        monitoring_points=(_monitoring_points()),
         locations=_locations(),
         expected_forecast_hours=3,
         expected_batch_id=BATCH_ID,
@@ -268,9 +237,7 @@ def test_duplicate_logical_key_marks_both_rows_bad() -> None:
 
     result = run_air_quality_data_quality(
         dataframe=dataframe,
-        monitoring_points=(
-            _monitoring_points()
-        ),
+        monitoring_points=(_monitoring_points()),
         locations=_locations(),
         expected_forecast_hours=3,
         expected_batch_id=BATCH_ID,
@@ -289,12 +256,8 @@ def test_duplicate_logical_key_marks_both_rows_bad() -> None:
 
 def test_freshness_issue_is_warning_not_row_rejection() -> None:
     result = run_air_quality_data_quality(
-        dataframe=_valid_dataframe(
-            freshness_offset_hours=5
-        ),
-        monitoring_points=(
-            _monitoring_points()
-        ),
+        dataframe=_valid_dataframe(freshness_offset_hours=5),
+        monitoring_points=(_monitoring_points()),
         locations=_locations(),
         expected_forecast_hours=3,
         freshness_minutes=90,
@@ -310,17 +273,12 @@ def test_freshness_issue_is_warning_not_row_rejection() -> None:
     assert result.bad_count == 0
     assert result.valid_count == 6
     assert result.quality_status == "WARN"
-    assert (
-        result.pipeline_status
-        == "PARTIAL_SUCCESS"
-    )
+    assert result.pipeline_status == "PARTIAL_SUCCESS"
     assert result.quality_score < 100.0
 
 
 def test_missing_required_column_raises_schema_error() -> None:
-    dataframe = _valid_dataframe().drop(
-        columns=["pm2_5"]
-    )
+    dataframe = _valid_dataframe().drop(columns=["pm2_5"])
 
     with pytest.raises(
         DataQualitySchemaError,
@@ -328,18 +286,14 @@ def test_missing_required_column_raises_schema_error() -> None:
     ):
         run_air_quality_data_quality(
             dataframe=dataframe,
-            monitoring_points=(
-                _monitoring_points()
-            ),
+            monitoring_points=(_monitoring_points()),
             locations=_locations(),
             expected_forecast_hours=3,
         )
 
 
 def test_orphan_active_point_raises_config_error() -> None:
-    monitoring_points = (
-        _monitoring_points()
-    )
+    monitoring_points = _monitoring_points()
     monitoring_points.loc[
         0,
         "location_id",
@@ -351,9 +305,7 @@ def test_orphan_active_point_raises_config_error() -> None:
     ):
         run_air_quality_data_quality(
             dataframe=_valid_dataframe(),
-            monitoring_points=(
-                monitoring_points
-            ),
+            monitoring_points=(monitoring_points),
             locations=_locations(),
             expected_forecast_hours=3,
         )

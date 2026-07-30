@@ -10,33 +10,20 @@ from src.load.timescaledb_loader import (
     TimescaleDBLoadError,
     load_clean_parquet_batch,
 )
+from src.operations.legacy_runtime import (
+    require_legacy_local_pipeline_enabled,
+)
 from src.utils.db import (
     DatabaseConfigurationError,
 )
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-CLEAN_ROOT = (
-    PROJECT_ROOT
-    / "data"
-    / "local_lake"
-    / "clean"
-)
+CLEAN_ROOT = PROJECT_ROOT / "data" / "local_lake" / "clean"
 
-QUALITY_ROOT = (
-    PROJECT_ROOT
-    / "data"
-    / "local_lake"
-    / "quality"
-)
+QUALITY_ROOT = PROJECT_ROOT / "data" / "local_lake" / "quality"
 
-LOAD_ROOT = (
-    PROJECT_ROOT
-    / "data"
-    / "local_lake"
-    / "load"
-)
+LOAD_ROOT = PROJECT_ROOT / "data" / "local_lake" / "load"
 
 
 def _read_json(
@@ -53,15 +40,11 @@ def _read_json(
         json.JSONDecodeError,
     ) as error:
         raise FileNotFoundError(
-            "Không thể đọc Data Quality summary: "
-            f"{input_path}"
+            f"Không thể đọc Data Quality summary: {input_path}"
         ) from error
 
     if not isinstance(data, dict):
-        raise ValueError(
-            "Data Quality summary phải là "
-            "JSON object."
-        )
+        raise ValueError("Data Quality summary phải là JSON object.")
 
     return data
 
@@ -71,35 +54,21 @@ def find_latest_loadable_clean_batch(
     clean_root: Path,
 ) -> dict[str, Any]:
     if not quality_root.exists():
-        raise FileNotFoundError(
-            "Quality root chưa tồn tại: "
-            f"{quality_root}"
-        )
+        raise FileNotFoundError(f"Quality root chưa tồn tại: {quality_root}")
 
     summary_files = sorted(
-        quality_root.rglob(
-            "data_quality_summary.json"
-        ),
-        key=lambda path: (
-            path.stat().st_mtime
-        ),
+        quality_root.rglob("data_quality_summary.json"),
+        key=lambda path: path.stat().st_mtime,
         reverse=True,
     )
 
     if not summary_files:
-        raise FileNotFoundError(
-            "Không tìm thấy "
-            "data_quality_summary.json."
-        )
+        raise FileNotFoundError("Không tìm thấy data_quality_summary.json.")
 
     for summary_path in summary_files:
-        summary = _read_json(
-            summary_path
-        )
+        summary = _read_json(summary_path)
 
-        clean_relative_path = (
-            summary.get("clean_data_path")
-        )
+        clean_relative_path = summary.get("clean_data_path")
 
         if not isinstance(
             clean_relative_path,
@@ -107,28 +76,19 @@ def find_latest_loadable_clean_batch(
         ):
             continue
 
-        clean_relative_path = (
-            clean_relative_path.strip()
-        )
+        clean_relative_path = clean_relative_path.strip()
 
         if not clean_relative_path:
             continue
 
-        clean_data_path = (
-            clean_root
-            / clean_relative_path
-        ).resolve()
+        clean_data_path = (clean_root / clean_relative_path).resolve()
 
         if not clean_data_path.exists():
             continue
 
         batch_id = summary.get("batch_id")
-        partition_date = summary.get(
-            "partition_date"
-        )
-        partition_hour = summary.get(
-            "partition_hour"
-        )
+        partition_date = summary.get("partition_date")
+        partition_hour = summary.get("partition_hour")
 
         required_values = {
             "batch_id": batch_id,
@@ -138,75 +98,45 @@ def find_latest_loadable_clean_batch(
 
         invalid_fields = [
             key
-            for key, value
-            in required_values.items()
-            if (
-                not isinstance(value, str)
-                or not value.strip()
-            )
+            for key, value in required_values.items()
+            if (not isinstance(value, str) or not value.strip())
         ]
 
         if invalid_fields:
-            invalid_text = ", ".join(
-                invalid_fields
-            )
+            invalid_text = ", ".join(invalid_fields)
 
-            raise ValueError(
-                "Data Quality summary thiếu: "
-                f"{invalid_text}"
-            )
+            raise ValueError(f"Data Quality summary thiếu: {invalid_text}")
 
         return {
-            "quality_summary_path": (
-                summary_path
-            ),
-            "clean_data_path": (
-                clean_data_path
-            ),
+            "quality_summary_path": (summary_path),
+            "clean_data_path": (clean_data_path),
             "batch_id": str(batch_id),
-            "partition_date": str(
-                partition_date
-            ),
-            "partition_hour": str(
-                partition_hour
-            ),
+            "partition_date": str(partition_date),
+            "partition_hour": str(partition_hour),
         }
 
     raise FileNotFoundError(
-        "Không tìm thấy Data Quality batch "
-        "có Clean Parquet hợp lệ."
+        "Không tìm thấy Data Quality batch có Clean Parquet hợp lệ."
     )
 
 
 def main() -> None:
+    require_legacy_local_pipeline_enabled(
+        "scripts.load_latest_clean_batch",
+    )
+
     try:
-        batch_metadata = (
-            find_latest_loadable_clean_batch(
-                quality_root=QUALITY_ROOT,
-                clean_root=CLEAN_ROOT,
-            )
+        batch_metadata = find_latest_loadable_clean_batch(
+            quality_root=QUALITY_ROOT,
+            clean_root=CLEAN_ROOT,
         )
 
         summary = load_clean_parquet_batch(
-            clean_data_path=(
-                batch_metadata[
-                    "clean_data_path"
-                ]
-            ),
+            clean_data_path=(batch_metadata["clean_data_path"]),
             load_root=LOAD_ROOT,
-            batch_id=(
-                batch_metadata["batch_id"]
-            ),
-            partition_date=(
-                batch_metadata[
-                    "partition_date"
-                ]
-            ),
-            partition_hour=(
-                batch_metadata[
-                    "partition_hour"
-                ]
-            ),
+            batch_id=(batch_metadata["batch_id"]),
+            partition_date=(batch_metadata["partition_date"]),
+            partition_hour=(batch_metadata["partition_hour"]),
         )
     except (
         FileNotFoundError,
@@ -215,53 +145,20 @@ def main() -> None:
         DatabaseConfigurationError,
         psycopg.Error,
     ) as error:
-        print(
-            "TimescaleDB load thất bại: "
-            f"{error}"
-        )
+        print(f"TimescaleDB load thất bại: {error}")
 
         raise SystemExit(1) from error
 
-    print(
-        "Load Clean Parquet vào "
-        "TimescaleDB thành công."
-    )
-    print(
-        "Batch ID: "
-        f"{summary['batch_id']}"
-    )
-    print(
-        "Database table: "
-        f"{summary['database_table']}"
-    )
-    print(
-        "Input records: "
-        f"{summary['input_records']}"
-    )
-    print(
-        "Inserted records: "
-        f"{summary['inserted_records']}"
-    )
-    print(
-        "Updated records: "
-        f"{summary['updated_records']}"
-    )
-    print(
-        "Database records before: "
-        f"{summary['database_records_before']}"
-    )
-    print(
-        "Database records after: "
-        f"{summary['database_records_after']}"
-    )
-    print(
-        "Thời gian load: "
-        f"{summary['duration_seconds']:.2f} giây"
-    )
-    print(
-        "Load summary: "
-        f"{summary['load_summary_path']}"
-    )
+    print("Load Clean Parquet vào TimescaleDB thành công.")
+    print(f"Batch ID: {summary['batch_id']}")
+    print(f"Database table: {summary['database_table']}")
+    print(f"Input records: {summary['input_records']}")
+    print(f"Inserted records: {summary['inserted_records']}")
+    print(f"Updated records: {summary['updated_records']}")
+    print(f"Database records before: {summary['database_records_before']}")
+    print(f"Database records after: {summary['database_records_after']}")
+    print(f"Thời gian load: {summary['duration_seconds']:.2f} giây")
+    print(f"Load summary: {summary['load_summary_path']}")
 
 
 if __name__ == "__main__":

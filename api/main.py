@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-import psycopg
 from fastapi import (
     FastAPI,
     HTTPException,
@@ -12,12 +11,13 @@ from fastapi import (
 from fastapi.middleware.cors import (
     CORSMiddleware,
 )
+import psycopg
 from pydantic import BaseModel
 
 from api.database import (
     DatabaseConfigurationError,
     check_database_connection,
-    get_database_settings,
+    get_database_connection,
 )
 
 
@@ -29,13 +29,8 @@ class HealthResponse(BaseModel):
 
 
 app = FastAPI(
-    title=(
-        "Vietnam Air Quality API"
-    ),
-    description=(
-        "Read-only API for air quality, "
-        "alerts and pipeline health data."
-    ),
+    title=("Vietnam Air Quality API"),
+    description=("Read-only API for air quality, alerts and pipeline health data."),
     version="1.0.0",
 )
 
@@ -63,20 +58,15 @@ def execute_query(
         ...,
     ] = (),
 ) -> list[dict[str, Any]]:
-    settings = get_database_settings()
-
-    with settings.connect() as connection:
+    with get_database_connection() as connection:
         with connection.cursor() as cursor:
             cursor.execute(
                 query,
                 parameters,
             )
-
             rows = cursor.fetchall()
 
-    return list(
-        rows
-    )
+    return list(rows)
 
 
 @app.get(
@@ -87,9 +77,7 @@ def execute_query(
 )
 def root() -> dict[str, str]:
     return {
-        "service": (
-            "Vietnam Air Quality API"
-        ),
+        "service": ("Vietnam Air Quality API"),
         "status": "RUNNING",
         "docs": "/docs",
         "health": "/health",
@@ -105,9 +93,7 @@ def root() -> dict[str, str]:
 )
 def health() -> HealthResponse:
     try:
-        database_result = (
-            check_database_connection()
-        )
+        database_result = check_database_connection()
 
     except (
         DatabaseConfigurationError,
@@ -116,28 +102,16 @@ def health() -> HealthResponse:
     ) as error:
         raise HTTPException(
             status_code=503,
-            detail=(
-                "Không kết nối được "
-                f"TimescaleDB: {error}"
-            ),
+            detail=(f"Không kết nối được TimescaleDB: {error}"),
         ) from error
 
     return HealthResponse(
         status="HEALTHY",
-        service=(
-            "vietnam-air-quality-api"
-        ),
-        database=str(
-            database_result[
-                "database_name"
-            ]
-        ),
-        database_time=(
-            database_result[
-                "database_time"
-            ]
-        ),
+        service=("vietnam-air-quality-api"),
+        database=str(database_result["database_name"]),
+        database_time=(database_result["database_time"]),
     )
+
 
 @app.get(
     "/api/v1/locations",
@@ -163,9 +137,7 @@ def get_locations() -> dict[str, Any]:
     """
 
     try:
-        records = execute_query(
-            query=query
-        )
+        records = execute_query(query=query)
 
     except (
         DatabaseConfigurationError,
@@ -173,17 +145,12 @@ def get_locations() -> dict[str, Any]:
     ) as error:
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Không đọc được danh sách "
-                f"tỉnh/thành: {error}"
-            ),
+            detail=(f"Không đọc được danh sách tỉnh/thành: {error}"),
         ) from error
 
     return {
         "status": "SUCCESS",
-        "record_count": len(
-            records
-        ),
+        "record_count": len(records),
         "data": records,
     }
 
@@ -228,9 +195,7 @@ def get_monitoring_points() -> dict[
     """
 
     try:
-        records = execute_query(
-            query=query
-        )
+        records = execute_query(query=query)
 
     except (
         DatabaseConfigurationError,
@@ -238,19 +203,15 @@ def get_monitoring_points() -> dict[
     ) as error:
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Không đọc được danh sách "
-                f"monitoring point: {error}"
-            ),
+            detail=(f"Không đọc được danh sách monitoring point: {error}"),
         ) from error
 
     return {
         "status": "SUCCESS",
-        "record_count": len(
-            records
-        ),
+        "record_count": len(records),
         "data": records,
     }
+
 
 @app.get(
     "/api/v1/air-quality/locations/{location_id}",
@@ -266,16 +227,12 @@ def get_air_quality_by_location(
         le=5000,
     ),
 ) -> dict[str, Any]:
-    normalized_location_id = (
-        location_id.strip().upper()
-    )
+    normalized_location_id = location_id.strip().upper()
 
     if not normalized_location_id:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "location_id không được rỗng."
-            ),
+            detail=("location_id không được rỗng."),
         )
 
     query = """
@@ -359,39 +316,26 @@ def get_air_quality_by_location(
     ) as error:
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Không đọc được dữ liệu "
-                "AQI của tỉnh/thành: "
-                f"{error}"
-            ),
+            detail=(f"Không đọc được dữ liệu AQI của tỉnh/thành: {error}"),
         ) from error
 
     if not records:
         raise HTTPException(
             status_code=404,
             detail=(
-                "Không tìm thấy dữ liệu "
-                "cho location_id "
-                f"{normalized_location_id}."
+                f"Không tìm thấy dữ liệu cho location_id {normalized_location_id}."
             ),
         )
 
     return {
         "status": "SUCCESS",
-        "location_id": (
-            normalized_location_id
-        ),
-        "location_name": (
-            records[0]["location_name"]
-        ),
-        "batch_id": (
-            records[0]["batch_id"]
-        ),
-        "record_count": len(
-            records
-        ),
+        "location_id": (normalized_location_id),
+        "location_name": (records[0]["location_name"]),
+        "batch_id": (records[0]["batch_id"]),
+        "record_count": len(records),
         "data": records,
     }
+
 
 @app.get(
     "/api/v1/air-quality/latest",
@@ -472,9 +416,7 @@ def get_latest_air_quality(
     try:
         records = execute_query(
             query=query,
-            parameters=(
-                limit,
-            ),
+            parameters=(limit,),
         )
 
     except (
@@ -483,26 +425,18 @@ def get_latest_air_quality(
     ) as error:
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Không đọc được dữ liệu "
-                f"AQI mới nhất: {error}"
-            ),
+            detail=(f"Không đọc được dữ liệu AQI mới nhất: {error}"),
         ) from error
 
-    batch_id = (
-        records[0]["batch_id"]
-        if records
-        else None
-    )
+    batch_id = records[0]["batch_id"] if records else None
 
     return {
         "status": "SUCCESS",
         "batch_id": batch_id,
-        "record_count": len(
-            records
-        ),
+        "record_count": len(records),
         "data": records,
     }
+
 
 @app.get(
     "/api/v1/air-quality/top-polluted",
@@ -594,9 +528,7 @@ def get_top_polluted(
     try:
         records = execute_query(
             query=query,
-            parameters=(
-                limit,
-            ),
+            parameters=(limit,),
         )
 
     except (
@@ -605,34 +537,21 @@ def get_top_polluted(
     ) as error:
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Không đọc được danh sách "
-                "monitoring point ô nhiễm nhất: "
-                f"{error}"
-            ),
+            detail=(f"Không đọc được danh sách monitoring point ô nhiễm nhất: {error}"),
         ) from error
 
-    batch_id = (
-        records[0]["batch_id"]
-        if records
-        else None
-    )
+    batch_id = records[0]["batch_id"] if records else None
 
-    reference_time = (
-        records[0]["forecast_time"]
-        if records
-        else None
-    )
+    reference_time = records[0]["forecast_time"] if records else None
 
     return {
         "status": "SUCCESS",
         "batch_id": batch_id,
         "reference_time": reference_time,
-        "record_count": len(
-            records
-        ),
+        "record_count": len(records),
         "data": records,
     }
+
 
 @app.get(
     "/api/v1/air-quality/history",
@@ -651,16 +570,12 @@ def get_air_quality_history(
         le=2160,
     ),
 ) -> dict[str, Any]:
-    normalized_point_id = (
-        point_id.strip().upper()
-    )
+    normalized_point_id = point_id.strip().upper()
 
     if not normalized_point_id:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "point_id không được rỗng."
-            ),
+            detail=("point_id không được rỗng."),
         )
 
     query = """
@@ -762,49 +677,28 @@ def get_air_quality_history(
     ) as error:
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Không đọc được lịch sử "
-                "chất lượng không khí: "
-                f"{error}"
-            ),
+            detail=(f"Không đọc được lịch sử chất lượng không khí: {error}"),
         ) from error
 
     if not records:
         raise HTTPException(
             status_code=404,
-            detail=(
-                "Không tìm thấy lịch sử AQI "
-                "cho point_id "
-                f"{normalized_point_id}."
-            ),
+            detail=(f"Không tìm thấy lịch sử AQI cho point_id {normalized_point_id}."),
         )
 
     return {
         "status": "SUCCESS",
-        "point_id": (
-            normalized_point_id
-        ),
-        "point_name": (
-            records[0]["point_name"]
-        ),
-        "location_id": (
-            records[0]["location_id"]
-        ),
-        "location_name": (
-            records[0]["location_name"]
-        ),
+        "point_id": (normalized_point_id),
+        "point_name": (records[0]["point_name"]),
+        "location_id": (records[0]["location_id"]),
+        "location_name": (records[0]["location_name"]),
         "requested_hours": hours,
-        "record_count": len(
-            records
-        ),
-        "first_forecast_time": (
-            records[0]["forecast_time"]
-        ),
-        "last_forecast_time": (
-            records[-1]["forecast_time"]
-        ),
+        "record_count": len(records),
+        "first_forecast_time": (records[0]["forecast_time"]),
+        "last_forecast_time": (records[-1]["forecast_time"]),
         "data": records,
     }
+
 
 @app.get(
     "/api/v1/air-quality/points/{point_id}",
@@ -820,9 +714,7 @@ def get_air_quality_by_point(
         le=168,
     ),
 ) -> dict[str, Any]:
-    normalized_point_id = (
-        point_id.strip().upper()
-    )
+    normalized_point_id = point_id.strip().upper()
 
     if not normalized_point_id:
         raise HTTPException(
@@ -901,33 +793,20 @@ def get_air_quality_by_point(
     ) as error:
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Không đọc được dữ liệu "
-                f"của monitoring point: {error}"
-            ),
+            detail=(f"Không đọc được dữ liệu của monitoring point: {error}"),
         ) from error
 
     if not records:
         raise HTTPException(
             status_code=404,
-            detail=(
-                "Không tìm thấy dữ liệu "
-                f"cho point_id "
-                f"{normalized_point_id}."
-            ),
+            detail=(f"Không tìm thấy dữ liệu cho point_id {normalized_point_id}."),
         )
 
     return {
         "status": "SUCCESS",
-        "point_id": (
-            normalized_point_id
-        ),
-        "batch_id": (
-            records[0]["batch_id"]
-        ),
-        "record_count": len(
-            records
-        ),
+        "point_id": (normalized_point_id),
+        "batch_id": (records[0]["batch_id"]),
+        "record_count": len(records),
         "data": records,
     }
 
@@ -956,9 +835,7 @@ def get_latest_alerts(
     try:
         records = execute_query(
             query=query,
-            parameters=(
-                limit,
-            ),
+            parameters=(limit,),
         )
 
     except (
@@ -967,17 +844,12 @@ def get_latest_alerts(
     ) as error:
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Không đọc được dữ liệu "
-                f"alert: {error}"
-            ),
+            detail=(f"Không đọc được dữ liệu alert: {error}"),
         ) from error
 
     return {
         "status": "SUCCESS",
-        "record_count": len(
-            records
-        ),
+        "record_count": len(records),
         "data": records,
     }
 
@@ -1035,9 +907,7 @@ def get_latest_pipeline_health() -> dict[
     """
 
     try:
-        records = execute_query(
-            query=query
-        )
+        records = execute_query(query=query)
 
     except (
         DatabaseConfigurationError,
@@ -1045,10 +915,7 @@ def get_latest_pipeline_health() -> dict[
     ) as error:
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Không đọc được Pipeline "
-                f"Health: {error}"
-            ),
+            detail=(f"Không đọc được Pipeline Health: {error}"),
         ) from error
 
     if not records:
@@ -1061,22 +928,14 @@ def get_latest_pipeline_health() -> dict[
 
     pipeline_status = (
         "SUCCESS"
-        if all(
-            record["status"]
-            == "SUCCESS"
-            for record in records
-        )
+        if all(record["status"] == "SUCCESS" for record in records)
         else "FAILED"
     )
 
     return {
         "status": pipeline_status,
-        "batch_id": (
-            records[0]["batch_id"]
-        ),
-        "stage_count": len(
-            records
-        ),
+        "batch_id": (records[0]["batch_id"]),
+        "stage_count": len(records),
         "data": records,
     }
 
@@ -1120,9 +979,7 @@ def get_latest_data_quality() -> dict[
     """
 
     try:
-        records = execute_query(
-            query=query
-        )
+        records = execute_query(query=query)
 
     except (
         DatabaseConfigurationError,
@@ -1130,10 +987,7 @@ def get_latest_data_quality() -> dict[
     ) as error:
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Không đọc được Data "
-                f"Quality logs: {error}"
-            ),
+            detail=(f"Không đọc được Data Quality logs: {error}"),
         ) from error
 
     failed_checks = [
@@ -1147,16 +1001,8 @@ def get_latest_data_quality() -> dict[
     ]
 
     return {
-        "status": (
-            "PASSED"
-            if not failed_checks
-            else "FAILED"
-        ),
-        "check_count": len(
-            records
-        ),
-        "failed_check_count": len(
-            failed_checks
-        ),
+        "status": ("PASSED" if not failed_checks else "FAILED"),
+        "check_count": len(records),
+        "failed_check_count": len(failed_checks),
         "data": records,
     }

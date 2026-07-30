@@ -1,0 +1,11 @@
+# Install the application dependencies used by tests.
+-r requirements.txt
+-r requirements-api.txt
+
+# Test tooling
+pytest==9.1.1
+pytest-cov==7.1.0
+httpx==0.28.1
+
+# Lint and format tooling
+ruff==0.16.0

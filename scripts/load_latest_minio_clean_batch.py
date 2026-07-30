@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import psycopg
 from minio.error import S3Error
+import psycopg
 
 from src.load.minio_timescaledb_loader import (
     MinioTimescaleDBLoadError,
@@ -21,9 +21,7 @@ from src.utils.minio_object_io import (
 
 def main() -> None:
     try:
-        summary = (
-            load_latest_minio_clean_batch()
-        )
+        summary = load_latest_minio_clean_batch()
 
     except (
         MinioTimescaleDBLoadError,
@@ -36,68 +34,31 @@ def main() -> None:
         ValueError,
         TypeError,
     ) as error:
-        print(
-            "Load Clean Parquet từ MinIO "
-            f"vào TimescaleDB thất bại: {error}"
-        )
+        print(f"Load Clean Parquet từ MinIO vào TimescaleDB thất bại: {error}")
 
         raise SystemExit(1) from error
 
-    print(
-        "Load Clean Parquet từ MinIO "
-        "vào TimescaleDB hoàn tất."
-    )
+    print("Load Clean Parquet từ MinIO vào TimescaleDB hoàn tất.")
 
-    print(
-        "Status: "
-        f"{summary['status']}"
-    )
+    print(f"Status: {summary['status']}")
 
-    print(
-        "Batch ID: "
-        f"{summary['batch_id']}"
-    )
+    print(f"Batch ID: {summary['batch_id']}")
 
-    print(
-        "Input rows: "
-        f"{summary['input_rows']}"
-    )
+    print(f"Input rows: {summary['input_rows']}")
 
-    print(
-        "Processed rows: "
-        f"{summary['processed_rows']}"
-    )
+    print(f"Processed rows: {summary['processed_rows']}")
 
-    print(
-        "Inserted rows: "
-        f"{summary['inserted_rows']}"
-    )
+    print(f"Inserted rows: {summary['inserted_rows']}")
 
-    print(
-        "Updated rows: "
-        f"{summary['updated_rows']}"
-    )
+    print(f"Updated rows: {summary['updated_rows']}")
 
-    print(
-        "Fact table: "
-        f"{summary['fact_table']}"
-    )
+    print(f"Fact table: {summary['fact_table']}")
 
-    print(
-        "Database time column: "
-        f"{summary['database_time_column']}"
-    )
+    print(f"Database time column: {summary['database_time_column']}")
 
-    print(
-        "Clean object: "
-        f"{summary['clean_object_name']}"
-    )
+    print(f"Clean object: {summary['clean_object_name']}")
 
-    print(
-        "Load summary: "
-        f"{summary['summary_bucket']}/"
-        f"{summary['summary_object_name']}"
-    )
+    print(f"Load summary: {summary['summary_bucket']}/{summary['summary_object_name']}")
 
 
 if __name__ == "__main__":

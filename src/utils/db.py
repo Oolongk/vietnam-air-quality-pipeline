@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
+import os
 from typing import Any
 
-import psycopg
 from dotenv import load_dotenv
+import psycopg
 from psycopg.rows import dict_row
 
 
-class DatabaseConfigurationError(
-    ValueError
-):
+class DatabaseConfigurationError(ValueError):
     """Cấu hình kết nối database không hợp lệ."""
 
 
@@ -30,25 +28,13 @@ class DatabaseSettings:
     ) -> "DatabaseSettings":
         load_dotenv()
 
-        host = _get_required_environment(
-            "POSTGRES_HOST"
-        )
+        host = _get_required_environment("POSTGRES_HOST")
 
-        database = (
-            _get_required_environment(
-                "POSTGRES_DB"
-            )
-        )
+        database = _get_required_environment("POSTGRES_DB")
 
-        user = _get_required_environment(
-            "POSTGRES_USER"
-        )
+        user = _get_required_environment("POSTGRES_USER")
 
-        password = (
-            _get_required_environment(
-                "POSTGRES_PASSWORD"
-            )
-        )
+        password = _get_required_environment("POSTGRES_PASSWORD")
 
         port = _get_integer_environment(
             name="POSTGRES_PORT",
@@ -57,15 +43,11 @@ class DatabaseSettings:
             maximum=65535,
         )
 
-        connect_timeout = (
-            _get_integer_environment(
-                name=(
-                    "POSTGRES_CONNECT_TIMEOUT"
-                ),
-                default=10,
-                minimum=1,
-                maximum=300,
-            )
+        connect_timeout = _get_integer_environment(
+            name=("POSTGRES_CONNECT_TIMEOUT"),
+            default=10,
+            minimum=1,
+            maximum=300,
         )
 
         return cls(
@@ -86,12 +68,8 @@ class DatabaseSettings:
             "dbname": self.database,
             "user": self.user,
             "password": self.password,
-            "connect_timeout": (
-                self.connect_timeout
-            ),
-            "application_name": (
-                "vietnam_air_quality_pipeline"
-            ),
+            "connect_timeout": (self.connect_timeout),
+            "application_name": ("vietnam_air_quality_pipeline"),
         }
 
 
@@ -101,17 +79,12 @@ def _get_required_environment(
     value = os.getenv(name)
 
     if value is None:
-        raise DatabaseConfigurationError(
-            f"Thiếu biến môi trường: {name}"
-        )
+        raise DatabaseConfigurationError(f"Thiếu biến môi trường: {name}")
 
     cleaned_value = value.strip()
 
     if not cleaned_value:
-        raise DatabaseConfigurationError(
-            f"Biến môi trường {name} "
-            "không được rỗng."
-        )
+        raise DatabaseConfigurationError(f"Biến môi trường {name} không được rỗng.")
 
     return cleaned_value
 
@@ -130,14 +103,11 @@ def _get_integer_environment(
     try:
         value = int(raw_value)
     except ValueError as error:
-        raise DatabaseConfigurationError(
-            f"{name} phải là số nguyên."
-        ) from error
+        raise DatabaseConfigurationError(f"{name} phải là số nguyên.") from error
 
     if not minimum <= value <= maximum:
         raise DatabaseConfigurationError(
-            f"{name} phải nằm trong khoảng "
-            f"{minimum} đến {maximum}."
+            f"{name} phải nằm trong khoảng {minimum} đến {maximum}."
         )
 
     return value
@@ -146,10 +116,7 @@ def _get_integer_environment(
 def get_database_connection(
     settings: DatabaseSettings | None = None,
 ) -> psycopg.Connection:
-    resolved_settings = (
-        settings
-        or DatabaseSettings.from_environment()
-    )
+    resolved_settings = settings or DatabaseSettings.from_environment()
 
     return psycopg.connect(
         **resolved_settings.connection_parameters(),
@@ -157,8 +124,7 @@ def get_database_connection(
     )
 
 
-def check_database_connection(
-) -> dict[str, Any]:
+def check_database_connection() -> dict[str, Any]:
     with get_database_connection() as connection:
         with connection.cursor() as cursor:
             cursor.execute(
@@ -217,24 +183,16 @@ def check_database_connection(
             hypertable_info = cursor.fetchone()
 
     if server_info is None:
-        raise RuntimeError(
-            "Database không trả thông tin server."
-        )
+        raise RuntimeError("Database không trả thông tin server.")
 
     if location_info is None:
-        raise RuntimeError(
-            "Không đọc được số location."
-        )
+        raise RuntimeError("Không đọc được số location.")
 
     if point_info is None:
-        raise RuntimeError(
-            "Không đọc được số monitoring point."
-        )
+        raise RuntimeError("Không đọc được số monitoring point.")
 
     if hypertable_info is None:
-        raise RuntimeError(
-            "Không kiểm tra được hypertable."
-        )
+        raise RuntimeError("Không kiểm tra được hypertable.")
 
     return {
         **server_info,

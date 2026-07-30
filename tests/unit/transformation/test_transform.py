@@ -11,9 +11,7 @@ def build_sample_payload() -> dict:
     return {
         "schema_version": "1.0",
         "source": "open_meteo",
-        "ingested_at": (
-            "2026-07-11T05:00:00+00:00"
-        ),
+        "ingested_at": ("2026-07-11T05:00:00+00:00"),
         "request": {
             "point_id": "HN_CENTER",
             "location_id": "HN",
@@ -74,9 +72,7 @@ def build_sample_payload() -> dict:
 def test_transform_returns_one_row_per_time() -> None:
     payload = build_sample_payload()
 
-    dataframe = transform_open_meteo_payload(
-        payload
-    )
+    dataframe = transform_open_meteo_payload(payload)
 
     assert len(dataframe) == 2
     assert dataframe["point_id"].tolist() == [
@@ -106,34 +102,23 @@ def test_transform_returns_one_row_per_time() -> None:
 def test_forecast_time_has_timezone() -> None:
     payload = build_sample_payload()
 
-    dataframe = transform_open_meteo_payload(
-        payload
-    )
+    dataframe = transform_open_meteo_payload(payload)
 
-    assert pd.api.types.is_datetime64tz_dtype(
-        dataframe["forecast_time"].dtype
-    )
+    assert pd.api.types.is_datetime64tz_dtype(dataframe["forecast_time"].dtype)
 
-    assert (
-        str(dataframe["forecast_time"].dt.tz)
-        == "Asia/Ho_Chi_Minh"
-    )
+    assert str(dataframe["forecast_time"].dt.tz) == "Asia/Ho_Chi_Minh"
 
 
 def test_transform_rejects_unequal_array_lengths() -> None:
     payload = build_sample_payload()
 
-    payload["response"]["hourly"]["pm10"] = [
-        27.4
-    ]
+    payload["response"]["hourly"]["pm10"] = [27.4]
 
     with pytest.raises(
         AirQualityTransformError,
         match="pm10",
     ):
-        transform_open_meteo_payload(
-            payload
-        )
+        transform_open_meteo_payload(payload)
 
 
 def test_transform_rejects_wrong_source() -> None:
@@ -145,6 +130,4 @@ def test_transform_rejects_wrong_source() -> None:
         AirQualityTransformError,
         match="open_meteo",
     ):
-        transform_open_meteo_payload(
-            payload
-        )
+        transform_open_meteo_payload(payload)

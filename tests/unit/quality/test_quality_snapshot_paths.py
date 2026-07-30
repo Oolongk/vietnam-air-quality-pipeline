@@ -39,16 +39,10 @@ def test_quality_object_paths_are_partitioned() -> None:
         partition_date,
         partition_hour,
         batch_id,
-    ) == (
-        "data_quality/history/"
-        "date=2026-07-20/"
-        "hour=12/"
-        "batch_id=20260720T120000Z_test"
-    )
+    ) == ("data_quality/history/date=2026-07-20/hour=12/batch_id=20260720T120000Z_test")
 
 
 def test_latest_snapshot_has_stable_object_name() -> None:
     assert QUALITY_SNAPSHOT_LATEST_OBJECT == (
-        "data_quality/latest/"
-        "quality_snapshot.json"
+        "data_quality/latest/quality_snapshot.json"
     )

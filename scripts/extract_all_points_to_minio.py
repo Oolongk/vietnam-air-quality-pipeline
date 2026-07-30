@@ -13,7 +13,6 @@ from src.ingestion.minio_air_quality_extractor import (
     get_open_meteo_batch_size,
     load_active_monitoring_points,
 )
-
 from src.ingestion.open_meteo_client import (
     OpenMeteoClient,
 )
@@ -22,14 +21,9 @@ from src.utils.minio_client import (
     MinioOperationError,
 )
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-MONITORING_POINTS_PATH = (
-    PROJECT_ROOT
-    / "configs"
-    / "monitoring_points.csv"
-)
+MONITORING_POINTS_PATH = PROJECT_ROOT / "configs" / "monitoring_points.csv"
 
 
 def build_fetcher(
@@ -47,11 +41,10 @@ def build_fetcher(
 
     return fetch_air_quality
 
+
 def prefetch_air_quality_batches(
     client: OpenMeteoClient,
-    monitoring_points: list[
-        MonitoringPoint
-    ],
+    monitoring_points: list[MonitoringPoint],
     batch_size: int,
 ) -> tuple[
     dict[str, dict[str, Any]],
@@ -66,14 +59,10 @@ def prefetch_air_quality_batches(
     extractor ghi nhận vào failures.
     """
 
-    request_points: list[
-        dict[str, Any]
-    ] = [
+    request_points: list[dict[str, Any]] = [
         {
             "point_id": point.point_id,
-            "location_id": (
-                point.location_id
-            ),
+            "location_id": (point.location_id),
             "latitude": point.latitude,
             "longitude": point.longitude,
         }
@@ -90,38 +79,22 @@ def prefetch_air_quality_batches(
         str,
     ] = {}
 
-    for request_batch in (
-        chunk_monitoring_points(
-            monitoring_points=(
-                request_points
-            ),
-            batch_size=batch_size,
-        )
+    for request_batch in chunk_monitoring_points(
+        monitoring_points=(request_points),
+        batch_size=batch_size,
     ):
         try:
-            batch_results = (
-                client
-                .fetch_hourly_air_quality_batch(
-                    monitoring_points=(
-                        request_batch
-                    )
-                )
+            batch_results = client.fetch_hourly_air_quality_batch(
+                monitoring_points=(request_batch)
             )
 
             if not isinstance(
                 batch_results,
                 list,
             ):
-                raise RuntimeError(
-                    "Open-Meteo batch phải "
-                    "trả về list."
-                )
+                raise RuntimeError("Open-Meteo batch phải trả về list.")
 
-            if len(
-                batch_results
-            ) != len(
-                request_batch
-            ):
+            if len(batch_results) != len(request_batch):
                 raise RuntimeError(
                     "Số batch response không "
                     "khớp số monitoring point. "
@@ -136,50 +109,31 @@ def prefetch_air_quality_batches(
                 )
                 for result in batch_results
             ):
-                raise RuntimeError(
-                    "Một batch response không "
-                    "phải dictionary."
-                )
+                raise RuntimeError("Một batch response không phải dictionary.")
 
             for request_point, result in zip(
                 request_batch,
                 batch_results,
                 strict=True,
             ):
-                point_id = str(
-                    request_point[
-                        "point_id"
-                    ]
-                )
+                point_id = str(request_point["point_id"])
 
-                responses_by_point_id[
-                    point_id
-                ] = result
+                responses_by_point_id[point_id] = result
 
         except Exception as error:
-            error_message = (
-                f"{type(error).__name__}: "
-                f"{error}"
-            )
+            error_message = f"{type(error).__name__}: {error}"
 
-            for request_point in (
-                request_batch
-            ):
-                point_id = str(
-                    request_point[
-                        "point_id"
-                    ]
-                )
+            for request_point in request_batch:
+                point_id = str(request_point["point_id"])
 
-                failures_by_point_id[
-                    point_id
-                ] = error_message
+                failures_by_point_id[point_id] = error_message
 
     return (
         responses_by_point_id,
         failures_by_point_id,
     )
-    
+
+
 def build_prefetched_fetcher(
     responses_by_point_id: dict[
         str,
@@ -200,83 +154,52 @@ def build_prefetched_fetcher(
     def fetch_air_quality(
         point: MonitoringPoint,
     ) -> dict[str, Any]:
-        failure_message = (
-            failures_by_point_id.get(
-                point.point_id
-            )
-        )
+        failure_message = failures_by_point_id.get(point.point_id)
 
         if failure_message is not None:
             raise RuntimeError(
-                "Open-Meteo batch thất bại "
-                f"cho {point.point_id}: "
-                f"{failure_message}"
+                f"Open-Meteo batch thất bại cho {point.point_id}: {failure_message}"
             )
 
-        api_response = (
-            responses_by_point_id.get(
-                point.point_id
-            )
-        )
+        api_response = responses_by_point_id.get(point.point_id)
 
         if api_response is None:
             raise RuntimeError(
-                "Không tìm thấy response "
-                "đã tải cho monitoring point "
-                f"{point.point_id}."
+                f"Không tìm thấy response đã tải cho monitoring point {point.point_id}."
             )
 
         return api_response
 
     return fetch_air_quality
 
+
 def main() -> None:
     client = None
 
     try:
-        monitoring_points = (
-            load_active_monitoring_points(
-                MONITORING_POINTS_PATH
-            )
-        )
+        monitoring_points = load_active_monitoring_points(MONITORING_POINTS_PATH)
 
         client = OpenMeteoClient()
 
-        batch_size = (
-            get_open_meteo_batch_size()
-        )
+        batch_size = get_open_meteo_batch_size()
 
         (
             responses_by_point_id,
             failures_by_point_id,
         ) = prefetch_air_quality_batches(
             client=client,
-            monitoring_points=(
-                monitoring_points
-            ),
+            monitoring_points=(monitoring_points),
             batch_size=batch_size,
         )
 
-        fetch_air_quality = (
-            build_prefetched_fetcher(
-                responses_by_point_id=(
-                    responses_by_point_id
-                ),
-                failures_by_point_id=(
-                    failures_by_point_id
-                ),
-            )
+        fetch_air_quality = build_prefetched_fetcher(
+            responses_by_point_id=(responses_by_point_id),
+            failures_by_point_id=(failures_by_point_id),
         )
 
-        summary = (
-            extract_monitoring_points_to_minio(
-                monitoring_points=(
-                    monitoring_points
-                ),
-                fetch_air_quality=(
-                    fetch_air_quality
-                ),
-            )
+        summary = extract_monitoring_points_to_minio(
+            monitoring_points=(monitoring_points),
+            fetch_air_quality=(fetch_air_quality),
         )
 
     except (
@@ -287,10 +210,7 @@ def main() -> None:
         RuntimeError,
         ValueError,
     ) as error:
-        print(
-            "Extraction trực tiếp lên MinIO "
-            f"thất bại: {error}"
-        )
+        print(f"Extraction trực tiếp lên MinIO thất bại: {error}")
 
         raise SystemExit(1) from error
 
@@ -302,92 +222,44 @@ def main() -> None:
                 None,
             )
 
-            if callable(
-                close_method
-            ):
+            if callable(close_method):
                 close_method()
 
-    print(
-        "Extraction trực tiếp lên MinIO "
-        "hoàn tất."
-    )
+    print("Extraction trực tiếp lên MinIO hoàn tất.")
 
-    print(
-        "Status: "
-        f"{summary['status']}"
-    )
+    print(f"Status: {summary['status']}")
 
-    print(
-        "Batch ID: "
-        f"{summary['batch_id']}"
-    )
+    print(f"Batch ID: {summary['batch_id']}")
 
-    print(
-        "Active points: "
-        f"{summary['active_points']}"
-    )
+    print(f"Active points: {summary['active_points']}")
 
-    print(
-        "Successful points: "
-        f"{summary['successful_points']}"
-    )
+    print(f"Successful points: {summary['successful_points']}")
 
-    print(
-        "Failed points: "
-        f"{summary['failed_points']}"
-    )
-    
-    print(
-        "Open-Meteo batch size: "
-        f"{batch_size}"
-    )
+    print(f"Failed points: {summary['failed_points']}")
 
-    print(
-        "Prefetched points: "
-        f"{len(responses_by_point_id)}"
-    )
+    print(f"Open-Meteo batch size: {batch_size}")
 
-    print(
-        "Prefetch failed points: "
-        f"{len(failures_by_point_id)}"
-    )
+    print(f"Prefetched points: {len(responses_by_point_id)}")
 
-    request_metrics = (
-        client.get_request_metrics()
-    )
+    print(f"Prefetch failed points: {len(failures_by_point_id)}")
 
-    print(
-        "Total HTTP attempts: "
-        f"{request_metrics['total_http_attempts']}"
-    )
+    request_metrics = client.get_request_metrics()
 
-    print(
-        "Records extracted: "
-        f"{summary['records_extracted']}"
-    )
+    print(f"Total HTTP attempts: {request_metrics['total_http_attempts']}")
 
-    print(
-        "Raw bucket: "
-        f"{summary['raw_bucket']}"
-    )
+    print(f"Records extracted: {summary['records_extracted']}")
 
-    print(
-        "Batch prefix: "
-        f"{summary['batch_prefix']}"
-    )
+    print(f"Raw bucket: {summary['raw_bucket']}")
 
-    print(
-        "Summary object: "
-        f"{summary['summary_object_name']}"
-    )
+    print(f"Batch prefix: {summary['batch_prefix']}")
+
+    print(f"Summary object: {summary['summary_object_name']}")
 
     if summary["failures"]:
         print()
         print("Các điểm bị lỗi:")
 
-        for failure in summary[
-            "failures"
-        ]:
+        for failure in summary["failures"]:
             print(
                 "- "
                 f"{failure['point_id']}: "

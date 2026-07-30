@@ -3,44 +3,25 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pandas as pd
-
 from src.transform.air_quality_transform import (
     AirQualityTransformError,
     transform_open_meteo_payload,
 )
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-INPUT_PATH = (
-    PROJECT_ROOT
-    / "data"
-    / "local_test"
-    / "open_meteo_HN_CENTER_sample.json"
-)
+INPUT_PATH = PROJECT_ROOT / "data" / "local_test" / "open_meteo_HN_CENTER_sample.json"
 
-OUTPUT_DIRECTORY = (
-    PROJECT_ROOT
-    / "data"
-    / "local_test"
-    / "clean"
-)
+OUTPUT_DIRECTORY = PROJECT_ROOT / "data" / "local_test" / "clean"
 
-OUTPUT_PATH = (
-    OUTPUT_DIRECTORY
-    / "open_meteo_HN_CENTER_hourly.parquet"
-)
+OUTPUT_PATH = OUTPUT_DIRECTORY / "open_meteo_HN_CENTER_hourly.parquet"
 
 
 def load_raw_payload(
     input_path: Path,
 ) -> dict:
     if not input_path.exists():
-        raise FileNotFoundError(
-            "Không tìm thấy Raw JSON tại: "
-            f"{input_path}"
-        )
+        raise FileNotFoundError(f"Không tìm thấy Raw JSON tại: {input_path}")
 
     with input_path.open(
         mode="r",
@@ -51,24 +32,15 @@ def load_raw_payload(
 
 def main() -> None:
     try:
-        raw_payload = load_raw_payload(
-            INPUT_PATH
-        )
+        raw_payload = load_raw_payload(INPUT_PATH)
 
-        clean_dataframe = (
-            transform_open_meteo_payload(
-                raw_payload
-            )
-        )
+        clean_dataframe = transform_open_meteo_payload(raw_payload)
     except (
         FileNotFoundError,
         json.JSONDecodeError,
         AirQualityTransformError,
     ) as error:
-        print(
-            "Transform thất bại: "
-            f"{error}"
-        )
+        print(f"Transform thất bại: {error}")
 
         raise SystemExit(1) from error
 
@@ -85,18 +57,9 @@ def main() -> None:
     )
 
     print("Transform thành công.")
-    print(
-        "Số record Clean: "
-        f"{len(clean_dataframe)}"
-    )
-    print(
-        "Số cột Clean: "
-        f"{len(clean_dataframe.columns)}"
-    )
-    print(
-        "File Parquet: "
-        f"{OUTPUT_PATH}"
-    )
+    print(f"Số record Clean: {len(clean_dataframe)}")
+    print(f"Số cột Clean: {len(clean_dataframe.columns)}")
+    print(f"File Parquet: {OUTPUT_PATH}")
 
     print()
     print("Năm record đầu tiên:")
@@ -111,43 +74,24 @@ def main() -> None:
         "source",
     ]
 
-    print(
-        clean_dataframe[
-            preview_columns
-        ]
-        .head(5)
-        .to_string(index=False)
-    )
+    print(clean_dataframe[preview_columns].head(5).to_string(index=False))
 
     print()
     print("Kiểu dữ liệu:")
 
-    print(
-        clean_dataframe.dtypes.to_string()
-    )
+    print(clean_dataframe.dtypes.to_string())
 
     print()
     print("Thống kê giá trị thiếu:")
 
-    missing_counts = (
-        clean_dataframe
-        .isna()
-        .sum()
-    )
+    missing_counts = clean_dataframe.isna().sum()
 
-    missing_counts = missing_counts[
-        missing_counts > 0
-    ]
+    missing_counts = missing_counts[missing_counts > 0]
 
     if missing_counts.empty:
-        print(
-            "Không có giá trị thiếu "
-            "trong dữ liệu mẫu."
-        )
+        print("Không có giá trị thiếu trong dữ liệu mẫu.")
     else:
-        print(
-            missing_counts.to_string()
-        )
+        print(missing_counts.to_string())
 
 
 if __name__ == "__main__":

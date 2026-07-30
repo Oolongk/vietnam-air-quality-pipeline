@@ -1,0 +1,88 @@
+{
+  "active_dag_entrypoints": [
+    "scripts.sync_dimensions_to_timescaledb",
+    "scripts.extract_all_points_to_minio",
+    "scripts.transform_latest_minio_batch",
+    "scripts.run_latest_minio_data_quality",
+    "scripts.load_latest_minio_clean_batch",
+    "scripts.process_latest_aqi_alerts",
+    "scripts.build_latest_minio_mart",
+    "scripts.sync_latest_minio_pipeline_health",
+    "scripts.publish_latest_snapshots",
+    "scripts.upload_public_snapshots_to_s3"
+  ],
+  "catalog_version": "1.0",
+  "fastapi_role": {
+    "consumer": "snapshot_publisher",
+    "public_exposure": false,
+    "read_only": true,
+    "reason": "Airflow Snapshot Publisher reads validated data from FastAPI before writing public snapshot files.",
+    "required_routes": [
+      "/health",
+      "/api/v1/locations",
+      "/api/v1/monitoring-points",
+      "/api/v1/air-quality/latest",
+      "/api/v1/air-quality/top-polluted",
+      "/api/v1/air-quality/locations/{location_id}",
+      "/api/v1/air-quality/points/{point_id}",
+      "/api/v1/air-quality/history",
+      "/api/v1/alerts/latest",
+      "/api/v1/pipeline/health/latest",
+      "/api/v1/data-quality/latest"
+    ],
+    "status": "active_internal_service"
+  },
+  "legacy_local_entrypoints": [
+    {
+      "execution_policy": "disabled_by_default; set ALLOW_LEGACY_LOCAL_PIPELINE=true only for deliberate recovery or historical verification",
+      "module": "scripts.extract_all_monitoring_points",
+      "replacement": "scripts.sync_dimensions_to_timescaledb"
+    },
+    {
+      "execution_policy": "disabled_by_default; set ALLOW_LEGACY_LOCAL_PIPELINE=true only for deliberate recovery or historical verification",
+      "module": "scripts.transform_latest_raw_batch",
+      "replacement": "scripts.extract_all_points_to_minio"
+    },
+    {
+      "execution_policy": "disabled_by_default; set ALLOW_LEGACY_LOCAL_PIPELINE=true only for deliberate recovery or historical verification",
+      "module": "scripts.run_data_quality_latest_batch",
+      "replacement": "scripts.transform_latest_minio_batch"
+    },
+    {
+      "execution_policy": "disabled_by_default; set ALLOW_LEGACY_LOCAL_PIPELINE=true only for deliberate recovery or historical verification",
+      "module": "scripts.load_latest_clean_batch",
+      "replacement": "scripts.run_latest_minio_data_quality"
+    },
+    {
+      "execution_policy": "disabled_by_default; set ALLOW_LEGACY_LOCAL_PIPELINE=true only for deliberate recovery or historical verification",
+      "module": "scripts.sync_latest_pipeline_health_logs",
+      "replacement": "scripts.load_latest_minio_clean_batch"
+    }
+  ],
+  "legacy_local_modules": [
+    "src.ingestion.air_quality_extractor",
+    "src.transform.air_quality_transform",
+    "src.transform.batch_transformer",
+    "src.quality.quality_processor",
+    "src.load.timescaledb_loader",
+    "src.load.pipeline_log_loader",
+    "src.utils.config_loader"
+  ],
+  "maintenance_entrypoints": [
+    "scripts.setup_minio_buckets",
+    "scripts.inspect_latest_minio_quality",
+    "scripts.inspect_latest_minio_transform",
+    "scripts.sync_local_lake_to_minio",
+    "scripts.test_air_quality_transform",
+    "scripts.test_minio_object_io",
+    "scripts.test_open_meteo_connection",
+    "scripts.test_timescaledb_connection"
+  ],
+  "project": "vietnam-air-quality-pipeline",
+  "unused_candidates": [
+    {
+      "action": "retain until the final full-suite and Git review; then remove in a dedicated commit if still unreferenced",
+      "module": "src.utils.logging_config"
+    }
+  ]
+}

@@ -4,143 +4,80 @@ from pathlib import Path
 
 import pandas as pd
 
+from src.operations.legacy_runtime import (
+    require_legacy_local_pipeline_enabled,
+)
 from src.transform.batch_transformer import (
     BatchTransformError,
     transform_raw_batch,
 )
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-RAW_ROOT = (
-    PROJECT_ROOT
-    / "data"
-    / "local_lake"
-    / "raw"
-)
+RAW_ROOT = PROJECT_ROOT / "data" / "local_lake" / "raw"
 
-TRANSFORMED_ROOT = (
-    PROJECT_ROOT
-    / "data"
-    / "local_lake"
-    / "transformed"
-)
+TRANSFORMED_ROOT = PROJECT_ROOT / "data" / "local_lake" / "transformed"
 
 
 def find_latest_raw_batch(
     raw_root: Path,
 ) -> Path:
     if not raw_root.exists():
-        raise FileNotFoundError(
-            f"Raw root chưa tồn tại: {raw_root}"
-        )
+        raise FileNotFoundError(f"Raw root chưa tồn tại: {raw_root}")
 
-    summary_files = list(
-        raw_root.rglob(
-            "run_summary.json"
-        )
-    )
+    summary_files = list(raw_root.rglob("run_summary.json"))
 
     if not summary_files:
-        raise FileNotFoundError(
-            "Không tìm thấy run_summary.json "
-            f"bên trong {raw_root}"
-        )
+        raise FileNotFoundError(f"Không tìm thấy run_summary.json bên trong {raw_root}")
 
     latest_summary = max(
         summary_files,
-        key=lambda path: (
-            path.stat().st_mtime
-        ),
+        key=lambda path: path.stat().st_mtime,
     )
 
     return latest_summary.parent
 
 
 def main() -> None:
+    require_legacy_local_pipeline_enabled(
+        "scripts.transform_latest_raw_batch",
+    )
+
     try:
-        raw_batch_directory = (
-            find_latest_raw_batch(
-                RAW_ROOT
-            )
-        )
+        raw_batch_directory = find_latest_raw_batch(RAW_ROOT)
 
         summary = transform_raw_batch(
-            raw_batch_directory=(
-                raw_batch_directory
-            ),
-            transformed_root=(
-                TRANSFORMED_ROOT
-            ),
+            raw_batch_directory=(raw_batch_directory),
+            transformed_root=(TRANSFORMED_ROOT),
         )
     except (
         FileNotFoundError,
         BatchTransformError,
         OSError,
     ) as error:
-        print(
-            "Batch transform thất bại: "
-            f"{error}"
-        )
+        print(f"Batch transform thất bại: {error}")
 
         raise SystemExit(1) from error
 
     print("Hoàn tất batch transform.")
-    print(
-        "Trạng thái: "
-        f"{summary['status']}"
-    )
-    print(
-        "Batch ID: "
-        f"{summary['batch_id']}"
-    )
-    print(
-        "Raw batch: "
-        f"{raw_batch_directory}"
-    )
-    print(
-        "Số Raw file tìm thấy: "
-        f"{summary['discovered_raw_files']}"
-    )
-    print(
-        "File thành công: "
-        f"{summary['succeeded_files']}"
-    )
-    print(
-        "File thất bại: "
-        f"{summary['failed_files']}"
-    )
-    print(
-        "Tổng record sau transform: "
-        f"{summary['records_transformed']}"
-    )
-    print(
-        "Số dòng thuộc nhóm duplicate: "
-        f"{summary['duplicate_key_rows']}"
-    )
-    print(
-        "Thời gian chạy: "
-        f"{summary['duration_seconds']:.2f} giây"
-    )
+    print(f"Trạng thái: {summary['status']}")
+    print(f"Batch ID: {summary['batch_id']}")
+    print(f"Raw batch: {raw_batch_directory}")
+    print(f"Số Raw file tìm thấy: {summary['discovered_raw_files']}")
+    print(f"File thành công: {summary['succeeded_files']}")
+    print(f"File thất bại: {summary['failed_files']}")
+    print(f"Tổng record sau transform: {summary['records_transformed']}")
+    print(f"Số dòng thuộc nhóm duplicate: {summary['duplicate_key_rows']}")
+    print(f"Thời gian chạy: {summary['duration_seconds']:.2f} giây")
 
-    transformed_relative_path = (
-        summary["transformed_data_path"]
-    )
+    transformed_relative_path = summary["transformed_data_path"]
 
     if transformed_relative_path:
-        transformed_path = (
-            TRANSFORMED_ROOT
-            / transformed_relative_path
-        )
+        transformed_path = TRANSFORMED_ROOT / transformed_relative_path
 
-        print(
-            "File Parquet: "
-            f"{transformed_path}"
-        )
+        print(f"File Parquet: {transformed_path}")
 
-        dataframe = pd.read_parquet(
-            transformed_path
-        )
+        dataframe = pd.read_parquet(transformed_path)
 
         print()
         print("Năm record đầu tiên:")
@@ -155,24 +92,12 @@ def main() -> None:
             "source",
         ]
 
-        print(
-            dataframe[
-                preview_columns
-            ]
-            .head(5)
-            .to_string(index=False)
-        )
+        print(dataframe[preview_columns].head(5).to_string(index=False))
 
         print()
         print("Số record theo point_id:")
 
-        print(
-            dataframe
-            .groupby("point_id")
-            .size()
-            .sort_index()
-            .to_string()
-        )
+        print(dataframe.groupby("point_id").size().sort_index().to_string())
 
     if summary["status"] != "SUCCESS":
         print()
@@ -189,4 +114,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()  
+    main()

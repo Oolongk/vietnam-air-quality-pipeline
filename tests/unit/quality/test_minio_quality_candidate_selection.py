@@ -53,46 +53,30 @@ def test_find_latest_quality_candidate_selects_newest_valid_batch(
         object_names[0]: {
             "status": "SUCCESS",
             "batch_id": "BATCH_OLD",
-            "transformed_object_name": (
-                "transformed/old/data.parquet"
-            ),
+            "transformed_object_name": ("transformed/old/data.parquet"),
             "records_transformed": 240,
-            "finished_at": (
-                "2026-07-24T01:30:00+00:00"
-            ),
+            "finished_at": ("2026-07-24T01:30:00+00:00"),
         },
         object_names[1]: {
             "status": "PARTIAL_SUCCESS",
             "batch_id": "BATCH_NEW",
-            "transformed_object_name": (
-                "transformed/new/data.parquet"
-            ),
+            "transformed_object_name": ("transformed/new/data.parquet"),
             "records_transformed": 2448,
-            "finished_at": (
-                "2026-07-25T01:30:00+00:00"
-            ),
+            "finished_at": ("2026-07-25T01:30:00+00:00"),
         },
         object_names[2]: {
             "status": "FAILED",
             "batch_id": "BATCH_FAILED",
-            "transformed_object_name": (
-                "transformed/failed/data.parquet"
-            ),
+            "transformed_object_name": ("transformed/failed/data.parquet"),
             "records_transformed": 2448,
-            "finished_at": (
-                "2026-07-26T01:30:00+00:00"
-            ),
+            "finished_at": ("2026-07-26T01:30:00+00:00"),
         },
         object_names[3]: {
             "status": "SUCCESS",
             "batch_id": "BATCH_EMPTY",
-            "transformed_object_name": (
-                "transformed/empty/data.parquet"
-            ),
+            "transformed_object_name": ("transformed/empty/data.parquet"),
             "records_transformed": 0,
-            "finished_at": (
-                "2026-07-26T02:30:00+00:00"
-            ),
+            "finished_at": ("2026-07-26T02:30:00+00:00"),
         },
     }
 
@@ -101,18 +85,14 @@ def test_find_latest_quality_candidate_selects_newest_valid_batch(
     def fake_list_object_names(
         **kwargs: Any,
     ) -> list[str]:
-        captured.update(
-            kwargs
-        )
+        captured.update(kwargs)
 
         return object_names
 
     def fake_get_json_object(
         **kwargs: Any,
     ) -> dict[str, Any]:
-        return summaries[
-            kwargs["object_name"]
-        ]
+        return summaries[kwargs["object_name"]]
 
     monkeypatch.setattr(
         quality_processor,
@@ -132,43 +112,24 @@ def test_find_latest_quality_candidate_selects_newest_valid_batch(
     (
         selected_object_name,
         selected_summary,
-    ) = (
-        quality_processor
-        .find_latest_quality_candidate(
-            settings=settings,
-            client=client,
-        )
+    ) = quality_processor.find_latest_quality_candidate(
+        settings=settings,
+        client=client,
     )
 
-    assert selected_object_name == (
-        object_names[1]
-    )
+    assert selected_object_name == (object_names[1])
 
-    assert selected_summary[
-        "batch_id"
-    ] == "BATCH_NEW"
+    assert selected_summary["batch_id"] == "BATCH_NEW"
 
-    assert captured[
-        "bucket_name"
-    ] == "air-quality-clean"
+    assert captured["bucket_name"] == "air-quality-clean"
 
-    assert captured[
-        "prefix"
-    ] == (
-        "transformed/air_quality/hourly"
-    )
+    assert captured["prefix"] == ("transformed/air_quality/hourly")
 
-    assert captured[
-        "recursive"
-    ] is True
+    assert captured["recursive"] is True
 
-    assert captured[
-        "settings"
-    ] is settings
+    assert captured["settings"] is settings
 
-    assert captured[
-        "client"
-    ] is client
+    assert captured["client"] is client
 
 
 def test_find_latest_quality_candidate_rejects_when_none_are_valid(
@@ -195,25 +156,18 @@ def test_find_latest_quality_candidate_rejects_when_none_are_valid(
         lambda **kwargs: {
             "status": "FAILED",
             "batch_id": "BATCH_FAILED",
-            "transformed_object_name": (
-                "transformed/failed/data.parquet"
-            ),
+            "transformed_object_name": ("transformed/failed/data.parquet"),
             "records_transformed": 2448,
-            "finished_at": (
-                "2026-07-25T01:30:00+00:00"
-            ),
+            "finished_at": ("2026-07-25T01:30:00+00:00"),
         },
     )
 
     with pytest.raises(
         quality_processor.MinioDataQualityError,
-        match=(
-            "Không tìm thấy Transform batch"
-        ),
+        match=("Không tìm thấy Transform batch"),
     ):
         (
-            quality_processor
-            .find_latest_quality_candidate(
+            quality_processor.find_latest_quality_candidate(
                 settings=build_settings(),
                 client=object(),
             )
@@ -251,37 +205,23 @@ def test_find_latest_loadable_quality_batch_selects_newest_valid_batch(
         old_object: {
             "status": "SUCCESS",
             "batch_id": "BATCH_OLD",
-            "clean_object_name": (
-                "clean/old/data.parquet"
-            ),
+            "clean_object_name": ("clean/old/data.parquet"),
             "valid_records": 240,
-            "finished_at": (
-                "2026-07-24T02:00:00+00:00"
-            ),
+            "finished_at": ("2026-07-24T02:00:00+00:00"),
         },
         new_object: {
             "status": "PARTIAL_SUCCESS",
             "batch_id": "BATCH_NEW",
-            "clean_object_name": (
-                "clean/new/data.parquet"
-            ),
+            "clean_object_name": ("clean/new/data.parquet"),
             "valid_records": 2448,
-            "finished_at": (
-                "2026-07-25T02:00:00+00:00"
-            ),
+            "finished_at": ("2026-07-25T02:00:00+00:00"),
         },
         invalid_object: {
             "status": "SUCCESS",
-            "batch_id": (
-                "BATCH_NO_VALID_ROWS"
-            ),
-            "clean_object_name": (
-                "clean/invalid/data.parquet"
-            ),
+            "batch_id": ("BATCH_NO_VALID_ROWS"),
+            "clean_object_name": ("clean/invalid/data.parquet"),
             "valid_records": 0,
-            "finished_at": (
-                "2026-07-26T02:00:00+00:00"
-            ),
+            "finished_at": ("2026-07-26T02:00:00+00:00"),
         },
     }
 
@@ -298,30 +238,19 @@ def test_find_latest_loadable_quality_batch_selects_newest_valid_batch(
     monkeypatch.setattr(
         quality_processor,
         "get_json_object",
-        lambda **kwargs: summaries[
-            kwargs["object_name"]
-        ],
+        lambda **kwargs: summaries[kwargs["object_name"]],
     )
 
     (
         selected_object_name,
         selected_summary,
-    ) = (
-        quality_processor
-        .find_latest_loadable_quality_batch(
-            settings=build_settings(),
-            client=object(),
-        )
+    ) = quality_processor.find_latest_loadable_quality_batch(
+        settings=build_settings(),
+        client=object(),
     )
 
-    assert selected_object_name == (
-        new_object
-    )
+    assert selected_object_name == (new_object)
 
-    assert selected_summary[
-        "batch_id"
-    ] == "BATCH_NEW"
+    assert selected_summary["batch_id"] == "BATCH_NEW"
 
-    assert selected_summary[
-        "valid_records"
-    ] == 2448
+    assert selected_summary["valid_records"] == 2448

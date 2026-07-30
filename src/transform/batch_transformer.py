@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
+import json
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +11,6 @@ from src.transform.air_quality_transform import (
     AirQualityTransformError,
     transform_open_meteo_payload,
 )
-
 
 RAW_SUMMARY_FILENAME = "run_summary.json"
 RAW_DATA_FILENAME = "data.json"
@@ -34,14 +33,10 @@ def _read_json(
     input_path: Path,
 ) -> dict[str, Any]:
     if not input_path.exists():
-        raise BatchTransformError(
-            f"Không tìm thấy file JSON: {input_path}"
-        )
+        raise BatchTransformError(f"Không tìm thấy file JSON: {input_path}")
 
     if not input_path.is_file():
-        raise BatchTransformError(
-            f"Đường dẫn không phải file: {input_path}"
-        )
+        raise BatchTransformError(f"Đường dẫn không phải file: {input_path}")
 
     try:
         with input_path.open(
@@ -50,18 +45,12 @@ def _read_json(
         ) as input_file:
             data = json.load(input_file)
     except json.JSONDecodeError as error:
-        raise BatchTransformError(
-            f"File JSON không hợp lệ: {input_path}"
-        ) from error
+        raise BatchTransformError(f"File JSON không hợp lệ: {input_path}") from error
     except OSError as error:
-        raise BatchTransformError(
-            f"Không thể đọc file: {input_path}"
-        ) from error
+        raise BatchTransformError(f"Không thể đọc file: {input_path}") from error
 
     if not isinstance(data, dict):
-        raise BatchTransformError(
-            f"Nội dung JSON phải là object: {input_path}"
-        )
+        raise BatchTransformError(f"Nội dung JSON phải là object: {input_path}")
 
     return data
 
@@ -75,9 +64,7 @@ def _write_json_atomically(
         exist_ok=True,
     )
 
-    temporary_path = output_path.with_name(
-        output_path.name + ".tmp"
-    )
+    temporary_path = output_path.with_name(output_path.name + ".tmp")
 
     try:
         with temporary_path.open(
@@ -93,9 +80,7 @@ def _write_json_atomically(
 
         temporary_path.replace(output_path)
     except OSError as error:
-        raise BatchTransformError(
-            f"Không thể ghi file JSON: {output_path}"
-        ) from error
+        raise BatchTransformError(f"Không thể ghi file JSON: {output_path}") from error
 
 
 def _write_parquet_atomically(
@@ -107,9 +92,7 @@ def _write_parquet_atomically(
         exist_ok=True,
     )
 
-    temporary_path = output_path.with_name(
-        output_path.name + ".tmp"
-    )
+    temporary_path = output_path.with_name(output_path.name + ".tmp")
 
     try:
         dataframe.to_parquet(
@@ -137,16 +120,12 @@ def _require_summary_string(
     value = summary.get(key)
 
     if not isinstance(value, str):
-        raise BatchTransformError(
-            f"run_summary.json thiếu chuỗi '{key}'."
-        )
+        raise BatchTransformError(f"run_summary.json thiếu chuỗi '{key}'.")
 
     cleaned_value = value.strip()
 
     if not cleaned_value:
-        raise BatchTransformError(
-            f"run_summary.json có '{key}' bị rỗng."
-        )
+        raise BatchTransformError(f"run_summary.json có '{key}' bị rỗng.")
 
     return cleaned_value
 
@@ -171,32 +150,23 @@ def transform_raw_batch(
     raw_batch_directory: Path,
     transformed_root: Path,
 ) -> dict[str, Any]:
-    raw_batch_directory = (
-        raw_batch_directory.resolve()
-    )
+    raw_batch_directory = raw_batch_directory.resolve()
 
     transformed_root = transformed_root.resolve()
 
     if not raw_batch_directory.exists():
         raise BatchTransformError(
-            "Không tìm thấy Raw batch directory: "
-            f"{raw_batch_directory}"
+            f"Không tìm thấy Raw batch directory: {raw_batch_directory}"
         )
 
     if not raw_batch_directory.is_dir():
         raise BatchTransformError(
-            "Raw batch path không phải thư mục: "
-            f"{raw_batch_directory}"
+            f"Raw batch path không phải thư mục: {raw_batch_directory}"
         )
 
-    raw_summary_path = (
-        raw_batch_directory
-        / RAW_SUMMARY_FILENAME
-    )
+    raw_summary_path = raw_batch_directory / RAW_SUMMARY_FILENAME
 
-    raw_summary = _read_json(
-        raw_summary_path
-    )
+    raw_summary = _read_json(raw_summary_path)
 
     partition_date = _require_summary_string(
         raw_summary,
@@ -213,40 +183,23 @@ def transform_raw_batch(
         "batch_id",
     )
 
-    transformed_directory = (
-        _build_transformed_directory(
-            transformed_root=transformed_root,
-            partition_date=partition_date,
-            partition_hour=partition_hour,
-            batch_id=batch_id,
-        )
+    transformed_directory = _build_transformed_directory(
+        transformed_root=transformed_root,
+        partition_date=partition_date,
+        partition_hour=partition_hour,
+        batch_id=batch_id,
     )
 
-    transformed_data_path = (
-        transformed_directory
-        / TRANSFORMED_DATA_FILENAME
-    )
+    transformed_data_path = transformed_directory / TRANSFORMED_DATA_FILENAME
 
-    transform_summary_path = (
-        transformed_directory
-        / TRANSFORM_SUMMARY_FILENAME
-    )
+    transform_summary_path = transformed_directory / TRANSFORM_SUMMARY_FILENAME
 
-    raw_files = sorted(
-        raw_batch_directory.glob(
-            f"point_id=*/{RAW_DATA_FILENAME}"
-        )
-    )
+    raw_files = sorted(raw_batch_directory.glob(f"point_id=*/{RAW_DATA_FILENAME}"))
 
     if not raw_files:
-        raise BatchTransformError(
-            "Raw batch không có file "
-            "'point_id=*/data.json'."
-        )
+        raise BatchTransformError("Raw batch không có file 'point_id=*/data.json'.")
 
-    started_at = datetime.now(
-        timezone.utc
-    )
+    started_at = datetime.now(timezone.utc)
 
     transformed_frames: list[pd.DataFrame] = []
     successes: list[dict[str, Any]] = []
@@ -254,46 +207,22 @@ def transform_raw_batch(
 
     for raw_file in raw_files:
         try:
-            raw_payload = _read_json(
-                raw_file
-            )
+            raw_payload = _read_json(raw_file)
 
-            point_dataframe = (
-                transform_open_meteo_payload(
-                    raw_payload
-                )
-            )
+            point_dataframe = transform_open_meteo_payload(raw_payload)
 
-            point_id = str(
-                point_dataframe[
-                    "point_id"
-                ].iloc[0]
-            )
+            point_id = str(point_dataframe["point_id"].iloc[0])
 
-            location_id = str(
-                point_dataframe[
-                    "location_id"
-                ].iloc[0]
-            )
+            location_id = str(point_dataframe["location_id"].iloc[0])
 
-            transformed_frames.append(
-                point_dataframe
-            )
+            transformed_frames.append(point_dataframe)
 
             successes.append(
                 {
                     "point_id": point_id,
                     "location_id": location_id,
-                    "records_transformed": len(
-                        point_dataframe
-                    ),
-                    "raw_path": (
-                        raw_file
-                        .relative_to(
-                            raw_batch_directory
-                        )
-                        .as_posix()
-                    ),
+                    "records_transformed": len(point_dataframe),
+                    "raw_path": (raw_file.relative_to(raw_batch_directory).as_posix()),
                 }
             )
         except (
@@ -306,23 +235,13 @@ def transform_raw_batch(
         ) as error:
             failures.append(
                 {
-                    "raw_path": (
-                        raw_file
-                        .relative_to(
-                            raw_batch_directory
-                        )
-                        .as_posix()
-                    ),
-                    "error_type": (
-                        type(error).__name__
-                    ),
+                    "raw_path": (raw_file.relative_to(raw_batch_directory).as_posix()),
+                    "error_type": (type(error).__name__),
                     "error_message": str(error),
                 }
             )
 
-    combined_dataframe: (
-        pd.DataFrame | None
-    ) = None
+    combined_dataframe: pd.DataFrame | None = None
 
     duplicate_key_rows = 0
 
@@ -332,40 +251,27 @@ def transform_raw_batch(
             ignore_index=True,
         )
 
-        combined_dataframe = (
-            combined_dataframe
-            .sort_values(
-                by=[
-                    "point_id",
-                    "forecast_time",
-                ],
-                ascending=True,
-            )
-            .reset_index(drop=True)
+        combined_dataframe = combined_dataframe.sort_values(
+            by=[
+                "point_id",
+                "forecast_time",
+            ],
+            ascending=True,
+        ).reset_index(drop=True)
+
+        duplicate_mask = combined_dataframe.duplicated(
+            subset=list(DUPLICATE_KEY_COLUMNS),
+            keep=False,
         )
 
-        duplicate_mask = (
-            combined_dataframe
-            .duplicated(
-                subset=list(
-                    DUPLICATE_KEY_COLUMNS
-                ),
-                keep=False,
-            )
-        )
-
-        duplicate_key_rows = int(
-            duplicate_mask.sum()
-        )
+        duplicate_key_rows = int(duplicate_mask.sum())
 
         _write_parquet_atomically(
             dataframe=combined_dataframe,
             output_path=transformed_data_path,
         )
 
-    finished_at = datetime.now(
-        timezone.utc
-    )
+    finished_at = datetime.now(timezone.utc)
 
     succeeded_files = len(successes)
     failed_files = len(failures)
@@ -377,60 +283,38 @@ def transform_raw_batch(
     else:
         status = "PARTIAL_SUCCESS"
 
-    expected_raw_files = raw_summary.get(
-        "succeeded_points"
-    )
+    expected_raw_files = raw_summary.get("succeeded_points")
 
     records_transformed = (
-        len(combined_dataframe)
-        if combined_dataframe is not None
-        else 0
+        len(combined_dataframe) if combined_dataframe is not None else 0
     )
 
     transformed_relative_path = None
 
     if combined_dataframe is not None:
-        transformed_relative_path = (
-            transformed_data_path
-            .relative_to(transformed_root)
-            .as_posix()
-        )
+        transformed_relative_path = transformed_data_path.relative_to(
+            transformed_root
+        ).as_posix()
 
     summary = {
-        "pipeline_name": (
-            "open_meteo_air_quality_transform"
-        ),
+        "pipeline_name": ("open_meteo_air_quality_transform"),
         "source": "open_meteo",
         "status": status,
         "batch_id": batch_id,
         "partition_date": partition_date,
         "partition_hour": partition_hour,
-        "raw_batch_status": raw_summary.get(
-            "status"
-        ),
+        "raw_batch_status": raw_summary.get("status"),
         "started_at": started_at.isoformat(),
         "finished_at": finished_at.isoformat(),
-        "duration_seconds": (
-            finished_at - started_at
-        ).total_seconds(),
+        "duration_seconds": (finished_at - started_at).total_seconds(),
         "expected_raw_files": expected_raw_files,
-        "discovered_raw_files": len(
-            raw_files
-        ),
+        "discovered_raw_files": len(raw_files),
         "succeeded_files": succeeded_files,
         "failed_files": failed_files,
-        "records_transformed": (
-            records_transformed
-        ),
-        "duplicate_key_rows": (
-            duplicate_key_rows
-        ),
-        "duplicate_key_columns": list(
-            DUPLICATE_KEY_COLUMNS
-        ),
-        "transformed_data_path": (
-            transformed_relative_path
-        ),
+        "records_transformed": (records_transformed),
+        "duplicate_key_rows": (duplicate_key_rows),
+        "duplicate_key_columns": list(DUPLICATE_KEY_COLUMNS),
+        "transformed_data_path": (transformed_relative_path),
         "successes": successes,
         "failures": failures,
     }

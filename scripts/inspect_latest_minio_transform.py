@@ -13,71 +13,34 @@ from src.utils.minio_object_io import (
 
 
 def main() -> None:
-    settings = (
-        MinioSettings.from_environment()
-    )
+    settings = MinioSettings.from_environment()
 
     (
         _,
         raw_summary,
-    ) = find_latest_transformable_raw_batch(
-        settings=settings
+    ) = find_latest_transformable_raw_batch(settings=settings)
+
+    transformed_prefix = build_transformed_prefix(
+        partition_date=(raw_summary["partition_date"]),
+        partition_hour=(raw_summary["partition_hour"]),
+        batch_id=(raw_summary["batch_id"]),
     )
 
-    transformed_prefix = (
-        build_transformed_prefix(
-            partition_date=(
-                raw_summary[
-                    "partition_date"
-                ]
-            ),
-            partition_hour=(
-                raw_summary[
-                    "partition_hour"
-                ]
-            ),
-            batch_id=(
-                raw_summary[
-                    "batch_id"
-                ]
-            ),
-        )
-    )
-
-    parquet_object_name = (
-        f"{transformed_prefix}/"
-        "data.parquet"
-    )
+    parquet_object_name = f"{transformed_prefix}/data.parquet"
 
     dataframe = get_parquet_object(
-        bucket_name=(
-            settings.clean_bucket
-        ),
-        object_name=(
-            parquet_object_name
-        ),
+        bucket_name=(settings.clean_bucket),
+        object_name=(parquet_object_name),
         settings=settings,
     )
 
-    print(
-        "Bucket: "
-        f"{settings.clean_bucket}"
-    )
+    print(f"Bucket: {settings.clean_bucket}")
 
-    print(
-        "Object: "
-        f"{parquet_object_name}"
-    )
+    print(f"Object: {parquet_object_name}")
 
-    print(
-        "Rows: "
-        f"{len(dataframe)}"
-    )
+    print(f"Rows: {len(dataframe)}")
 
-    print(
-        "Columns: "
-        f"{len(dataframe.columns)}"
-    )
+    print(f"Columns: {len(dataframe.columns)}")
 
     print()
     print("Schema:")
@@ -85,33 +48,19 @@ def main() -> None:
 
     print()
     print("Năm dòng đầu:")
-    print(
-        dataframe.head().to_string(
-            index=False
-        )
-    )
+    print(dataframe.head().to_string(index=False))
 
     print()
     print("Số record theo point_id:")
 
-    print(
-        dataframe.groupby(
-            "point_id"
-        ).size()
-    )
+    print(dataframe.groupby("point_id").size())
 
     print()
     print("Khoảng forecast_time:")
 
-    print(
-        "Min: "
-        f"{dataframe['forecast_time'].min()}"
-    )
+    print(f"Min: {dataframe['forecast_time'].min()}")
 
-    print(
-        "Max: "
-        f"{dataframe['forecast_time'].max()}"
-    )
+    print(f"Max: {dataframe['forecast_time'].max()}")
 
 
 if __name__ == "__main__":

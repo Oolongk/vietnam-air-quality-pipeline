@@ -4,125 +4,72 @@ from pathlib import Path
 
 import pandas as pd
 
+from src.operations.legacy_runtime import (
+    require_legacy_local_pipeline_enabled,
+)
 from src.quality.quality_processor import (
     DataQualityProcessingError,
     process_transformed_batch_quality,
 )
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-TRANSFORMED_ROOT = (
-    PROJECT_ROOT
-    / "data"
-    / "local_lake"
-    / "transformed"
-)
+TRANSFORMED_ROOT = PROJECT_ROOT / "data" / "local_lake" / "transformed"
 
-CLEAN_ROOT = (
-    PROJECT_ROOT
-    / "data"
-    / "local_lake"
-    / "clean"
-)
+CLEAN_ROOT = PROJECT_ROOT / "data" / "local_lake" / "clean"
 
-QUALITY_ROOT = (
-    PROJECT_ROOT
-    / "data"
-    / "local_lake"
-    / "quality"
-)
+QUALITY_ROOT = PROJECT_ROOT / "data" / "local_lake" / "quality"
 
 
 def find_latest_transformed_batch(
     transformed_root: Path,
 ) -> Path:
     if not transformed_root.exists():
-        raise FileNotFoundError(
-            "Transformed root chưa tồn tại: "
-            f"{transformed_root}"
-        )
+        raise FileNotFoundError(f"Transformed root chưa tồn tại: {transformed_root}")
 
-    summary_files = list(
-        transformed_root.rglob(
-            "transform_summary.json"
-        )
-    )
+    summary_files = list(transformed_root.rglob("transform_summary.json"))
 
     if not summary_files:
-        raise FileNotFoundError(
-            "Không tìm thấy "
-            "transform_summary.json."
-        )
+        raise FileNotFoundError("Không tìm thấy transform_summary.json.")
 
     latest_summary = max(
         summary_files,
-        key=lambda path: (
-            path.stat().st_mtime
-        ),
+        key=lambda path: path.stat().st_mtime,
     )
 
     return latest_summary.parent
 
 
 def main() -> None:
-    try:
-        transformed_batch_directory = (
-            find_latest_transformed_batch(
-                TRANSFORMED_ROOT
-            )
-        )
+    require_legacy_local_pipeline_enabled(
+        "scripts.run_data_quality_latest_batch",
+    )
 
-        summary = (
-            process_transformed_batch_quality(
-                transformed_batch_directory=(
-                    transformed_batch_directory
-                ),
-                clean_root=CLEAN_ROOT,
-                quality_root=QUALITY_ROOT,
-            )
+    try:
+        transformed_batch_directory = find_latest_transformed_batch(TRANSFORMED_ROOT)
+
+        summary = process_transformed_batch_quality(
+            transformed_batch_directory=(transformed_batch_directory),
+            clean_root=CLEAN_ROOT,
+            quality_root=QUALITY_ROOT,
         )
     except (
         FileNotFoundError,
         DataQualityProcessingError,
         OSError,
     ) as error:
-        print(
-            "Data Quality thất bại: "
-            f"{error}"
-        )
+        print(f"Data Quality thất bại: {error}")
 
         raise SystemExit(1) from error
 
     print("Hoàn tất Data Quality Check.")
-    print(
-        "Trạng thái: "
-        f"{summary['status']}"
-    )
-    print(
-        "Batch ID: "
-        f"{summary['batch_id']}"
-    )
-    print(
-        "Input records: "
-        f"{summary['input_records']}"
-    )
-    print(
-        "Valid records: "
-        f"{summary['valid_records']}"
-    )
-    print(
-        "Bad records: "
-        f"{summary['bad_records']}"
-    )
-    print(
-        "Valid percentage: "
-        f"{summary['valid_percentage']}%"
-    )
-    print(
-        "Thời gian chạy: "
-        f"{summary['duration_seconds']:.2f} giây"
-    )
+    print(f"Trạng thái: {summary['status']}")
+    print(f"Batch ID: {summary['batch_id']}")
+    print(f"Input records: {summary['input_records']}")
+    print(f"Valid records: {summary['valid_records']}")
+    print(f"Bad records: {summary['bad_records']}")
+    print(f"Valid percentage: {summary['valid_percentage']}%")
+    print(f"Thời gian chạy: {summary['duration_seconds']:.2f} giây")
 
     print()
     print("Kết quả từng rule:")
@@ -135,25 +82,15 @@ def main() -> None:
             f"{check['bad_records_count']}"
         )
 
-    clean_relative_path = (
-        summary["clean_data_path"]
-    )
+    clean_relative_path = summary["clean_data_path"]
 
     if clean_relative_path:
-        clean_path = (
-            CLEAN_ROOT
-            / clean_relative_path
-        )
+        clean_path = CLEAN_ROOT / clean_relative_path
 
-        clean_dataframe = pd.read_parquet(
-            clean_path
-        )
+        clean_dataframe = pd.read_parquet(clean_path)
 
         print()
-        print(
-            "Clean Parquet: "
-            f"{clean_path}"
-        )
+        print(f"Clean Parquet: {clean_path}")
 
         print("Năm Clean record đầu tiên:")
 
@@ -167,29 +104,15 @@ def main() -> None:
             "source",
         ]
 
-        print(
-            clean_dataframe[
-                preview_columns
-            ]
-            .head(5)
-            .to_string(index=False)
-        )
+        print(clean_dataframe[preview_columns].head(5).to_string(index=False))
 
-    bad_relative_path = (
-        summary["bad_records_path"]
-    )
+    bad_relative_path = summary["bad_records_path"]
 
     if bad_relative_path:
-        bad_path = (
-            QUALITY_ROOT
-            / bad_relative_path
-        )
+        bad_path = QUALITY_ROOT / bad_relative_path
 
         print()
-        print(
-            "Bad Records Parquet: "
-            f"{bad_path}"
-        )
+        print(f"Bad Records Parquet: {bad_path}")
 
     if summary["status"] != "SUCCESS":
         raise SystemExit(1)

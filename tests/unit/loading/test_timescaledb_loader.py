@@ -33,9 +33,7 @@ def build_valid_dataframe() -> pd.DataFrame:
                 "us_aqi": 61,
                 "us_aqi_pm2_5": 59,
                 "us_aqi_pm10": pd.NA,
-                "timezone": (
-                    "Asia/Ho_Chi_Minh"
-                ),
+                "timezone": ("Asia/Ho_Chi_Minh"),
                 "utc_offset_seconds": 25200,
                 "source": "open_meteo",
                 "ingested_at": pd.Timestamp(
@@ -64,9 +62,7 @@ def build_valid_dataframe() -> pd.DataFrame:
                 "us_aqi": 65,
                 "us_aqi_pm2_5": 63,
                 "us_aqi_pm10": 31,
-                "timezone": (
-                    "Asia/Ho_Chi_Minh"
-                ),
+                "timezone": ("Asia/Ho_Chi_Minh"),
                 "utc_offset_seconds": 25200,
                 "source": "open_meteo",
                 "ingested_at": pd.Timestamp(
@@ -77,20 +73,11 @@ def build_valid_dataframe() -> pd.DataFrame:
         ]
     )
 
-    dataframe["us_aqi"] = (
-        dataframe["us_aqi"]
-        .astype("Int64")
-    )
+    dataframe["us_aqi"] = dataframe["us_aqi"].astype("Int64")
 
-    dataframe["us_aqi_pm2_5"] = (
-        dataframe["us_aqi_pm2_5"]
-        .astype("Int64")
-    )
+    dataframe["us_aqi_pm2_5"] = dataframe["us_aqi_pm2_5"].astype("Int64")
 
-    dataframe["us_aqi_pm10"] = (
-        dataframe["us_aqi_pm10"]
-        .astype("Int64")
-    )
+    dataframe["us_aqi_pm10"] = dataframe["us_aqi_pm10"].astype("Int64")
 
     return dataframe
 
@@ -98,48 +85,33 @@ def build_valid_dataframe() -> pd.DataFrame:
 def test_prepare_records_converts_pandas_types() -> None:
     dataframe = build_valid_dataframe()
 
-    records = prepare_air_quality_records(
-        dataframe
-    )
+    records = prepare_air_quality_records(dataframe)
 
     assert len(records) == 2
 
     first_record = records[0]
 
-    assert (
-        first_record["point_id"]
-        == "HN_CENTER"
-    )
+    assert first_record["point_id"] == "HN_CENTER"
 
     assert isinstance(
         first_record["forecast_time"],
         datetime,
     )
 
-    assert (
-        first_record[
-            "forecast_time"
-        ].tzinfo
-        is not None
-    )
+    assert first_record["forecast_time"].tzinfo is not None
 
     assert isinstance(
         first_record["us_aqi"],
         int,
     )
 
-    assert (
-        first_record["us_aqi_pm10"]
-        is None
-    )
+    assert first_record["us_aqi_pm10"] is None
 
 
 def test_prepare_records_rejects_duplicates() -> None:
     dataframe = build_valid_dataframe()
 
-    duplicate = (
-        dataframe.iloc[[0]].copy()
-    )
+    duplicate = dataframe.iloc[[0]].copy()
 
     dataframe = pd.concat(
         [
@@ -153,25 +125,19 @@ def test_prepare_records_rejects_duplicates() -> None:
         TimescaleDBLoadError,
         match="duplicate",
     ):
-        prepare_air_quality_records(
-            dataframe
-        )
+        prepare_air_quality_records(dataframe)
 
 
 def test_prepare_records_rejects_missing_column() -> None:
     dataframe = build_valid_dataframe()
 
-    dataframe = dataframe.drop(
-        columns=["pm2_5"]
-    )
+    dataframe = dataframe.drop(columns=["pm2_5"])
 
     with pytest.raises(
         TimescaleDBLoadError,
         match="pm2_5",
     ):
-        prepare_air_quality_records(
-            dataframe
-        )
+        prepare_air_quality_records(dataframe)
 
 
 def test_prepare_records_requires_timezone() -> None:
@@ -180,14 +146,10 @@ def test_prepare_records_requires_timezone() -> None:
     dataframe.loc[
         0,
         "forecast_time",
-    ] = pd.Timestamp(
-        "2026-07-12 12:00:00"
-    )
+    ] = pd.Timestamp("2026-07-12 12:00:00")
 
     with pytest.raises(
         TimescaleDBLoadError,
         match="timezone",
     ):
-        prepare_air_quality_records(
-            dataframe
-        )
+        prepare_air_quality_records(dataframe)

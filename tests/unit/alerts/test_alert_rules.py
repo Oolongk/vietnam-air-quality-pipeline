@@ -89,22 +89,14 @@ def test_classify_aqi_boundaries(
     expected_severity: str,
     expected_alert: str | None,
 ) -> None:
-    result = classify_us_aqi(
-        aqi_value
-    )
+    result = classify_us_aqi(aqi_value)
 
     assert result is not None
     assert result.aqi_level == expected_level
 
-    assert (
-        result.aqi_severity
-        == expected_severity
-    )
+    assert result.aqi_severity == expected_severity
 
-    assert (
-        result.alert_severity
-        == expected_alert
-    )
+    assert result.alert_severity == expected_alert
 
 
 def test_classify_null_aqi_returns_none() -> None:
@@ -128,9 +120,7 @@ def test_classify_rejects_fractional_aqi() -> None:
 
 
 def test_build_alert_message() -> None:
-    classification = classify_us_aqi(
-        175
-    )
+    classification = classify_us_aqi(175)
 
     assert classification is not None
 

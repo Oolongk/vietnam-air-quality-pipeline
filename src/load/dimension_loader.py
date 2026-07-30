@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
+import os
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
 import pandas as pd
 import psycopg
-from dotenv import load_dotenv
-
 
 load_dotenv()
 
@@ -90,37 +89,24 @@ class DatabaseSettings:
         missing_variables: list[str] = []
 
         if not database:
-            missing_variables.append(
-                "POSTGRES_DB"
-            )
+            missing_variables.append("POSTGRES_DB")
 
         if not user:
-            missing_variables.append(
-                "POSTGRES_USER"
-            )
+            missing_variables.append("POSTGRES_USER")
 
         if not password:
-            missing_variables.append(
-                "POSTGRES_PASSWORD"
-            )
+            missing_variables.append("POSTGRES_PASSWORD")
 
         if missing_variables:
             raise DimensionLoaderError(
-                "Thiếu biến môi trường: "
-                + ", ".join(
-                    missing_variables
-                )
+                "Thiếu biến môi trường: " + ", ".join(missing_variables)
             )
 
         try:
-            port = int(
-                port_text
-            )
+            port = int(port_text)
 
         except ValueError as error:
-            raise DimensionLoaderError(
-                "POSTGRES_PORT phải là số nguyên."
-            ) from error
+            raise DimensionLoaderError("POSTGRES_PORT phải là số nguyên.") from error
 
         return cls(
             host=host,
@@ -152,9 +138,7 @@ def normalize_boolean(
     ):
         return value
 
-    normalized_value = str(
-        value
-    ).strip().lower()
+    normalized_value = str(value).strip().lower()
 
     true_values = {
         "true",
@@ -176,10 +160,7 @@ def normalize_boolean(
     if normalized_value in false_values:
         return False
 
-    raise DimensionLoaderError(
-        "Giá trị boolean không hợp lệ: "
-        f"{value!r}"
-    )
+    raise DimensionLoaderError(f"Giá trị boolean không hợp lệ: {value!r}")
 
 
 def check_required_columns(
@@ -187,19 +168,13 @@ def check_required_columns(
     required_columns: set[str],
     file_name: str,
 ) -> None:
-    actual_columns = set(
-        dataframe.columns
-    )
+    actual_columns = set(dataframe.columns)
 
-    missing_columns = (
-        required_columns
-        - actual_columns
-    )
+    missing_columns = required_columns - actual_columns
 
     if missing_columns:
         raise DimensionLoaderError(
-            f"{file_name} thiếu các cột: "
-            f"{sorted(missing_columns)}"
+            f"{file_name} thiếu các cột: {sorted(missing_columns)}"
         )
 
 
@@ -212,27 +187,15 @@ def clean_required_text_columns(
 
     for column in columns:
         if result[column].isna().any():
-            raise DimensionLoaderError(
-                f"{file_name}: cột {column} "
-                "có giá trị null."
-            )
+            raise DimensionLoaderError(f"{file_name}: cột {column} có giá trị null.")
 
-        result[column] = (
-            result[column]
-            .astype(str)
-            .str.strip()
-        )
+        result[column] = result[column].astype(str).str.strip()
 
-        blank_count = int(
-            result[column]
-            .eq("")
-            .sum()
-        )
+        blank_count = int(result[column].eq("").sum())
 
         if blank_count > 0:
             raise DimensionLoaderError(
-                f"{file_name}: cột {column} "
-                f"có {blank_count} giá trị rỗng."
+                f"{file_name}: cột {column} có {blank_count} giá trị rỗng."
             )
 
     return result
@@ -241,14 +204,10 @@ def clean_required_text_columns(
 def prepare_locations(
     csv_path: str | Path,
 ) -> pd.DataFrame:
-    path = Path(
-        csv_path
-    )
+    path = Path(csv_path)
 
     if not path.exists():
-        raise DimensionLoaderError(
-            f"Không tìm thấy file: {path}"
-        )
+        raise DimensionLoaderError(f"Không tìm thấy file: {path}")
 
     dataframe = pd.read_csv(
         path,
@@ -258,9 +217,7 @@ def prepare_locations(
 
     check_required_columns(
         dataframe=dataframe,
-        required_columns=(
-            LOCATION_REQUIRED_COLUMNS
-        ),
+        required_columns=(LOCATION_REQUIRED_COLUMNS),
         file_name=str(path),
     )
 
@@ -285,69 +242,35 @@ def prepare_locations(
         file_name=str(path),
     )
 
-    dataframe["location_id"] = (
-        dataframe["location_id"]
-        .str.upper()
-    )
+    dataframe["location_id"] = dataframe["location_id"].str.upper()
 
-    duplicate_location_ids = int(
-        dataframe["location_id"]
-        .duplicated()
-        .sum()
-    )
+    duplicate_location_ids = int(dataframe["location_id"].duplicated().sum())
 
     if duplicate_location_ids > 0:
         raise DimensionLoaderError(
-            f"{path}: có "
-            f"{duplicate_location_ids} "
-            "location_id bị trùng."
+            f"{path}: có {duplicate_location_ids} location_id bị trùng."
         )
 
-    duplicate_location_names = int(
-        dataframe["location_name"]
-        .duplicated()
-        .sum()
-    )
+    duplicate_location_names = int(dataframe["location_name"].duplicated().sum())
 
     if duplicate_location_names > 0:
         raise DimensionLoaderError(
-            f"{path}: có "
-            f"{duplicate_location_names} "
-            "location_name bị trùng."
+            f"{path}: có {duplicate_location_names} location_name bị trùng."
         )
 
-    invalid_regions = sorted(
-        set(
-            dataframe["region"]
-        )
-        - VALID_REGIONS
-    )
+    invalid_regions = sorted(set(dataframe["region"]) - VALID_REGIONS)
 
     if invalid_regions:
-        raise DimensionLoaderError(
-            f"{path}: region không hợp lệ: "
-            f"{invalid_regions}"
-        )
+        raise DimensionLoaderError(f"{path}: region không hợp lệ: {invalid_regions}")
 
-    invalid_admin_types = sorted(
-        set(
-            dataframe["admin_type"]
-        )
-        - VALID_ADMIN_TYPES
-    )
+    invalid_admin_types = sorted(set(dataframe["admin_type"]) - VALID_ADMIN_TYPES)
 
     if invalid_admin_types:
         raise DimensionLoaderError(
-            f"{path}: admin_type không hợp lệ: "
-            f"{invalid_admin_types}"
+            f"{path}: admin_type không hợp lệ: {invalid_admin_types}"
         )
 
-    dataframe["is_active"] = (
-        dataframe["is_active"]
-        .apply(
-            normalize_boolean
-        )
-    )
+    dataframe["is_active"] = dataframe["is_active"].apply(normalize_boolean)
 
     return dataframe
 
@@ -356,14 +279,10 @@ def prepare_monitoring_points(
     csv_path: str | Path,
     valid_location_ids: set[str],
 ) -> pd.DataFrame:
-    path = Path(
-        csv_path
-    )
+    path = Path(csv_path)
 
     if not path.exists():
-        raise DimensionLoaderError(
-            f"Không tìm thấy file: {path}"
-        )
+        raise DimensionLoaderError(f"Không tìm thấy file: {path}")
 
     dataframe = pd.read_csv(
         path,
@@ -373,9 +292,7 @@ def prepare_monitoring_points(
 
     check_required_columns(
         dataframe=dataframe,
-        required_columns=(
-            MONITORING_POINT_REQUIRED_COLUMNS
-        ),
+        required_columns=(MONITORING_POINT_REQUIRED_COLUMNS),
         file_name=str(path),
     )
 
@@ -402,52 +319,40 @@ def prepare_monitoring_points(
         file_name=str(path),
     )
 
-    dataframe["point_id"] = (
-        dataframe["point_id"]
-        .str.upper()
-    )
+    dataframe["point_id"] = dataframe["point_id"].str.upper()
 
-    dataframe["location_id"] = (
-        dataframe["location_id"]
-        .str.upper()
-    )
+    dataframe["location_id"] = dataframe["location_id"].str.upper()
 
-    duplicate_point_ids = int(
-        dataframe["point_id"]
-        .duplicated()
-        .sum()
-    )
+    duplicate_point_ids = int(dataframe["point_id"].duplicated().sum())
 
     if duplicate_point_ids > 0:
         raise DimensionLoaderError(
-            f"{path}: có "
-            f"{duplicate_point_ids} "
-            "point_id bị trùng."
+            f"{path}: có {duplicate_point_ids} point_id bị trùng."
         )
 
-    dataframe["latitude"] = (
-        pd.to_numeric(
-            dataframe["latitude"],
-            errors="coerce",
-        )
+    dataframe["latitude"] = pd.to_numeric(
+        dataframe["latitude"],
+        errors="coerce",
     )
 
-    dataframe["longitude"] = (
-        pd.to_numeric(
-            dataframe["longitude"],
-            errors="coerce",
-        )
+    dataframe["longitude"] = pd.to_numeric(
+        dataframe["longitude"],
+        errors="coerce",
     )
 
-    if dataframe[
-        [
-            "latitude",
-            "longitude",
+    if (
+        dataframe[
+            [
+                "latitude",
+                "longitude",
+            ]
         ]
-    ].isna().any().any():
+        .isna()
+        .any()
+        .any()
+    ):
         raise DimensionLoaderError(
-            f"{path}: latitude hoặc longitude "
-            "không phải số hợp lệ."
+            f"{path}: latitude hoặc longitude không phải số hợp lệ."
         )
 
     invalid_latitudes = dataframe[
@@ -458,14 +363,10 @@ def prepare_monitoring_points(
     ]
 
     if not invalid_latitudes.empty:
-        invalid_point_ids = (
-            invalid_latitudes["point_id"]
-            .tolist()
-        )
+        invalid_point_ids = invalid_latitudes["point_id"].tolist()
 
         raise DimensionLoaderError(
-            f"{path}: latitude không hợp lệ "
-            f"tại các point: {invalid_point_ids}"
+            f"{path}: latitude không hợp lệ tại các point: {invalid_point_ids}"
         )
 
     invalid_longitudes = dataframe[
@@ -476,14 +377,10 @@ def prepare_monitoring_points(
     ]
 
     if not invalid_longitudes.empty:
-        invalid_point_ids = (
-            invalid_longitudes["point_id"]
-            .tolist()
-        )
+        invalid_point_ids = invalid_longitudes["point_id"].tolist()
 
         raise DimensionLoaderError(
-            f"{path}: longitude không hợp lệ "
-            f"tại các point: {invalid_point_ids}"
+            f"{path}: longitude không hợp lệ tại các point: {invalid_point_ids}"
         )
 
     duplicate_coordinates = dataframe[
@@ -498,25 +395,15 @@ def prepare_monitoring_points(
     ]
 
     if not duplicate_coordinates.empty:
-        duplicate_point_ids = (
-            duplicate_coordinates["point_id"]
-            .tolist()
-        )
+        duplicate_point_ids = duplicate_coordinates["point_id"].tolist()
 
         raise DimensionLoaderError(
-            f"{path}: các point bị trùng "
-            "location và tọa độ: "
-            f"{duplicate_point_ids}"
+            f"{path}: các point bị trùng location và tọa độ: {duplicate_point_ids}"
         )
 
-    referenced_location_ids = set(
-        dataframe["location_id"]
-    )
+    referenced_location_ids = set(dataframe["location_id"])
 
-    missing_location_ids = sorted(
-        referenced_location_ids
-        - valid_location_ids
-    )
+    missing_location_ids = sorted(referenced_location_ids - valid_location_ids)
 
     if missing_location_ids:
         raise DimensionLoaderError(
@@ -525,12 +412,7 @@ def prepare_monitoring_points(
             f"{missing_location_ids}"
         )
 
-    dataframe["is_active"] = (
-        dataframe["is_active"]
-        .apply(
-            normalize_boolean
-        )
-    )
+    dataframe["is_active"] = dataframe["is_active"].apply(normalize_boolean)
 
     return dataframe
 
@@ -576,13 +458,9 @@ def upsert_locations(
             row.location_name,
             row.region,
             row.admin_type,
-            bool(
-                row.is_active
-            ),
+            bool(row.is_active),
         )
-        for row in dataframe.itertuples(
-            index=False
-        )
+        for row in dataframe.itertuples(index=False)
     ]
 
     with connection.cursor() as cursor:
@@ -591,9 +469,7 @@ def upsert_locations(
             rows,
         )
 
-    return len(
-        rows
-    )
+    return len(rows)
 
 
 def upsert_monitoring_points(
@@ -645,19 +521,11 @@ def upsert_monitoring_points(
             row.location_id,
             row.point_name,
             row.point_type,
-            float(
-                row.latitude
-            ),
-            float(
-                row.longitude
-            ),
-            bool(
-                row.is_active
-            ),
+            float(row.latitude),
+            float(row.longitude),
+            bool(row.is_active),
         )
-        for row in dataframe.itertuples(
-            index=False
-        )
+        for row in dataframe.itertuples(index=False)
     ]
 
     with connection.cursor() as cursor:
@@ -666,57 +534,34 @@ def upsert_monitoring_points(
             rows,
         )
 
-    return len(
-        rows
-    )
+    return len(rows)
 
 
 def sync_dimensions(
-    locations_csv_path: str | Path = (
-        "configs/locations.csv"
-    ),
-    monitoring_points_csv_path: str | Path = (
-        "configs/monitoring_points.csv"
-    ),
+    locations_csv_path: str | Path = ("configs/locations.csv"),
+    monitoring_points_csv_path: str | Path = ("configs/monitoring_points.csv"),
 ) -> dict[str, Any]:
-    locations = prepare_locations(
-        locations_csv_path
+    locations = prepare_locations(locations_csv_path)
+
+    valid_location_ids = set(locations["location_id"])
+
+    monitoring_points = prepare_monitoring_points(
+        csv_path=(monitoring_points_csv_path),
+        valid_location_ids=(valid_location_ids),
     )
 
-    valid_location_ids = set(
-        locations["location_id"]
-    )
-
-    monitoring_points = (
-        prepare_monitoring_points(
-            csv_path=(
-                monitoring_points_csv_path
-            ),
-            valid_location_ids=(
-                valid_location_ids
-            ),
-        )
-    )
-
-    settings = (
-        DatabaseSettings
-        .from_environment()
-    )
+    settings = DatabaseSettings.from_environment()
 
     with settings.connect() as connection:
         try:
-            locations_upserted = (
-                upsert_locations(
-                    connection=connection,
-                    dataframe=locations,
-                )
+            locations_upserted = upsert_locations(
+                connection=connection,
+                dataframe=locations,
             )
 
-            monitoring_points_upserted = (
-                upsert_monitoring_points(
-                    connection=connection,
-                    dataframe=monitoring_points,
-                )
+            monitoring_points_upserted = upsert_monitoring_points(
+                connection=connection,
+                dataframe=monitoring_points,
             )
 
             connection.commit()
@@ -727,10 +572,6 @@ def sync_dimensions(
 
     return {
         "status": "SUCCESS",
-        "locations_upserted": (
-            locations_upserted
-        ),
-        "monitoring_points_upserted": (
-            monitoring_points_upserted
-        ),
+        "locations_upserted": (locations_upserted),
+        "monitoring_points_upserted": (monitoring_points_upserted),
     }

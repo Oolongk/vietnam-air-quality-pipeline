@@ -2,13 +2,10 @@ from pathlib import Path
 
 import pandas as pd
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 LOCATIONS_PATH = PROJECT_ROOT / "configs" / "locations.csv"
-MONITORING_POINTS_PATH = (
-    PROJECT_ROOT / "configs" / "monitoring_points.csv"
-)
+MONITORING_POINTS_PATH = PROJECT_ROOT / "configs" / "monitoring_points.csv"
 
 LOCATION_COLUMNS = {
     "location_id",
@@ -39,10 +36,7 @@ def _validate_required_columns(
     if missing_columns:
         missing_text = ", ".join(sorted(missing_columns))
 
-        raise ValueError(
-            f"{file_name} đang thiếu các cột bắt buộc: "
-            f"{missing_text}"
-        )
+        raise ValueError(f"{file_name} đang thiếu các cột bắt buộc: {missing_text}")
 
 
 def _validate_not_blank(
@@ -51,22 +45,15 @@ def _validate_not_blank(
     file_name: str,
 ) -> None:
     for column in columns:
-        blank_mask = (
-            dataframe[column].isna()
-            | dataframe[column]
-            .astype(str)
-            .str.strip()
-            .eq("")
-        )
+        blank_mask = dataframe[column].isna() | dataframe[column].astype(
+            str
+        ).str.strip().eq("")
 
         if blank_mask.any():
-            row_numbers = (
-                dataframe.index[blank_mask] + 2
-            ).tolist()
+            row_numbers = (dataframe.index[blank_mask] + 2).tolist()
 
             raise ValueError(
-                f"{file_name}: cột '{column}' bị trống "
-                f"tại dòng {row_numbers}"
+                f"{file_name}: cột '{column}' bị trống tại dòng {row_numbers}"
             )
 
 
@@ -84,20 +71,12 @@ def _parse_boolean_column(
         "no": False,
     }
 
-    normalized = (
-        series.astype(str)
-        .str.strip()
-        .str.lower()
-    )
+    normalized = series.astype(str).str.strip().str.lower()
 
     invalid_mask = ~normalized.isin(boolean_mapping)
 
     if invalid_mask.any():
-        invalid_values = sorted(
-            normalized[invalid_mask]
-            .unique()
-            .tolist()
-        )
+        invalid_values = sorted(normalized[invalid_mask].unique().tolist())
 
         raise ValueError(
             f"{file_name}: cột '{column_name}' có "
@@ -112,9 +91,7 @@ def load_locations(
     path: Path = LOCATIONS_PATH,
 ) -> pd.DataFrame:
     if not path.exists():
-        raise FileNotFoundError(
-            f"Không tìm thấy file: {path}"
-        )
+        raise FileNotFoundError(f"Không tìm thấy file: {path}")
 
     dataframe = pd.read_csv(
         path,
@@ -144,11 +121,7 @@ def load_locations(
     )
 
     for column in text_columns:
-        dataframe[column] = (
-            dataframe[column]
-            .astype(str)
-            .str.strip()
-        )
+        dataframe[column] = dataframe[column].astype(str).str.strip()
 
     dataframe["is_active"] = _parse_boolean_column(
         dataframe["is_active"],
@@ -156,9 +129,7 @@ def load_locations(
         path.name,
     )
 
-    duplicate_mask = dataframe[
-        "location_id"
-    ].duplicated(keep=False)
+    duplicate_mask = dataframe["location_id"].duplicated(keep=False)
 
     if duplicate_mask.any():
         duplicate_ids = sorted(
@@ -170,10 +141,7 @@ def load_locations(
             .tolist()
         )
 
-        raise ValueError(
-            f"{path.name}: location_id bị trùng: "
-            f"{duplicate_ids}"
-        )
+        raise ValueError(f"{path.name}: location_id bị trùng: {duplicate_ids}")
 
     return dataframe
 
@@ -182,9 +150,7 @@ def load_monitoring_points(
     path: Path = MONITORING_POINTS_PATH,
 ) -> pd.DataFrame:
     if not path.exists():
-        raise FileNotFoundError(
-            f"Không tìm thấy file: {path}"
-        )
+        raise FileNotFoundError(f"Không tìm thấy file: {path}")
 
     dataframe = pd.read_csv(
         path,
@@ -219,11 +185,7 @@ def load_monitoring_points(
     )
 
     for column in text_columns:
-        dataframe[column] = (
-            dataframe[column]
-            .astype(str)
-            .str.strip()
-        )
+        dataframe[column] = dataframe[column].astype(str).str.strip()
 
     for column in ["latitude", "longitude"]:
         try:
@@ -232,10 +194,7 @@ def load_monitoring_points(
                 errors="raise",
             )
         except (TypeError, ValueError) as error:
-            raise ValueError(
-                f"{path.name}: cột '{column}' "
-                "phải là số"
-            ) from error
+            raise ValueError(f"{path.name}: cột '{column}' phải là số") from error
 
     dataframe["is_active"] = _parse_boolean_column(
         dataframe["is_active"],
@@ -243,9 +202,7 @@ def load_monitoring_points(
         path.name,
     )
 
-    duplicate_mask = dataframe[
-        "point_id"
-    ].duplicated(keep=False)
+    duplicate_mask = dataframe["point_id"].duplicated(keep=False)
 
     if duplicate_mask.any():
         duplicate_ids = sorted(
@@ -257,14 +214,9 @@ def load_monitoring_points(
             .tolist()
         )
 
-        raise ValueError(
-            f"{path.name}: point_id bị trùng: "
-            f"{duplicate_ids}"
-        )
+        raise ValueError(f"{path.name}: point_id bị trùng: {duplicate_ids}")
 
-    invalid_latitude = ~dataframe[
-        "latitude"
-    ].between(-90, 90)
+    invalid_latitude = ~dataframe["latitude"].between(-90, 90)
 
     if invalid_latitude.any():
         invalid_ids = dataframe.loc[
@@ -273,13 +225,10 @@ def load_monitoring_points(
         ].tolist()
 
         raise ValueError(
-            f"{path.name}: latitude không hợp lệ "
-            f"tại các point_id: {invalid_ids}"
+            f"{path.name}: latitude không hợp lệ tại các point_id: {invalid_ids}"
         )
 
-    invalid_longitude = ~dataframe[
-        "longitude"
-    ].between(-180, 180)
+    invalid_longitude = ~dataframe["longitude"].between(-180, 180)
 
     if invalid_longitude.any():
         invalid_ids = dataframe.loc[
@@ -288,34 +237,24 @@ def load_monitoring_points(
         ].tolist()
 
         raise ValueError(
-            f"{path.name}: longitude không hợp lệ "
-            f"tại các point_id: {invalid_ids}"
+            f"{path.name}: longitude không hợp lệ tại các point_id: {invalid_ids}"
         )
 
     return dataframe
 
 
-def load_project_config(
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+def load_project_config() -> tuple[pd.DataFrame, pd.DataFrame]:
     locations = load_locations()
     monitoring_points = load_monitoring_points()
 
-    valid_location_ids = set(
-        locations["location_id"]
-    )
+    valid_location_ids = set(locations["location_id"])
 
-    point_location_ids = set(
-        monitoring_points["location_id"]
-    )
+    point_location_ids = set(monitoring_points["location_id"])
 
-    missing_location_ids = (
-        point_location_ids - valid_location_ids
-    )
+    missing_location_ids = point_location_ids - valid_location_ids
 
     if missing_location_ids:
-        missing_text = ", ".join(
-            sorted(missing_location_ids)
-        )
+        missing_text = ", ".join(sorted(missing_location_ids))
 
         raise ValueError(
             "monitoring_points.csv đang tham chiếu "
@@ -327,44 +266,22 @@ def load_project_config(
 
 
 def main() -> None:
-    locations, monitoring_points = (
-        load_project_config()
-    )
+    locations, monitoring_points = load_project_config()
 
-    active_locations = locations[
-        locations["is_active"]
-    ]
+    active_locations = locations[locations["is_active"]]
 
-    active_points = monitoring_points[
-        monitoring_points["is_active"]
-    ]
+    active_points = monitoring_points[monitoring_points["is_active"]]
 
     print("Kiểm tra cấu hình thành công.")
-    print(
-        f"Tổng số tỉnh/thành: {len(locations)}"
-    )
-    print(
-        "Tỉnh/thành đang hoạt động: "
-        f"{len(active_locations)}"
-    )
-    print(
-        "Tổng số điểm theo dõi: "
-        f"{len(monitoring_points)}"
-    )
-    print(
-        "Điểm theo dõi đang hoạt động: "
-        f"{len(active_points)}"
-    )
+    print(f"Tổng số tỉnh/thành: {len(locations)}")
+    print(f"Tỉnh/thành đang hoạt động: {len(active_locations)}")
+    print(f"Tổng số điểm theo dõi: {len(monitoring_points)}")
+    print(f"Điểm theo dõi đang hoạt động: {len(active_points)}")
 
     print()
     print("Số điểm theo từng tỉnh/thành:")
 
-    point_counts = (
-        active_points
-        .groupby("location_id")["point_id"]
-        .count()
-        .sort_index()
-    )
+    point_counts = active_points.groupby("location_id")["point_id"].count().sort_index()
 
     print(point_counts.to_string())
 

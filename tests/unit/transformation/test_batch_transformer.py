@@ -17,9 +17,7 @@ def build_raw_payload(
     return {
         "schema_version": "1.0",
         "source": "open_meteo",
-        "ingested_at": (
-            "2026-07-11T05:00:00+00:00"
-        ),
+        "ingested_at": ("2026-07-11T05:00:00+00:00"),
         "request": {
             "point_id": point_id,
             "location_id": location_id,
@@ -111,8 +109,7 @@ def create_raw_batch(
     )
 
     write_json(
-        batch_directory
-        / "run_summary.json",
+        batch_directory / "run_summary.json",
         {
             "status": "SUCCESS",
             "batch_id": "test_batch",
@@ -123,9 +120,7 @@ def create_raw_batch(
     )
 
     write_json(
-        batch_directory
-        / "point_id=HN_CENTER"
-        / "data.json",
+        batch_directory / "point_id=HN_CENTER" / "data.json",
         build_raw_payload(
             point_id="HN_CENTER",
             location_id="HN",
@@ -135,9 +130,7 @@ def create_raw_batch(
     )
 
     write_json(
-        batch_directory
-        / "point_id=HCM_CENTER"
-        / "data.json",
+        batch_directory / "point_id=HCM_CENTER" / "data.json",
         build_raw_payload(
             point_id="HCM_CENTER",
             location_id="HCM",
@@ -155,9 +148,7 @@ def test_transform_raw_batch_creates_combined_parquet(
     raw_root = tmp_path / "raw"
     transformed_root = tmp_path / "transformed"
 
-    batch_directory = create_raw_batch(
-        raw_root
-    )
+    batch_directory = create_raw_batch(raw_root)
 
     summary = transform_raw_batch(
         raw_batch_directory=batch_directory,
@@ -171,23 +162,16 @@ def test_transform_raw_batch_creates_combined_parquet(
     assert summary["records_transformed"] == 4
     assert summary["duplicate_key_rows"] == 0
 
-    parquet_path = (
-        transformed_root
-        / summary["transformed_data_path"]
-    )
+    parquet_path = transformed_root / summary["transformed_data_path"]
 
     assert parquet_path.exists()
 
-    dataframe = pd.read_parquet(
-        parquet_path
-    )
+    dataframe = pd.read_parquet(parquet_path)
 
     assert len(dataframe) == 4
     assert dataframe["point_id"].nunique() == 2
 
-    assert sorted(
-        dataframe["point_id"].unique()
-    ) == [
+    assert sorted(dataframe["point_id"].unique()) == [
         "HCM_CENTER",
         "HN_CENTER",
     ]
@@ -199,15 +183,9 @@ def test_transform_raw_batch_reports_partial_success(
     raw_root = tmp_path / "raw"
     transformed_root = tmp_path / "transformed"
 
-    batch_directory = create_raw_batch(
-        raw_root
-    )
+    batch_directory = create_raw_batch(raw_root)
 
-    invalid_payload_path = (
-        batch_directory
-        / "point_id=HCM_CENTER"
-        / "data.json"
-    )
+    invalid_payload_path = batch_directory / "point_id=HCM_CENTER" / "data.json"
 
     invalid_payload = build_raw_payload(
         point_id="HCM_CENTER",
@@ -216,9 +194,7 @@ def test_transform_raw_batch_reports_partial_success(
         longitude=106.7009,
     )
 
-    invalid_payload["source"] = (
-        "invalid_source"
-    )
+    invalid_payload["source"] = "invalid_source"
 
     write_json(
         invalid_payload_path,
@@ -230,28 +206,16 @@ def test_transform_raw_batch_reports_partial_success(
         transformed_root=transformed_root,
     )
 
-    assert (
-        summary["status"]
-        == "PARTIAL_SUCCESS"
-    )
+    assert summary["status"] == "PARTIAL_SUCCESS"
     assert summary["succeeded_files"] == 1
     assert summary["failed_files"] == 1
     assert summary["records_transformed"] == 2
     assert len(summary["failures"]) == 1
 
-    parquet_path = (
-        transformed_root
-        / summary["transformed_data_path"]
-    )
+    parquet_path = transformed_root / summary["transformed_data_path"]
 
-    dataframe = pd.read_parquet(
-        parquet_path
-    )
+    dataframe = pd.read_parquet(parquet_path)
 
     assert len(dataframe) == 2
 
-    assert dataframe[
-        "point_id"
-    ].unique().tolist() == [
-        "HN_CENTER"
-    ]
+    assert dataframe["point_id"].unique().tolist() == ["HN_CENTER"]

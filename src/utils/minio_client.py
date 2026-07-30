@@ -1,19 +1,16 @@
 from __future__ import annotations
 
-import os
-import re
 from dataclasses import dataclass
+import os
 from pathlib import Path
+import re
 from typing import Any
 
 from dotenv import load_dotenv
 from minio import Minio
 from minio.error import S3Error
 
-
-BUCKET_NAME_PATTERN = re.compile(
-    r"^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$"
-)
+BUCKET_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$")
 
 
 class MinioConfigurationError(ValueError):
@@ -40,13 +37,9 @@ class MinioSettings:
     ) -> "MinioSettings":
         load_dotenv()
 
-        endpoint = _get_required_environment(
-            "MINIO_ENDPOINT"
-        )
+        endpoint = _get_required_environment("MINIO_ENDPOINT")
 
-        if endpoint.startswith(
-            ("http://", "https://")
-        ):
+        if endpoint.startswith(("http://", "https://")):
             raise MinioConfigurationError(
                 "MINIO_ENDPOINT không được chứa "
                 "http:// hoặc https://. "
@@ -54,37 +47,23 @@ class MinioSettings:
             )
 
         if "/" in endpoint:
-            raise MinioConfigurationError(
-                "MINIO_ENDPOINT không được chứa path."
-            )
+            raise MinioConfigurationError("MINIO_ENDPOINT không được chứa path.")
 
         settings = cls(
             endpoint=endpoint,
-            access_key=_get_required_environment(
-                "MINIO_ACCESS_KEY"
-            ),
-            secret_key=_get_required_environment(
-                "MINIO_SECRET_KEY"
-            ),
+            access_key=_get_required_environment("MINIO_ACCESS_KEY"),
+            secret_key=_get_required_environment("MINIO_SECRET_KEY"),
             secure=_get_boolean_environment(
                 "MINIO_SECURE",
                 default=False,
             ),
-            raw_bucket=_get_required_environment(
-                "MINIO_RAW_BUCKET"
-            ),
-            clean_bucket=_get_required_environment(
-                "MINIO_CLEAN_BUCKET"
-            ),
-            mart_bucket=_get_required_environment(
-                "MINIO_MART_BUCKET"
-            ),
+            raw_bucket=_get_required_environment("MINIO_RAW_BUCKET"),
+            clean_bucket=_get_required_environment("MINIO_CLEAN_BUCKET"),
+            mart_bucket=_get_required_environment("MINIO_MART_BUCKET"),
         )
 
         for bucket_name in settings.bucket_names:
-            _validate_bucket_name(
-                bucket_name
-            )
+            _validate_bucket_name(bucket_name)
 
         return settings
 
@@ -105,16 +84,12 @@ def _get_required_environment(
     value = os.getenv(name)
 
     if value is None:
-        raise MinioConfigurationError(
-            f"Thiếu biến môi trường: {name}"
-        )
+        raise MinioConfigurationError(f"Thiếu biến môi trường: {name}")
 
     cleaned_value = value.strip()
 
     if not cleaned_value:
-        raise MinioConfigurationError(
-            f"Biến {name} không được rỗng."
-        )
+        raise MinioConfigurationError(f"Biến {name} không được rỗng.")
 
     return cleaned_value
 
@@ -128,9 +103,7 @@ def _get_boolean_environment(
     if raw_value is None:
         return default
 
-    normalized_value = (
-        raw_value.strip().lower()
-    )
+    normalized_value = raw_value.strip().lower()
 
     true_values = {
         "true",
@@ -152,17 +125,13 @@ def _get_boolean_environment(
     if normalized_value in false_values:
         return False
 
-    raise MinioConfigurationError(
-        f"{name} phải là true hoặc false."
-    )
+    raise MinioConfigurationError(f"{name} phải là true hoặc false.")
 
 
 def _validate_bucket_name(
     bucket_name: str,
 ) -> None:
-    if not BUCKET_NAME_PATTERN.fullmatch(
-        bucket_name
-    ):
+    if not BUCKET_NAME_PATTERN.fullmatch(bucket_name):
         raise MinioConfigurationError(
             "Bucket name không hợp lệ: "
             f"{bucket_name!r}. "
@@ -170,24 +139,16 @@ def _validate_bucket_name(
             "và dấu gạch ngang; độ dài 3-63."
         )
 
-    if (
-        ".." in bucket_name
-        or ".-" in bucket_name
-        or "-." in bucket_name
-    ):
+    if ".." in bucket_name or ".-" in bucket_name or "-." in bucket_name:
         raise MinioConfigurationError(
-            "Bucket name có chuỗi dấu không hợp lệ: "
-            f"{bucket_name!r}"
+            f"Bucket name có chuỗi dấu không hợp lệ: {bucket_name!r}"
         )
 
 
 def get_minio_client(
     settings: MinioSettings | None = None,
 ) -> Minio:
-    resolved_settings = (
-        settings
-        or MinioSettings.from_environment()
-    )
+    resolved_settings = settings or MinioSettings.from_environment()
 
     return Minio(
         endpoint=resolved_settings.endpoint,
@@ -201,45 +162,26 @@ def ensure_buckets(
     settings: MinioSettings | None = None,
     client: Minio | None = None,
 ) -> dict[str, list[str]]:
-    resolved_settings = (
-        settings
-        or MinioSettings.from_environment()
-    )
+    resolved_settings = settings or MinioSettings.from_environment()
 
-    resolved_client = (
-        client
-        or get_minio_client(
-            resolved_settings
-        )
-    )
+    resolved_client = client or get_minio_client(resolved_settings)
 
     created_buckets: list[str] = []
     existing_buckets: list[str] = []
 
     try:
-        for bucket_name in (
-            resolved_settings.bucket_names
-        ):
-            if resolved_client.bucket_exists(
-                bucket_name
-            ):
-                existing_buckets.append(
-                    bucket_name
-                )
+        for bucket_name in resolved_settings.bucket_names:
+            if resolved_client.bucket_exists(bucket_name):
+                existing_buckets.append(bucket_name)
                 continue
 
-            resolved_client.make_bucket(
-                bucket_name
-            )
+            resolved_client.make_bucket(bucket_name)
 
-            created_buckets.append(
-                bucket_name
-            )
+            created_buckets.append(bucket_name)
 
     except S3Error as error:
         raise MinioOperationError(
-            "Không thể kiểm tra hoặc tạo "
-            f"MinIO buckets: {error}"
+            f"Không thể kiểm tra hoặc tạo MinIO buckets: {error}"
         ) from error
 
     return {
@@ -251,21 +193,13 @@ def ensure_buckets(
 def normalize_object_name(
     object_name: str,
 ) -> str:
-    normalized_name = (
-        object_name
-        .replace("\\", "/")
-        .strip("/")
-    )
+    normalized_name = object_name.replace("\\", "/").strip("/")
 
     if not normalized_name:
-        raise MinioOperationError(
-            "Object name không được rỗng."
-        )
+        raise MinioOperationError("Object name không được rỗng.")
 
     if "/../" in f"/{normalized_name}/":
-        raise MinioOperationError(
-            "Object name không được chứa '..'."
-        )
+        raise MinioOperationError("Object name không được chứa '..'.")
 
     return normalized_name
 
@@ -274,53 +208,29 @@ def upload_file(
     bucket_name: str,
     object_name: str,
     file_path: Path,
-    content_type: str = (
-        "application/octet-stream"
-    ),
+    content_type: str = ("application/octet-stream"),
     settings: MinioSettings | None = None,
     client: Minio | None = None,
 ) -> dict[str, Any]:
-    resolved_settings = (
-        settings
-        or MinioSettings.from_environment()
-    )
+    resolved_settings = settings or MinioSettings.from_environment()
 
-    resolved_client = (
-        client
-        or get_minio_client(
-            resolved_settings
-        )
-    )
+    resolved_client = client or get_minio_client(resolved_settings)
 
-    resolved_file_path = (
-        file_path.resolve()
-    )
+    resolved_file_path = file_path.resolve()
 
     if not resolved_file_path.exists():
-        raise MinioOperationError(
-            f"Không tìm thấy file: "
-            f"{resolved_file_path}"
-        )
+        raise MinioOperationError(f"Không tìm thấy file: {resolved_file_path}")
 
     if not resolved_file_path.is_file():
-        raise MinioOperationError(
-            f"Đường dẫn không phải file: "
-            f"{resolved_file_path}"
-        )
+        raise MinioOperationError(f"Đường dẫn không phải file: {resolved_file_path}")
 
-    normalized_object_name = (
-        normalize_object_name(
-            object_name
-        )
-    )
+    normalized_object_name = normalize_object_name(object_name)
 
     try:
         result = resolved_client.fput_object(
             bucket_name=bucket_name,
             object_name=normalized_object_name,
-            file_path=str(
-                resolved_file_path
-            ),
+            file_path=str(resolved_file_path),
             content_type=content_type,
         )
     except (
@@ -328,21 +238,15 @@ def upload_file(
         OSError,
     ) as error:
         raise MinioOperationError(
-            "Không thể upload object "
-            f"{bucket_name}/"
-            f"{normalized_object_name}: {error}"
+            f"Không thể upload object {bucket_name}/{normalized_object_name}: {error}"
         ) from error
 
     return {
         "bucket_name": bucket_name,
-        "object_name": (
-            normalized_object_name
-        ),
+        "object_name": (normalized_object_name),
         "etag": result.etag,
         "version_id": result.version_id,
-        "size_bytes": (
-            resolved_file_path.stat().st_size
-        ),
+        "size_bytes": (resolved_file_path.stat().st_size),
     }
 
 
@@ -352,74 +256,44 @@ def list_bucket_objects(
     settings: MinioSettings | None = None,
     client: Minio | None = None,
 ) -> list[dict[str, Any]]:
-    resolved_settings = (
-        settings
-        or MinioSettings.from_environment()
-    )
+    resolved_settings = settings or MinioSettings.from_environment()
 
-    resolved_client = (
-        client
-        or get_minio_client(
-            resolved_settings
-        )
-    )
+    resolved_client = client or get_minio_client(resolved_settings)
 
     try:
-        objects = (
-            resolved_client.list_objects(
-                bucket_name=bucket_name,
-                recursive=recursive,
-            )
+        objects = resolved_client.list_objects(
+            bucket_name=bucket_name,
+            recursive=recursive,
         )
 
         return [
             {
-                "object_name": (
-                    object_item.object_name
-                ),
-                "size_bytes": (
-                    object_item.size
-                ),
-                "last_modified": (
-                    object_item.last_modified
-                ),
+                "object_name": (object_item.object_name),
+                "size_bytes": (object_item.size),
+                "last_modified": (object_item.last_modified),
                 "etag": object_item.etag,
             }
             for object_item in objects
         ]
     except S3Error as error:
         raise MinioOperationError(
-            "Không thể liệt kê objects trong "
-            f"bucket {bucket_name}: {error}"
+            f"Không thể liệt kê objects trong bucket {bucket_name}: {error}"
         ) from error
 
 
-def check_minio_connection(
-) -> dict[str, Any]:
-    settings = (
-        MinioSettings.from_environment()
-    )
+def check_minio_connection() -> dict[str, Any]:
+    settings = MinioSettings.from_environment()
 
-    client = get_minio_client(
-        settings
-    )
+    client = get_minio_client(settings)
 
     try:
         buckets = client.list_buckets()
     except S3Error as error:
-        raise MinioOperationError(
-            "Không thể kết nối MinIO: "
-            f"{error}"
-        ) from error
+        raise MinioOperationError(f"Không thể kết nối MinIO: {error}") from error
 
     return {
         "endpoint": settings.endpoint,
         "secure": settings.secure,
-        "configured_buckets": list(
-            settings.bucket_names
-        ),
-        "existing_buckets": [
-            bucket.name
-            for bucket in buckets
-        ],
+        "configured_buckets": list(settings.bucket_names),
+        "existing_buckets": [bucket.name for bucket in buckets],
     }

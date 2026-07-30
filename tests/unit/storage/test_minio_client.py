@@ -49,18 +49,11 @@ def set_valid_minio_environment(
 def test_loads_minio_settings(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    set_valid_minio_environment(
-        monkeypatch
-    )
+    set_valid_minio_environment(monkeypatch)
 
-    settings = (
-        MinioSettings.from_environment()
-    )
+    settings = MinioSettings.from_environment()
 
-    assert (
-        settings.endpoint
-        == "localhost:9000"
-    )
+    assert settings.endpoint == "localhost:9000"
 
     assert settings.secure is False
 
@@ -74,9 +67,7 @@ def test_loads_minio_settings(
 def test_rejects_endpoint_with_scheme(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    set_valid_minio_environment(
-        monkeypatch
-    )
+    set_valid_minio_environment(monkeypatch)
 
     monkeypatch.setenv(
         "MINIO_ENDPOINT",
@@ -93,9 +84,7 @@ def test_rejects_endpoint_with_scheme(
 def test_rejects_invalid_bucket_name(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    set_valid_minio_environment(
-        monkeypatch
-    )
+    set_valid_minio_environment(monkeypatch)
 
     monkeypatch.setenv(
         "MINIO_RAW_BUCKET",
@@ -110,12 +99,6 @@ def test_rejects_invalid_bucket_name(
 
 
 def test_normalizes_windows_object_path() -> None:
-    result = normalize_object_name(
-        r"open_meteo\air_quality\data.json"
-    )
+    result = normalize_object_name(r"open_meteo\air_quality\data.json")
 
-    assert result == (
-        "open_meteo/"
-        "air_quality/"
-        "data.json"
-    )
+    assert result == ("open_meteo/air_quality/data.json")

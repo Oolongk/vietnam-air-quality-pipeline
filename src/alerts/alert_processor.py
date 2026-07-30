@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
+import json
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +16,6 @@ from src.alerts.alert_rules import (
 from src.utils.db import (
     get_database_connection,
 )
-
 
 REQUIRED_COLUMNS: set[str] = {
     "point_id",
@@ -109,26 +108,16 @@ UPSERT_ALERT_SQL = """
 """
 
 
-class AirQualityAlertProcessingError(
-    RuntimeError
-):
+class AirQualityAlertProcessingError(RuntimeError):
     """Lỗi khi phân loại AQI hoặc tạo alert."""
 
 
 def _blank_string_mask(
     series: pd.Series,
 ) -> pd.Series:
-    values = series.astype(
-        "string"
-    )
+    values = series.astype("string")
 
-    return (
-        values.isna()
-        | values
-        .str.strip()
-        .eq("")
-        .fillna(True)
-    )
+    return values.isna() | values.str.strip().eq("").fillna(True)
 
 
 def _validate_dataframe(
@@ -138,78 +127,49 @@ def _validate_dataframe(
         dataframe,
         pd.DataFrame,
     ):
-        raise TypeError(
-            "dataframe phải là Pandas DataFrame."
-        )
+        raise TypeError("dataframe phải là Pandas DataFrame.")
 
     if dataframe.empty:
-        raise AirQualityAlertProcessingError(
-            "Clean DataFrame không có record."
-        )
+        raise AirQualityAlertProcessingError("Clean DataFrame không có record.")
 
-    missing_columns = (
-        REQUIRED_COLUMNS
-        - set(dataframe.columns)
-    )
+    missing_columns = REQUIRED_COLUMNS - set(dataframe.columns)
 
     if missing_columns:
-        missing_text = ", ".join(
-            sorted(missing_columns)
-        )
+        missing_text = ", ".join(sorted(missing_columns))
 
         raise AirQualityAlertProcessingError(
-            "Clean DataFrame thiếu các cột: "
-            f"{missing_text}"
+            f"Clean DataFrame thiếu các cột: {missing_text}"
         )
 
-    working_dataframe = (
-        dataframe
-        .copy()
-        .reset_index(drop=True)
-    )
+    working_dataframe = dataframe.copy().reset_index(drop=True)
 
     for column in (
         "point_id",
         "location_id",
         "source",
     ):
-        invalid_mask = _blank_string_mask(
-            working_dataframe[column]
-        )
+        invalid_mask = _blank_string_mask(working_dataframe[column])
 
         if invalid_mask.any():
             raise AirQualityAlertProcessingError(
-                f"Clean DataFrame có "
-                f"{column} bị rỗng."
+                f"Clean DataFrame có {column} bị rỗng."
             )
 
     invalid_source = (
-        working_dataframe["source"]
-        .astype("string")
-        .str.strip()
-        .ne("open_meteo")
+        working_dataframe["source"].astype("string").str.strip().ne("open_meteo")
     )
 
     if invalid_source.any():
-        raise AirQualityAlertProcessingError(
-            "Tất cả source phải là "
-            "'open_meteo'."
-        )
+        raise AirQualityAlertProcessingError("Tất cả source phải là 'open_meteo'.")
 
-    duplicate_mask = (
-        working_dataframe
-        .duplicated(
-            subset=list(
-                UNIQUE_KEY_COLUMNS
-            ),
-            keep=False,
-        )
+    duplicate_mask = working_dataframe.duplicated(
+        subset=list(UNIQUE_KEY_COLUMNS),
+        keep=False,
     )
 
     if duplicate_mask.any():
         raise AirQualityAlertProcessingError(
-            "Clean DataFrame vẫn có "
-            "duplicate theo khóa logic."
+            "Clean DataFrame vẫn có duplicate theo khóa logic."
         )
 
     return working_dataframe
@@ -220,9 +180,7 @@ def _to_python_datetime(
     field_name: str,
 ) -> datetime:
     if value is None or pd.isna(value):
-        raise AirQualityAlertProcessingError(
-            f"{field_name} không được rỗng."
-        )
+        raise AirQualityAlertProcessingError(f"{field_name} không được rỗng.")
 
     try:
         timestamp = pd.Timestamp(value)
@@ -230,17 +188,10 @@ def _to_python_datetime(
         TypeError,
         ValueError,
     ) as error:
-        raise AirQualityAlertProcessingError(
-            f"{field_name} không hợp lệ."
-        ) from error
+        raise AirQualityAlertProcessingError(f"{field_name} không hợp lệ.") from error
 
-    if (
-        timestamp.tzinfo is None
-        or timestamp.utcoffset() is None
-    ):
-        raise AirQualityAlertProcessingError(
-            f"{field_name} phải có timezone."
-        )
+    if timestamp.tzinfo is None or timestamp.utcoffset() is None:
+        raise AirQualityAlertProcessingError(f"{field_name} phải có timezone.")
 
     return timestamp.to_pydatetime()
 
@@ -248,48 +199,27 @@ def _to_python_datetime(
 def prepare_classified_records(
     dataframe: pd.DataFrame,
 ) -> list[dict[str, Any]]:
-    working_dataframe = (
-        _validate_dataframe(
-            dataframe
-        )
-    )
+    working_dataframe = _validate_dataframe(dataframe)
 
-    classified_records: list[
-        dict[str, Any]
-    ] = []
+    classified_records: list[dict[str, Any]] = []
 
-    for row_index, row in (
-        working_dataframe.iterrows()
-    ):
+    for row_index, row in working_dataframe.iterrows():
         try:
-            classification = (
-                classify_us_aqi(
-                    row["us_aqi"]
-                )
-            )
+            classification = classify_us_aqi(row["us_aqi"])
         except AQIClassificationError as error:
             raise AirQualityAlertProcessingError(
-                "Không thể phân loại AQI tại "
-                f"row index {row_index}: {error}"
+                f"Không thể phân loại AQI tại row index {row_index}: {error}"
             ) from error
 
-        point_id = str(
-            row["point_id"]
-        ).strip()
+        point_id = str(row["point_id"]).strip()
 
-        location_id = str(
-            row["location_id"]
-        ).strip()
+        location_id = str(row["location_id"]).strip()
 
-        source = str(
-            row["source"]
-        ).strip()
+        source = str(row["source"]).strip()
 
-        forecast_time = (
-            _to_python_datetime(
-                row["forecast_time"],
-                "forecast_time",
-            )
+        forecast_time = _to_python_datetime(
+            row["forecast_time"],
+            "forecast_time",
         )
 
         if classification is None:
@@ -297,9 +227,7 @@ def prepare_classified_records(
                 {
                     "point_id": point_id,
                     "location_id": location_id,
-                    "forecast_time": (
-                        forecast_time
-                    ),
+                    "forecast_time": (forecast_time),
                     "source": source,
                     "us_aqi": None,
                     "aqi_level": None,
@@ -313,43 +241,24 @@ def prepare_classified_records(
 
         alert_message = None
 
-        if (
-            classification.alert_severity
-            is not None
-        ):
-            alert_message = (
-                build_alert_message(
-                    point_id=point_id,
-                    location_id=location_id,
-                    classification=(
-                        classification
-                    ),
-                )
+        if classification.alert_severity is not None:
+            alert_message = build_alert_message(
+                point_id=point_id,
+                location_id=location_id,
+                classification=(classification),
             )
 
         classified_records.append(
             {
                 "point_id": point_id,
                 "location_id": location_id,
-                "forecast_time": (
-                    forecast_time
-                ),
+                "forecast_time": (forecast_time),
                 "source": source,
-                "us_aqi": (
-                    classification.aqi_value
-                ),
-                "aqi_level": (
-                    classification.aqi_level
-                ),
-                "aqi_severity": (
-                    classification.aqi_severity
-                ),
-                "alert_severity": (
-                    classification.alert_severity
-                ),
-                "alert_message": (
-                    alert_message
-                ),
+                "us_aqi": (classification.aqi_value),
+                "aqi_level": (classification.aqi_level),
+                "aqi_severity": (classification.aqi_severity),
+                "alert_severity": (classification.alert_severity),
+                "alert_message": (alert_message),
             }
         )
 
@@ -360,16 +269,11 @@ def update_aqi_and_alerts(
     dataframe: pd.DataFrame,
     connection: Any | None = None,
 ) -> dict[str, Any]:
-    records = prepare_classified_records(
-        dataframe
-    )
+    records = prepare_classified_records(dataframe)
 
     owns_connection = connection is None
 
-    resolved_connection = (
-        connection
-        or get_database_connection()
-    )
+    resolved_connection = connection or get_database_connection()
 
     facts_updated = 0
     alerts_generated = 0
@@ -414,10 +318,7 @@ def update_aqi_and_alerts(
 
                         continue
 
-                    if (
-                        record["alert_severity"]
-                        is None
-                    ):
+                    if record["alert_severity"] is None:
                         cursor.execute(
                             DELETE_ALL_ALERTS_FOR_KEY_SQL,
                             record,
@@ -437,14 +338,11 @@ def update_aqi_and_alerts(
 
                     alerts_generated += 1
 
-                    alert_counts[
-                        record["alert_severity"]
-                    ] += 1
+                    alert_counts[record["alert_severity"]] += 1
 
     except psycopg.Error as error:
         raise AirQualityAlertProcessingError(
-            "TimescaleDB từ chối cập nhật "
-            f"AQI hoặc alert: {error}"
+            f"TimescaleDB từ chối cập nhật AQI hoặc alert: {error}"
         ) from error
     finally:
         if owns_connection:
@@ -453,25 +351,12 @@ def update_aqi_and_alerts(
     return {
         "input_records": len(records),
         "facts_updated": facts_updated,
-        "classified_records": (
-            len(records)
-            - null_aqi_records
-        ),
-        "null_aqi_records": (
-            null_aqi_records
-        ),
-        "alerts_generated": (
-            alerts_generated
-        ),
-        "medium_alerts": (
-            alert_counts["MEDIUM"]
-        ),
-        "high_alerts": (
-            alert_counts["HIGH"]
-        ),
-        "critical_alerts": (
-            alert_counts["CRITICAL"]
-        ),
+        "classified_records": (len(records) - null_aqi_records),
+        "null_aqi_records": (null_aqi_records),
+        "alerts_generated": (alerts_generated),
+        "medium_alerts": (alert_counts["MEDIUM"]),
+        "high_alerts": (alert_counts["HIGH"]),
+        "critical_alerts": (alert_counts["CRITICAL"]),
     }
 
 
@@ -484,9 +369,7 @@ def _write_json_atomically(
         exist_ok=True,
     )
 
-    temporary_path = output_path.with_name(
-        output_path.name + ".tmp"
-    )
+    temporary_path = output_path.with_name(output_path.name + ".tmp")
 
     try:
         with temporary_path.open(
@@ -500,13 +383,10 @@ def _write_json_atomically(
                 indent=2,
             )
 
-        temporary_path.replace(
-            output_path
-        )
+        temporary_path.replace(output_path)
     except OSError as error:
         raise AirQualityAlertProcessingError(
-            "Không thể ghi alert summary: "
-            f"{output_path}"
+            f"Không thể ghi alert summary: {output_path}"
         ) from error
 
 
@@ -517,44 +397,29 @@ def process_clean_batch_alerts(
     partition_date: str,
     partition_hour: str,
 ) -> dict[str, Any]:
-    clean_data_path = (
-        clean_data_path.resolve()
-    )
+    clean_data_path = clean_data_path.resolve()
 
     alert_root = alert_root.resolve()
 
     if not clean_data_path.exists():
         raise AirQualityAlertProcessingError(
-            "Không tìm thấy Clean Parquet: "
-            f"{clean_data_path}"
+            f"Không tìm thấy Clean Parquet: {clean_data_path}"
         )
 
     try:
-        dataframe = pd.read_parquet(
-            clean_data_path
-        )
+        dataframe = pd.read_parquet(clean_data_path)
     except (
         OSError,
         ValueError,
         ImportError,
     ) as error:
-        raise AirQualityAlertProcessingError(
-            "Không thể đọc Clean Parquet."
-        ) from error
+        raise AirQualityAlertProcessingError("Không thể đọc Clean Parquet.") from error
 
-    started_at = datetime.now(
-        timezone.utc
-    )
+    started_at = datetime.now(timezone.utc)
 
-    processing_result = (
-        update_aqi_and_alerts(
-            dataframe
-        )
-    )
+    processing_result = update_aqi_and_alerts(dataframe)
 
-    finished_at = datetime.now(
-        timezone.utc
-    )
+    finished_at = datetime.now(timezone.utc)
 
     output_directory = (
         alert_root
@@ -565,36 +430,21 @@ def process_clean_batch_alerts(
         / f"batch_id={batch_id}"
     )
 
-    summary_path = (
-        output_directory
-        / "alert_summary.json"
-    )
+    summary_path = output_directory / "alert_summary.json"
 
     summary = {
-        "pipeline_name": (
-            "open_meteo_air_quality_alert_processing"
-        ),
+        "pipeline_name": ("open_meteo_air_quality_alert_processing"),
         "source": "open_meteo",
         "status": "SUCCESS",
         "batch_id": batch_id,
         "partition_date": partition_date,
         "partition_hour": partition_hour,
-        "clean_data_path": str(
-            clean_data_path
-        ),
-        "started_at": (
-            started_at.isoformat()
-        ),
-        "finished_at": (
-            finished_at.isoformat()
-        ),
-        "duration_seconds": (
-            finished_at - started_at
-        ).total_seconds(),
+        "clean_data_path": str(clean_data_path),
+        "started_at": (started_at.isoformat()),
+        "finished_at": (finished_at.isoformat()),
+        "duration_seconds": (finished_at - started_at).total_seconds(),
         **processing_result,
-        "alert_summary_path": str(
-            summary_path
-        ),
+        "alert_summary_path": str(summary_path),
     }
 
     _write_json_atomically(

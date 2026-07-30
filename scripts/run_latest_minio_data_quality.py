@@ -47,15 +47,9 @@ def main() -> None:
             transform_summary,
         ) = find_latest_quality_candidate()
 
-        quality_summary = (
-            process_transformed_batch_on_minio(
-                transform_summary=(
-                    transform_summary
-                ),
-                transform_summary_object_name=(
-                    transform_summary_object_name
-                ),
-            )
+        quality_summary = process_transformed_batch_on_minio(
+            transform_summary=(transform_summary),
+            transform_summary_object_name=(transform_summary_object_name),
         )
 
     except (
@@ -67,108 +61,50 @@ def main() -> None:
         ValueError,
         TypeError,
     ) as error:
-        print(
-            "Data Quality trực tiếp trên "
-            f"MinIO thất bại: {error}"
-        )
+        print(f"Data Quality trực tiếp trên MinIO thất bại: {error}")
 
         raise SystemExit(1) from error
 
     print()
 
-    print(
-        "Pipeline status: "
-        f"{quality_summary['status']}"
-    )
+    print(f"Pipeline status: {quality_summary['status']}")
+
+    print(f"Quality status: {quality_summary['quality_status']}")
+
+    print(f"Quality score: {quality_summary['quality_score']}")
+
+    print(f"Batch ID: {quality_summary['batch_id']}")
+
+    print(f"Input records: {quality_summary['input_records']}")
+
+    print(f"Expected records: {quality_summary['expected_records']}")
+
+    print(f"Valid records: {quality_summary['valid_records']}")
+
+    print(f"Bad records: {quality_summary['bad_records']}")
+
+    print(f"Valid percentage: {quality_summary['valid_percentage']}%")
+
+    print(f"Expected active points: {quality_summary['expected_active_points']}")
+
+    print(f"Actual active points: {quality_summary['actual_active_points']}")
+
+    print(f"Expected forecast hours: {quality_summary['expected_forecast_hours']}")
+
+    print(f"Checks passed: {quality_summary['passed_checks']}")
+
+    print(f"Checks warned: {quality_summary['warning_checks']}")
+
+    print(f"Checks failed: {quality_summary['failed_checks']}")
+
+    print(f"Clean object: {quality_summary['clean_object_name']}")
+
+    print(f"Bad records object: {quality_summary['bad_records_object_name']}")
+
+    print(f"Summary object: {quality_summary['summary_object_name']}")
 
     print(
-        "Quality status: "
-        f"{quality_summary['quality_status']}"
-    )
-
-    print(
-        "Quality score: "
-        f"{quality_summary['quality_score']}"
-    )
-
-    print(
-        "Batch ID: "
-        f"{quality_summary['batch_id']}"
-    )
-
-    print(
-        "Input records: "
-        f"{quality_summary['input_records']}"
-    )
-
-    print(
-        "Expected records: "
-        f"{quality_summary['expected_records']}"
-    )
-
-    print(
-        "Valid records: "
-        f"{quality_summary['valid_records']}"
-    )
-
-    print(
-        "Bad records: "
-        f"{quality_summary['bad_records']}"
-    )
-
-    print(
-        "Valid percentage: "
-        f"{quality_summary['valid_percentage']}%"
-    )
-
-    print(
-        "Expected active points: "
-        f"{quality_summary['expected_active_points']}"
-    )
-
-    print(
-        "Actual active points: "
-        f"{quality_summary['actual_active_points']}"
-    )
-
-    print(
-        "Expected forecast hours: "
-        f"{quality_summary['expected_forecast_hours']}"
-    )
-
-    print(
-        "Checks passed: "
-        f"{quality_summary['passed_checks']}"
-    )
-
-    print(
-        "Checks warned: "
-        f"{quality_summary['warning_checks']}"
-    )
-
-    print(
-        "Checks failed: "
-        f"{quality_summary['failed_checks']}"
-    )
-
-    print(
-        "Clean object: "
-        f"{quality_summary['clean_object_name']}"
-    )
-
-    print(
-        "Bad records object: "
-        f"{quality_summary['bad_records_object_name']}"
-    )
-
-    print(
-        "Summary object: "
-        f"{quality_summary['summary_object_name']}"
-    )
-
-    print(
-        "Quality snapshot history: "
-        f"{quality_summary['quality_snapshot_object_name']}"
+        f"Quality snapshot history: {quality_summary['quality_snapshot_object_name']}"
     )
 
     print(
@@ -177,29 +113,16 @@ def main() -> None:
     )
 
     print()
-    print(
-        "Kết quả các rule không PASSED:"
-    )
+    print("Kết quả các rule không PASSED:")
 
     non_passed_checks = [
-        check
-        for check in quality_summary[
-            "checks"
-        ]
-        if check.get(
-            "status"
-        )
-        != "PASSED"
+        check for check in quality_summary["checks"] if check.get("status") != "PASSED"
     ]
 
     if not non_passed_checks:
-        print(
-            "- Tất cả rule đều PASSED."
-        )
+        print("- Tất cả rule đều PASSED.")
     else:
-        for check in (
-            non_passed_checks
-        ):
+        for check in non_passed_checks:
             print(
                 "- "
                 f"{check['check_name']}: "

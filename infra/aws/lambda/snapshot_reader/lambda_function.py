@@ -10,7 +10,6 @@ from urllib.parse import unquote
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
-
 LOGGER = logging.getLogger()
 LOGGER.setLevel(logging.INFO)
 
@@ -31,13 +30,9 @@ SNAPSHOT_REGION = os.getenv(
 
 MAX_RESPONSE_BYTES = 5 * 1024 * 1024
 
-SAFE_SNAPSHOT_ID_PATTERN = re.compile(
-    r"^[A-Za-z0-9_-]+$"
-)
+SAFE_SNAPSHOT_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
 
-SAFE_OBJECT_PATH_PATTERN = re.compile(
-    r"^[A-Za-z0-9_./-]+$"
-)
+SAFE_OBJECT_PATH_PATTERN = re.compile(r"^[A-Za-z0-9_./-]+$")
 
 
 S3_CLIENT = boto3.client(
@@ -58,18 +53,14 @@ def lambda_handler(
     """
 
     if not SNAPSHOT_BUCKET:
-        LOGGER.error(
-            "Missing SNAPSHOT_BUCKET environment variable."
-        )
+        LOGGER.error("Missing SNAPSHOT_BUCKET environment variable.")
 
         return build_error_response(
             status_code=500,
             message="Snapshot service is not configured.",
         )
 
-    method = extract_http_method(
-        event
-    )
+    method = extract_http_method(event)
 
     if method not in {
         "GET",
@@ -89,20 +80,11 @@ def lambda_handler(
             ),
         }
 
-    raw_path = extract_raw_path(
-        event
-    )
+    raw_path = extract_raw_path(event)
 
-    object_key = normalize_object_key(
-        raw_path
-    )
+    object_key = normalize_object_key(raw_path)
 
-    if (
-        object_key is None
-        or not is_allowed_object_key(
-            object_key
-        )
-    ):
+    if object_key is None or not is_allowed_object_key(object_key):
         return build_error_response(
             status_code=404,
             message="Snapshot file not found.",
@@ -110,13 +92,9 @@ def lambda_handler(
 
     try:
         if method == "HEAD":
-            return read_object_metadata(
-                object_key
-            )
+            return read_object_metadata(object_key)
 
-        return read_object_body(
-            object_key
-        )
+        return read_object_body(object_key)
 
     except ClientError as error:
         error_code = str(
@@ -184,17 +162,13 @@ def extract_http_method(
         "",
     )
 
-    return str(
-        method
-    ).upper().strip()
+    return str(method).upper().strip()
 
 
 def extract_raw_path(
     event: dict[str, Any],
 ) -> str:
-    raw_path = event.get(
-        "rawPath"
-    )
+    raw_path = event.get("rawPath")
 
     if isinstance(
         raw_path,
@@ -217,9 +191,7 @@ def extract_raw_path(
         "/",
     )
 
-    return str(
-        fallback_path
-    )
+    return str(fallback_path)
 
 
 def normalize_object_key(
@@ -234,9 +206,7 @@ def normalize_object_key(
     """
 
     try:
-        decoded_path = unquote(
-            raw_path
-        )
+        decoded_path = unquote(raw_path)
 
     except Exception:
         return None
@@ -244,23 +214,15 @@ def normalize_object_key(
     if "\x00" in decoded_path:
         return None
 
-    normalized_path = (
-        decoded_path
-        .replace(
-            "\\",
-            "/",
-        )
-        .strip()
-    )
+    normalized_path = decoded_path.replace(
+        "\\",
+        "/",
+    ).strip()
 
-    if not normalized_path.startswith(
-        "/"
-    ):
+    if not normalized_path.startswith("/"):
         return None
 
-    object_key = normalized_path.lstrip(
-        "/"
-    )
+    object_key = normalized_path.lstrip("/")
 
     if not object_key:
         return None
@@ -279,28 +241,18 @@ def is_allowed_object_key(
     if object_key == "current.json":
         return True
 
-    if not object_key.startswith(
-        "releases/"
-    ):
+    if not object_key.startswith("releases/"):
         return False
 
-    if not object_key.endswith(
-        ".json"
-    ):
+    if not object_key.endswith(".json"):
         return False
 
-    if not SAFE_OBJECT_PATH_PATTERN.fullmatch(
-        object_key
-    ):
+    if not SAFE_OBJECT_PATH_PATTERN.fullmatch(object_key):
         return False
 
-    path_parts = object_key.split(
-        "/"
-    )
+    path_parts = object_key.split("/")
 
-    if len(
-        path_parts
-    ) < 3:
+    if len(path_parts) < 3:
         return False
 
     if path_parts[0] != "releases":
@@ -308,9 +260,7 @@ def is_allowed_object_key(
 
     snapshot_id = path_parts[1]
 
-    if not SAFE_SNAPSHOT_ID_PATTERN.fullmatch(
-        snapshot_id
-    ):
+    if not SAFE_SNAPSHOT_ID_PATTERN.fullmatch(snapshot_id):
         return False
 
     for path_part in path_parts:
@@ -352,29 +302,21 @@ def read_object_body(
             message="Snapshot file is too large.",
         )
 
-    body_stream = response[
-        "Body"
-    ]
+    body_stream = response["Body"]
 
     try:
-        body_bytes = body_stream.read(
-            MAX_RESPONSE_BYTES + 1
-        )
+        body_bytes = body_stream.read(MAX_RESPONSE_BYTES + 1)
 
     finally:
         body_stream.close()
 
-    if len(
-        body_bytes
-    ) > MAX_RESPONSE_BYTES:
+    if len(body_bytes) > MAX_RESPONSE_BYTES:
         return build_error_response(
             status_code=413,
             message="Snapshot file is too large.",
         )
 
-    body_text = body_bytes.decode(
-        "utf-8"
-    )
+    body_text = body_bytes.decode("utf-8")
 
     return {
         "statusCode": 200,
@@ -417,51 +359,30 @@ def build_s3_response_headers(
         )
     )
 
-    cache_control = s3_response.get(
-        "CacheControl"
-    )
+    cache_control = s3_response.get("CacheControl")
 
     if not cache_control:
         if object_key == "current.json":
-            cache_control = (
-                "max-age=0, no-cache, no-store, "
-                "must-revalidate"
-            )
+            cache_control = "max-age=0, no-cache, no-store, must-revalidate"
 
         else:
-            cache_control = (
-                "public, max-age=31536000, immutable"
-            )
+            cache_control = "public, max-age=31536000, immutable"
 
     headers = {
         **base_headers(),
         "content-type": content_type,
-        "cache-control": str(
-            cache_control
-        ),
+        "cache-control": str(cache_control),
     }
 
-    etag = s3_response.get(
-        "ETag"
-    )
+    etag = s3_response.get("ETag")
 
     if etag:
-        headers[
-            "etag"
-        ] = str(
-            etag
-        )
+        headers["etag"] = str(etag)
 
-    content_length = s3_response.get(
-        "ContentLength"
-    )
+    content_length = s3_response.get("ContentLength")
 
     if content_length is not None:
-        headers[
-            "content-length"
-        ] = str(
-            content_length
-        )
+        headers["content-length"] = str(content_length)
 
     return headers
 
@@ -481,9 +402,7 @@ def build_error_response(
         "statusCode": status_code,
         "headers": {
             **base_headers(),
-            "content-type": (
-                "application/json; charset=utf-8"
-            ),
+            "content-type": ("application/json; charset=utf-8"),
             "cache-control": "no-store",
         },
         "body": json.dumps(

@@ -10,7 +10,6 @@ from src.ingestion.open_meteo_client import (
     OpenMeteoClientError,
 )
 
-
 TEST_VARIABLES = (
     "pm2_5",
     "us_aqi",
@@ -69,10 +68,7 @@ def build_client(
     max_attempts: int = 1,
 ) -> OpenMeteoClient:
     return OpenMeteoClient(
-        base_url=(
-            "https://example.test/"
-            "air-quality"
-        ),
+        base_url=("https://example.test/air-quality"),
         hourly_variables=TEST_VARIABLES,
         max_attempts=max_attempts,
         connect_timeout_seconds=2,
@@ -83,9 +79,7 @@ def build_client(
     )
 
 
-def build_points() -> list[
-    dict[str, object]
-]:
+def build_points() -> list[dict[str, object]]:
     return [
         {
             "point_id": "POINT_A",
@@ -141,24 +135,15 @@ def test_batch_request_preserves_point_mapping(
         fake_get,
     )
 
-    results = (
-        client.fetch_hourly_air_quality_batch(
-            monitoring_points=build_points(),
-        )
+    results = client.fetch_hourly_air_quality_batch(
+        monitoring_points=build_points(),
     )
 
-    assert captured["url"] == (
-        "https://example.test/"
-        "air-quality"
-    )
+    assert captured["url"] == ("https://example.test/air-quality")
 
-    assert captured["params"][
-        "latitude"
-    ] == "10.0,11.0"
+    assert captured["params"]["latitude"] == "10.0,11.0"
 
-    assert captured["params"][
-        "longitude"
-    ] == "106.0,107.0"
+    assert captured["params"]["longitude"] == "106.0,107.0"
 
     assert captured["timeout"] == (
         2.0,
@@ -167,21 +152,13 @@ def test_batch_request_preserves_point_mapping(
 
     assert len(results) == 2
 
-    assert results[0]["request"][
-        "point_id"
-    ] == "POINT_A"
+    assert results[0]["request"]["point_id"] == "POINT_A"
 
-    assert results[1]["request"][
-        "point_id"
-    ] == "POINT_B"
+    assert results[1]["request"]["point_id"] == "POINT_B"
 
-    assert results[0]["response"] == (
-        responses[0]
-    )
+    assert results[0]["response"] == (responses[0])
 
-    assert results[1]["response"] == (
-        responses[1]
-    )
+    assert results[1]["response"] == (responses[1])
 
     assert client.get_request_metrics() == {
         "total_http_attempts": 1,
@@ -200,9 +177,7 @@ def test_retries_temporary_http_error(
         FakeResponse(
             status_code=503,
             payload={
-                "reason": (
-                    "Temporary unavailable"
-                ),
+                "reason": ("Temporary unavailable"),
             },
         ),
         FakeResponse(
@@ -223,9 +198,7 @@ def test_retries_temporary_http_error(
     ) -> FakeResponse:
         nonlocal call_count
 
-        response = responses[
-            call_count
-        ]
+        response = responses[call_count]
 
         call_count += 1
 
@@ -237,12 +210,10 @@ def test_retries_temporary_http_error(
         fake_get,
     )
 
-    results = (
-        client.fetch_hourly_air_quality_batch(
-            monitoring_points=[
-                build_points()[0],
-            ]
-        )
+    results = client.fetch_hourly_air_quality_batch(
+        monitoring_points=[
+            build_points()[0],
+        ]
     )
 
     assert len(results) == 1
@@ -276,9 +247,7 @@ def test_does_not_retry_non_retryable_http_error(
         return FakeResponse(
             status_code=400,
             payload={
-                "reason": (
-                    "Invalid coordinates"
-                ),
+                "reason": ("Invalid coordinates"),
             },
         )
 
@@ -332,10 +301,7 @@ def test_rejects_response_count_mismatch(
 
     with pytest.raises(
         InvalidOpenMeteoResponseError,
-        match=(
-            "không khớp số "
-            "monitoring point"
-        ),
+        match=("không khớp số monitoring point"),
     ):
         client.fetch_hourly_air_quality_batch(
             monitoring_points=build_points(),
@@ -347,13 +313,9 @@ def test_rejects_mismatched_hourly_lengths(
 ) -> None:
     client = build_client()
 
-    invalid_response = (
-        build_valid_response()
-    )
+    invalid_response = build_valid_response()
 
-    invalid_response["hourly"][
-        "pm2_5"
-    ] = [
+    invalid_response["hourly"]["pm2_5"] = [
         20.0,
     ]
 

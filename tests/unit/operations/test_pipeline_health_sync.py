@@ -8,7 +8,6 @@ from src.load.minio_pipeline_log_sync import (
     build_pipeline_log_rows,
 )
 
-
 BATCH_ID = "20260720T120000Z_test"
 STARTED_AT = "2026-07-20T12:00:00+00:00"
 FINISHED_AT = "2026-07-20T12:00:10+00:00"
@@ -22,9 +21,7 @@ def _container(
         "bucket_name": "test-bucket",
         "object_name": object_name,
         "summary": {
-            "pipeline_name": (
-                "air_quality_pipeline"
-            ),
+            "pipeline_name": ("air_quality_pipeline"),
             "source": "open_meteo",
             "status": "SUCCESS",
             "started_at": STARTED_AT,
@@ -38,9 +35,7 @@ def _container(
 def _summaries() -> dict[str, object]:
     checks = [
         {
-            "check_name": (
-                "EXPECTED_RECORD_COUNT"
-            ),
+            "check_name": ("EXPECTED_RECORD_COUNT"),
             "status": "PASSED",
             "bad_records_count": 0,
             "message": "Đủ record.",
@@ -105,16 +100,11 @@ def _summaries() -> dict[str, object]:
 
 
 def test_pipeline_rows_include_six_unique_stages() -> None:
-    rows = build_pipeline_log_rows(
-        _summaries()
-    )
+    rows = build_pipeline_log_rows(_summaries())
 
     assert len(rows) == 6
 
-    stage_names = [
-        row["stage_name"]
-        for row in rows
-    ]
+    stage_names = [row["stage_name"] for row in rows]
 
     assert stage_names == [
         "extract",
@@ -125,54 +115,31 @@ def test_pipeline_rows_include_six_unique_stages() -> None:
         "mart",
     ]
 
-    run_ids = [
-        row["run_id"]
-        for row in rows
-    ]
+    run_ids = [row["run_id"] for row in rows]
 
-    assert len(run_ids) == len(
-        set(run_ids)
-    )
+    assert len(run_ids) == len(set(run_ids))
 
-    mart_row = next(
-        row
-        for row in rows
-        if row["stage_name"] == "mart"
-    )
+    mart_row = next(row for row in rows if row["stage_name"] == "mart")
 
-    assert mart_row["run_id"] == (
-        f"{BATCH_ID}:mart"
-    )
+    assert mart_row["run_id"] == (f"{BATCH_ID}:mart")
     assert mart_row["input_records"] == 12000
     assert mart_row["output_records"] == 100
     assert mart_row["failed_records"] == 0
 
 
 def test_quality_rows_reference_data_quality_run() -> None:
-    rows = build_data_quality_log_rows(
-        _summaries()
-    )
+    rows = build_data_quality_log_rows(_summaries())
 
     assert len(rows) == 2
 
-    assert {
-        row["check_name"]
-        for row in rows
-    } == {
+    assert {row["check_name"] for row in rows} == {
         "EXPECTED_RECORD_COUNT",
         "DATA_FRESHNESS",
     }
 
-    assert all(
-        row["run_id"]
-        == f"{BATCH_ID}:data_quality"
-        for row in rows
-    )
+    assert all(row["run_id"] == f"{BATCH_ID}:data_quality" for row in rows)
 
-    assert all(
-        row["batch_id"] == BATCH_ID
-        for row in rows
-    )
+    assert all(row["batch_id"] == BATCH_ID for row in rows)
 
 
 def test_pipeline_rows_reject_missing_batch_id() -> None:
@@ -183,6 +150,4 @@ def test_pipeline_rows_reject_missing_batch_id() -> None:
         MinioPipelineLogSyncError,
         match="batch_id",
     ):
-        build_pipeline_log_rows(
-            summaries
-        )
+        build_pipeline_log_rows(summaries)

@@ -1,0 +1,1798 @@
+{
+  "catalog_version": "1.0",
+  "contracts": [
+    {
+      "allow_extra_columns": false,
+      "columns": [
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "point_id",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "Must stay a string. The literal 'NA' represents Nghệ An and must not become a missing value.",
+          "maximum": null,
+          "minimum": null,
+          "name": "location_id",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "point_name",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [
+            "urban_center",
+            "regional_center"
+          ],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "point_type",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": 90,
+          "minimum": -90,
+          "name": "latitude",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "decimal_degree"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": 180,
+          "minimum": -180,
+          "name": "longitude",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "decimal_degree"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "datetime",
+          "description": "Timezone-aware forecast time.",
+          "maximum": null,
+          "minimum": null,
+          "name": "forecast_time",
+          "nullable": false,
+          "timezone_aware": true,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "pm2_5",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "pm10",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "carbon_monoxide",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "nitrogen_dioxide",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "sulphur_dioxide",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "ozone",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "us_aqi",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "us_aqi_pm2_5",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "us_aqi_pm10",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "us_aqi_nitrogen_dioxide",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "us_aqi_carbon_monoxide",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "us_aqi_ozone",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "us_aqi_sulphur_dioxide",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [
+            "open_meteo"
+          ],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "source",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "batch_id",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [
+            "1.0"
+          ],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "schema_version",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "datetime",
+          "description": "Timezone-aware ingestion time, stored in UTC.",
+          "maximum": null,
+          "minimum": null,
+          "name": "ingested_at",
+          "nullable": false,
+          "timezone_aware": true,
+          "unit": null
+        }
+      ],
+      "compatibility_policy": "Backward-compatible additions require a minor version. Rename, removal, type change or semantic change requires a major version.",
+      "description": "Canonical hourly clean record written to MinIO and loaded into TimescaleDB.",
+      "key_columns": [
+        "point_id",
+        "forecast_time",
+        "source"
+      ],
+      "name": "clean_air_quality_hourly",
+      "version": "1.0"
+    },
+    {
+      "allow_extra_columns": true,
+      "columns": [
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "point_id",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "Must stay a string. The literal 'NA' represents Nghệ An and must not become a missing value.",
+          "maximum": null,
+          "minimum": null,
+          "name": "location_id",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "point_name",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [
+            "urban_center",
+            "regional_center"
+          ],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "point_type",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": 90,
+          "minimum": -90,
+          "name": "latitude",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "decimal_degree"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": 180,
+          "minimum": -180,
+          "name": "longitude",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "decimal_degree"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "datetime",
+          "description": "Timezone-aware forecast time.",
+          "maximum": null,
+          "minimum": null,
+          "name": "forecast_time",
+          "nullable": false,
+          "timezone_aware": true,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "us_aqi",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [
+            "open_meteo"
+          ],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "source",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "batch_id",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [
+            "1.0"
+          ],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "schema_version",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "datetime",
+          "description": "Timezone-aware ingestion time, stored in UTC.",
+          "maximum": null,
+          "minimum": null,
+          "name": "ingested_at",
+          "nullable": false,
+          "timezone_aware": true,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "pm2_5",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "pm10",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "carbon_monoxide",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "nitrogen_dioxide",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "sulphur_dioxide",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "ozone",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        }
+      ],
+      "compatibility_policy": "Backward-compatible additions require a minor version. Rename, removal, type change or semantic change requires a major version.",
+      "description": "Minimum clean columns required by the MinIO mart builder.",
+      "key_columns": [
+        "point_id",
+        "forecast_time",
+        "source"
+      ],
+      "name": "mart_source_clean_hourly",
+      "version": "1.0"
+    },
+    {
+      "allow_extra_columns": false,
+      "columns": [
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "point_id",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "location_id",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "location_name",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "region",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "point_name",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [
+            "urban_center",
+            "regional_center"
+          ],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "point_type",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": 90,
+          "minimum": -90,
+          "name": "latitude",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "decimal_degree"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": 180,
+          "minimum": -180,
+          "name": "longitude",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "decimal_degree"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "datetime",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "forecast_time",
+          "nullable": false,
+          "timezone_aware": true,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "us_aqi",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [
+            "Good",
+            "Moderate",
+            "Unhealthy for Sensitive Groups",
+            "Unhealthy",
+            "Very Unhealthy",
+            "Hazardous"
+          ],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "aqi_level",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": 6,
+          "minimum": 1,
+          "name": "aqi_severity",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "pm2_5",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "pm10",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "carbon_monoxide",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "nitrogen_dioxide",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "sulphur_dioxide",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "ozone",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [
+            "open_meteo"
+          ],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "source",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "source_batch_id",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [
+            "1.0"
+          ],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "schema_version",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "datetime",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "source_ingested_at",
+          "nullable": false,
+          "timezone_aware": true,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "datetime",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "mart_created_at",
+          "nullable": false,
+          "timezone_aware": true,
+          "unit": null
+        }
+      ],
+      "compatibility_policy": "Backward-compatible additions require a minor version. Rename, removal, type change or semantic change requires a major version.",
+      "description": "Nearest forecast record per monitoring point for current AQI presentation.",
+      "key_columns": [
+        "point_id"
+      ],
+      "name": "mart_current_aqi",
+      "version": "1.0"
+    },
+    {
+      "allow_extra_columns": false,
+      "columns": [
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "location_id",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "location_name",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "region",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 1,
+          "name": "monitoring_point_count",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "datetime",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "forecast_time",
+          "nullable": false,
+          "timezone_aware": true,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "average_us_aqi",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "minimum_us_aqi",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "maximum_us_aqi",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "average_pm2_5",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "maximum_pm2_5",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "average_pm10",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "maximum_pm10",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "average_ozone",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "maximum_ozone",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": 90,
+          "minimum": -90,
+          "name": "latitude",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "decimal_degree"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": 180,
+          "minimum": -180,
+          "name": "longitude",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "decimal_degree"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 1,
+          "name": "source_batch_count",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "worst_point_id",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "worst_point_name",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "worst_point_us_aqi",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [
+            "Good",
+            "Moderate",
+            "Unhealthy for Sensitive Groups",
+            "Unhealthy",
+            "Very Unhealthy",
+            "Hazardous"
+          ],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "aqi_level",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": 6,
+          "minimum": 1,
+          "name": "aqi_severity",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "datetime",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "mart_created_at",
+          "nullable": false,
+          "timezone_aware": true,
+          "unit": null
+        }
+      ],
+      "compatibility_policy": "Backward-compatible additions require a minor version. Rename, removal, type change or semantic change requires a major version.",
+      "description": "One aggregated current AQI row per province-level location.",
+      "key_columns": [
+        "location_id"
+      ],
+      "name": "mart_location_summary",
+      "version": "1.0"
+    },
+    {
+      "allow_extra_columns": false,
+      "columns": [
+        {
+          "allowed_values": [],
+          "data_type": "date",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "forecast_date",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "point_id",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "location_id",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "location_name",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "region",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "point_name",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [
+            "urban_center",
+            "regional_center"
+          ],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "point_type",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": 90,
+          "minimum": -90,
+          "name": "latitude",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "decimal_degree"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": 180,
+          "minimum": -180,
+          "name": "longitude",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "decimal_degree"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "datetime",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "first_forecast_time",
+          "nullable": false,
+          "timezone_aware": true,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "datetime",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "last_forecast_time",
+          "nullable": false,
+          "timezone_aware": true,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 1,
+          "name": "available_hours",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "average_us_aqi",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "minimum_us_aqi",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "maximum_us_aqi",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "average_pm2_5",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "maximum_pm2_5",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "average_pm10",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "maximum_pm10",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "average_ozone",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "maximum_ozone",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "good_hours",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "moderate_hours",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "sensitive_group_hours",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "unhealthy_hours",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "very_unhealthy_hours",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "hazardous_hours",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 1,
+          "name": "source_batch_count",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "datetime",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "latest_source_ingested_at",
+          "nullable": false,
+          "timezone_aware": true,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "datetime",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "worst_forecast_time",
+          "nullable": false,
+          "timezone_aware": true,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "worst_hour_source_batch_id",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [
+            "Good",
+            "Moderate",
+            "Unhealthy for Sensitive Groups",
+            "Unhealthy",
+            "Very Unhealthy",
+            "Hazardous"
+          ],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "aqi_level",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": 6,
+          "minimum": 1,
+          "name": "aqi_severity",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [
+            "COMPLETE",
+            "PARTIAL"
+          ],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "coverage_status",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "datetime",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "mart_created_at",
+          "nullable": false,
+          "timezone_aware": true,
+          "unit": null
+        }
+      ],
+      "compatibility_policy": "Backward-compatible additions require a minor version. Rename, removal, type change or semantic change requires a major version.",
+      "description": "Daily point-level AQI and pollutant summary.",
+      "key_columns": [
+        "forecast_date",
+        "point_id"
+      ],
+      "name": "mart_daily_summary",
+      "version": "1.0"
+    },
+    {
+      "allow_extra_columns": false,
+      "columns": [
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "point_id",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "location_id",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "point_name",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [
+            "urban_center",
+            "regional_center"
+          ],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "point_type",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "location_name",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "region",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "admin_type",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": 90,
+          "minimum": -90,
+          "name": "latitude",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "decimal_degree"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": 180,
+          "minimum": -180,
+          "name": "longitude",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "decimal_degree"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "datetime",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "forecast_time",
+          "nullable": false,
+          "timezone_aware": true,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "pm2_5",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "pm10",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "carbon_monoxide",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "nitrogen_dioxide",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "sulphur_dioxide",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "number",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "ozone",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": "µg/m³"
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "us_aqi",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "us_aqi_pm2_5",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "us_aqi_pm10",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "us_aqi_nitrogen_dioxide",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "us_aqi_carbon_monoxide",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "us_aqi_ozone",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "integer",
+          "description": "",
+          "maximum": null,
+          "minimum": 0,
+          "name": "us_aqi_sulphur_dioxide",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [
+            "open_meteo"
+          ],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "source",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "batch_id",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [
+            "1.0"
+          ],
+          "data_type": "string",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "schema_version",
+          "nullable": false,
+          "timezone_aware": false,
+          "unit": null
+        },
+        {
+          "allowed_values": [],
+          "data_type": "datetime",
+          "description": "",
+          "maximum": null,
+          "minimum": null,
+          "name": "ingested_at",
+          "nullable": false,
+          "timezone_aware": true,
+          "unit": null
+        }
+      ],
+      "compatibility_policy": "Backward-compatible additions require a minor version. Rename, removal, type change or semantic change requires a major version.",
+      "description": "Public snapshot record returned by the latest air-quality endpoint.",
+      "key_columns": [
+        "point_id",
+        "forecast_time",
+        "source"
+      ],
+      "name": "snapshot_air_quality_record",
+      "version": "1.0"
+    }
+  ],
+  "identifier_policy": {
+    "batch_id": "Immutable identifier for one pipeline ingestion batch.",
+    "location_id": "Always a string. The literal NA is a valid ID for Nghệ An."
+  },
+  "project": "vietnam-air-quality-pipeline",
+  "timezone_policy": {
+    "forecast_time": "Timezone-aware; source and clean records use Asia/Ho_Chi_Minh.",
+    "ingested_at": "Timezone-aware and normalized to UTC."
+  }
+}

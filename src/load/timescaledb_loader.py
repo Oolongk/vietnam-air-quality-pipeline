@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
+import json
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +11,6 @@ import psycopg
 from src.utils.db import (
     get_database_connection,
 )
-
 
 LOAD_COLUMNS: tuple[str, ...] = (
     "schema_version",
@@ -164,31 +163,18 @@ class TimescaleDBLoadError(RuntimeError):
 def _blank_string_mask(
     series: pd.Series,
 ) -> pd.Series:
-    string_values = series.astype(
-        "string"
-    )
+    string_values = series.astype("string")
 
-    return (
-        string_values.isna()
-        | string_values
-        .str.strip()
-        .eq("")
-        .fillna(True)
-    )
+    return string_values.isna() | string_values.str.strip().eq("").fillna(True)
 
 
 def _validate_datetime_timezone(
     dataframe: pd.DataFrame,
     column: str,
 ) -> None:
-    for row_index, value in (
-        dataframe[column].items()
-    ):
+    for row_index, value in dataframe[column].items():
         if value is None or pd.isna(value):
-            raise TimescaleDBLoadError(
-                f"{column} bị thiếu tại "
-                f"row index {row_index}."
-            )
+            raise TimescaleDBLoadError(f"{column} bị thiếu tại row index {row_index}.")
 
         try:
             timestamp = pd.Timestamp(value)
@@ -197,17 +183,12 @@ def _validate_datetime_timezone(
             ValueError,
         ) as error:
             raise TimescaleDBLoadError(
-                f"{column} không hợp lệ tại "
-                f"row index {row_index}."
+                f"{column} không hợp lệ tại row index {row_index}."
             ) from error
 
-        if (
-            timestamp.tzinfo is None
-            or timestamp.utcoffset() is None
-        ):
+        if timestamp.tzinfo is None or timestamp.utcoffset() is None:
             raise TimescaleDBLoadError(
-                f"{column} phải có timezone tại "
-                f"row index {row_index}."
+                f"{column} phải có timezone tại row index {row_index}."
             )
 
 
@@ -218,95 +199,49 @@ def _validate_load_dataframe(
         dataframe,
         pd.DataFrame,
     ):
-        raise TypeError(
-            "dataframe phải là Pandas DataFrame."
-        )
+        raise TypeError("dataframe phải là Pandas DataFrame.")
 
     if dataframe.empty:
-        raise TimescaleDBLoadError(
-            "Clean DataFrame không có record."
-        )
+        raise TimescaleDBLoadError("Clean DataFrame không có record.")
 
-    missing_columns = (
-        set(LOAD_COLUMNS)
-        - set(dataframe.columns)
-    )
+    missing_columns = set(LOAD_COLUMNS) - set(dataframe.columns)
 
     if missing_columns:
-        missing_text = ", ".join(
-            sorted(missing_columns)
-        )
+        missing_text = ", ".join(sorted(missing_columns))
 
-        raise TimescaleDBLoadError(
-            "Clean DataFrame thiếu các cột: "
-            f"{missing_text}"
-        )
+        raise TimescaleDBLoadError(f"Clean DataFrame thiếu các cột: {missing_text}")
 
     working_dataframe = (
-        dataframe
-        .loc[:, list(LOAD_COLUMNS)]
-        .copy()
-        .reset_index(drop=True)
+        dataframe.loc[:, list(LOAD_COLUMNS)].copy().reset_index(drop=True)
     )
 
-    point_id_invalid = _blank_string_mask(
-        working_dataframe["point_id"]
-    )
+    point_id_invalid = _blank_string_mask(working_dataframe["point_id"])
 
     if point_id_invalid.any():
-        raise TimescaleDBLoadError(
-            "Clean DataFrame có point_id rỗng."
-        )
+        raise TimescaleDBLoadError("Clean DataFrame có point_id rỗng.")
 
-    location_id_invalid = (
-        _blank_string_mask(
-            working_dataframe[
-                "location_id"
-            ]
-        )
-    )
+    location_id_invalid = _blank_string_mask(working_dataframe["location_id"])
 
     if location_id_invalid.any():
-        raise TimescaleDBLoadError(
-            "Clean DataFrame có location_id rỗng."
-        )
+        raise TimescaleDBLoadError("Clean DataFrame có location_id rỗng.")
 
-    source_values = (
-        working_dataframe["source"]
-        .astype("string")
-        .str.strip()
-    )
+    source_values = working_dataframe["source"].astype("string").str.strip()
 
-    invalid_source = (
-        source_values.isna()
-        | source_values.ne("open_meteo")
-    )
+    invalid_source = source_values.isna() | source_values.ne("open_meteo")
 
     if invalid_source.any():
-        raise TimescaleDBLoadError(
-            "Tất cả source phải là "
-            "'open_meteo'."
-        )
+        raise TimescaleDBLoadError("Tất cả source phải là 'open_meteo'.")
 
-    duplicate_mask = (
-        working_dataframe
-        .duplicated(
-            subset=list(
-                UNIQUE_KEY_COLUMNS
-            ),
-            keep=False,
-        )
+    duplicate_mask = working_dataframe.duplicated(
+        subset=list(UNIQUE_KEY_COLUMNS),
+        keep=False,
     )
 
     if duplicate_mask.any():
-        duplicate_count = int(
-            duplicate_mask.sum()
-        )
+        duplicate_count = int(duplicate_mask.sum())
 
         raise TimescaleDBLoadError(
-            "Clean DataFrame vẫn có "
-            f"{duplicate_count} dòng thuộc "
-            "nhóm duplicate."
+            f"Clean DataFrame vẫn có {duplicate_count} dòng thuộc nhóm duplicate."
         )
 
     for column in DATETIME_COLUMNS:
@@ -351,27 +286,16 @@ def _to_python_value(
 def prepare_air_quality_records(
     dataframe: pd.DataFrame,
 ) -> list[dict[str, Any]]:
-    working_dataframe = (
-        _validate_load_dataframe(
-            dataframe
-        )
-    )
+    working_dataframe = _validate_load_dataframe(dataframe)
 
     records: list[dict[str, Any]] = []
 
-    for row in working_dataframe.to_dict(
-        orient="records"
-    ):
+    for row in working_dataframe.to_dict(orient="records"):
         prepared_record = {
-            column: _to_python_value(
-                row[column]
-            )
-            for column in LOAD_COLUMNS
+            column: _to_python_value(row[column]) for column in LOAD_COLUMNS
         }
 
-        records.append(
-            prepared_record
-        )
+        records.append(prepared_record)
 
     return records
 
@@ -401,8 +325,7 @@ def _count_fact_records(
 
     if row is None:
         raise TimescaleDBLoadError(
-            "Không đọc được số record "
-            "trong fact_air_quality_hourly."
+            "Không đọc được số record trong fact_air_quality_hourly."
         )
 
     return int(
@@ -457,16 +380,12 @@ def _validate_dimension_references(
         for row in database_rows
     }
 
-    missing_pairs = (
-        required_pairs
-        - database_pairs
-    )
+    missing_pairs = required_pairs - database_pairs
 
     if missing_pairs:
         missing_text = ", ".join(
             f"{point_id}/{location_id}"
-            for point_id, location_id
-            in sorted(missing_pairs)
+            for point_id, location_id in sorted(missing_pairs)
         )
 
         raise TimescaleDBLoadError(
@@ -481,16 +400,11 @@ def load_air_quality_dataframe(
     dataframe: pd.DataFrame,
     connection: Any | None = None,
 ) -> dict[str, int]:
-    records = prepare_air_quality_records(
-        dataframe
-    )
+    records = prepare_air_quality_records(dataframe)
 
     owns_connection = connection is None
 
-    resolved_connection = (
-        connection
-        or get_database_connection()
-    )
+    resolved_connection = connection or get_database_connection()
 
     try:
         with resolved_connection.transaction():
@@ -500,63 +414,35 @@ def load_air_quality_dataframe(
                     records=records,
                 )
 
-                records_before = (
-                    _count_fact_records(
-                        cursor
-                    )
-                )
+                records_before = _count_fact_records(cursor)
 
                 cursor.executemany(
                     UPSERT_SQL,
                     records,
                 )
 
-                records_after = (
-                    _count_fact_records(
-                        cursor
-                    )
-                )
+                records_after = _count_fact_records(cursor)
     except psycopg.Error as error:
         raise TimescaleDBLoadError(
-            "TimescaleDB từ chối batch load: "
-            f"{error}"
+            f"TimescaleDB từ chối batch load: {error}"
         ) from error
     finally:
         if owns_connection:
             resolved_connection.close()
 
-    inserted_records = (
-        records_after
-        - records_before
-    )
+    inserted_records = records_after - records_before
 
-    if not 0 <= inserted_records <= len(
-        records
-    ):
-        raise TimescaleDBLoadError(
-            "Không thể xác định số record "
-            "insert/update hợp lệ."
-        )
+    if not 0 <= inserted_records <= len(records):
+        raise TimescaleDBLoadError("Không thể xác định số record insert/update hợp lệ.")
 
-    updated_records = (
-        len(records)
-        - inserted_records
-    )
+    updated_records = len(records) - inserted_records
 
     return {
         "input_records": len(records),
-        "inserted_records": (
-            inserted_records
-        ),
-        "updated_records": (
-            updated_records
-        ),
-        "database_records_before": (
-            records_before
-        ),
-        "database_records_after": (
-            records_after
-        ),
+        "inserted_records": (inserted_records),
+        "updated_records": (updated_records),
+        "database_records_before": (records_before),
+        "database_records_after": (records_after),
     }
 
 
@@ -569,9 +455,7 @@ def _write_json_atomically(
         exist_ok=True,
     )
 
-    temporary_path = output_path.with_name(
-        output_path.name + ".tmp"
-    )
+    temporary_path = output_path.with_name(output_path.name + ".tmp")
 
     try:
         with temporary_path.open(
@@ -585,13 +469,10 @@ def _write_json_atomically(
                 indent=2,
             )
 
-        temporary_path.replace(
-            output_path
-        )
+        temporary_path.replace(output_path)
     except OSError as error:
         raise TimescaleDBLoadError(
-            "Không thể ghi load summary: "
-            f"{output_path}"
+            f"Không thể ghi load summary: {output_path}"
         ) from error
 
 
@@ -618,48 +499,32 @@ def load_clean_parquet_batch(
     partition_date: str,
     partition_hour: str,
 ) -> dict[str, Any]:
-    clean_data_path = (
-        clean_data_path.resolve()
-    )
+    clean_data_path = clean_data_path.resolve()
 
     load_root = load_root.resolve()
 
     if not clean_data_path.exists():
-        raise TimescaleDBLoadError(
-            "Không tìm thấy Clean Parquet: "
-            f"{clean_data_path}"
-        )
+        raise TimescaleDBLoadError(f"Không tìm thấy Clean Parquet: {clean_data_path}")
 
     if not clean_data_path.is_file():
         raise TimescaleDBLoadError(
-            "Clean data path không phải file: "
-            f"{clean_data_path}"
+            f"Clean data path không phải file: {clean_data_path}"
         )
 
     try:
-        clean_dataframe = pd.read_parquet(
-            clean_data_path
-        )
+        clean_dataframe = pd.read_parquet(clean_data_path)
     except (
         OSError,
         ValueError,
         ImportError,
     ) as error:
-        raise TimescaleDBLoadError(
-            "Không thể đọc Clean Parquet."
-        ) from error
+        raise TimescaleDBLoadError("Không thể đọc Clean Parquet.") from error
 
-    started_at = datetime.now(
-        timezone.utc
-    )
+    started_at = datetime.now(timezone.utc)
 
-    load_result = load_air_quality_dataframe(
-        clean_dataframe
-    )
+    load_result = load_air_quality_dataframe(clean_dataframe)
 
-    finished_at = datetime.now(
-        timezone.utc
-    )
+    finished_at = datetime.now(timezone.utc)
 
     load_directory = _build_load_directory(
         load_root=load_root,
@@ -668,40 +533,23 @@ def load_clean_parquet_batch(
         batch_id=batch_id,
     )
 
-    summary_path = (
-        load_directory
-        / "load_summary.json"
-    )
+    summary_path = load_directory / "load_summary.json"
 
     summary = {
-        "pipeline_name": (
-            "open_meteo_air_quality_timescaledb_load"
-        ),
+        "pipeline_name": ("open_meteo_air_quality_timescaledb_load"),
         "source": "open_meteo",
         "status": "SUCCESS",
         "batch_id": batch_id,
         "partition_date": partition_date,
         "partition_hour": partition_hour,
-        "database_table": (
-            "fact_air_quality_hourly"
-        ),
-        "upsert_key": list(
-            UNIQUE_KEY_COLUMNS
-        ),
-        "clean_data_path": str(
-            clean_data_path
-        ),
+        "database_table": ("fact_air_quality_hourly"),
+        "upsert_key": list(UNIQUE_KEY_COLUMNS),
+        "clean_data_path": str(clean_data_path),
         "started_at": started_at.isoformat(),
-        "finished_at": (
-            finished_at.isoformat()
-        ),
-        "duration_seconds": (
-            finished_at - started_at
-        ).total_seconds(),
+        "finished_at": (finished_at.isoformat()),
+        "duration_seconds": (finished_at - started_at).total_seconds(),
         **load_result,
-        "load_summary_path": str(
-            summary_path
-        ),
+        "load_summary_path": str(summary_path),
     }
 
     _write_json_atomically(

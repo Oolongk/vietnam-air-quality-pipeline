@@ -11,14 +11,9 @@ from src.utils.config_loader import (
     load_project_config,
 )
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-OUTPUT_DIRECTORY = (
-    PROJECT_ROOT
-    / "data"
-    / "local_test"
-)
+OUTPUT_DIRECTORY = PROJECT_ROOT / "data" / "local_test"
 
 TARGET_POINT_ID = "HN_CENTER"
 
@@ -26,19 +21,13 @@ TARGET_POINT_ID = "HN_CENTER"
 def main() -> None:
     _, monitoring_points = load_project_config()
 
-    active_points = monitoring_points[
-        monitoring_points["is_active"]
-    ]
+    active_points = monitoring_points[monitoring_points["is_active"]]
 
-    selected_points = active_points[
-        active_points["point_id"]
-        == TARGET_POINT_ID
-    ]
+    selected_points = active_points[active_points["point_id"] == TARGET_POINT_ID]
 
     if selected_points.empty:
         raise ValueError(
-            "Không tìm thấy điểm đang hoạt động "
-            f"có point_id='{TARGET_POINT_ID}'."
+            f"Không tìm thấy điểm đang hoạt động có point_id='{TARGET_POINT_ID}'."
         )
 
     point = selected_points.iloc[0]
@@ -46,26 +35,15 @@ def main() -> None:
     client = OpenMeteoClient()
 
     try:
-        raw_payload = (
-            client.fetch_hourly_air_quality(
-                point_id=str(point["point_id"]),
-                location_id=str(
-                    point["location_id"]
-                ),
-                latitude=float(
-                    point["latitude"]
-                ),
-                longitude=float(
-                    point["longitude"]
-                ),
-                forecast_hours=24,
-            )
+        raw_payload = client.fetch_hourly_air_quality(
+            point_id=str(point["point_id"]),
+            location_id=str(point["location_id"]),
+            latitude=float(point["latitude"]),
+            longitude=float(point["longitude"]),
+            forecast_hours=24,
         )
     except OpenMeteoClientError as error:
-        print(
-            "Gọi Open-Meteo thất bại: "
-            f"{error}"
-        )
+        print(f"Gọi Open-Meteo thất bại: {error}")
 
         raise SystemExit(1) from error
     finally:
@@ -76,13 +54,7 @@ def main() -> None:
         exist_ok=True,
     )
 
-    output_path = (
-        OUTPUT_DIRECTORY
-        / (
-            "open_meteo_"
-            f"{TARGET_POINT_ID}_sample.json"
-        )
-    )
+    output_path = OUTPUT_DIRECTORY / (f"open_meteo_{TARGET_POINT_ID}_sample.json")
 
     with output_path.open(
         mode="w",
@@ -99,14 +71,8 @@ def main() -> None:
     hourly_data = response_data["hourly"]
 
     print("Gọi Open-Meteo thành công.")
-    print(
-        "Point ID: "
-        f"{raw_payload['request']['point_id']}"
-    )
-    print(
-        "Location ID: "
-        f"{raw_payload['request']['location_id']}"
-    )
+    print(f"Point ID: {raw_payload['request']['point_id']}")
+    print(f"Location ID: {raw_payload['request']['location_id']}")
     print(
         "Requested coordinates: "
         f"{raw_payload['request']['latitude']}, "
@@ -117,26 +83,11 @@ def main() -> None:
         f"{response_data.get('latitude')}, "
         f"{response_data.get('longitude')}"
     )
-    print(
-        "Timezone: "
-        f"{response_data.get('timezone')}"
-    )
-    print(
-        "Số mốc thời gian: "
-        f"{len(hourly_data['time'])}"
-    )
-    print(
-        "Thời gian đầu tiên: "
-        f"{hourly_data['time'][0]}"
-    )
-    print(
-        "Thời gian cuối cùng: "
-        f"{hourly_data['time'][-1]}"
-    )
-    print(
-        "File raw mẫu: "
-        f"{output_path}"
-    )
+    print(f"Timezone: {response_data.get('timezone')}")
+    print(f"Số mốc thời gian: {len(hourly_data['time'])}")
+    print(f"Thời gian đầu tiên: {hourly_data['time'][0]}")
+    print(f"Thời gian cuối cùng: {hourly_data['time'][-1]}")
+    print(f"File raw mẫu: {output_path}")
 
     print()
     print("Năm bản ghi đầu tiên:")

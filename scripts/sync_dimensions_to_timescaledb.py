@@ -20,14 +20,9 @@ def main() -> None:
         TypeError,
         KeyError,
     ) as error:
-        print(
-            "Đồng bộ dimension thất bại: "
-            f"{error}"
-        )
+        print(f"Đồng bộ dimension thất bại: {error}")
 
-        raise SystemExit(
-            1
-        ) from error
+        raise SystemExit(1) from error
 
     status = result.get(
         "status",
@@ -39,30 +34,18 @@ def main() -> None:
         0,
     )
 
-    monitoring_points_upserted = (
-        result.get(
-            "monitoring_points_upserted",
-            0,
-        )
+    monitoring_points_upserted = result.get(
+        "monitoring_points_upserted",
+        0,
     )
 
-    print(
-        "Đồng bộ dimension hoàn tất."
-    )
+    print("Đồng bộ dimension hoàn tất.")
 
-    print(
-        f"Status: {status}"
-    )
+    print(f"Status: {status}")
 
-    print(
-        "Locations upserted: "
-        f"{locations_upserted}"
-    )
+    print(f"Locations upserted: {locations_upserted}")
 
-    print(
-        "Monitoring points upserted: "
-        f"{monitoring_points_upserted}"
-    )
+    print(f"Monitoring points upserted: {monitoring_points_upserted}")
 
 
 if __name__ == "__main__":

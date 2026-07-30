@@ -49,35 +49,21 @@ def test_builds_expected_object_names() -> None:
     )
 
     assert prefix == (
-        "open_meteo/air_quality/"
-        "date=2026-07-13/"
-        "hour=21/"
-        "batch_id=test_batch"
+        "open_meteo/air_quality/date=2026-07-13/hour=21/batch_id=test_batch"
     )
 
     assert build_point_object_name(
         batch_prefix=prefix,
         point_id="HN_CENTER",
-    ) == (
-        f"{prefix}/"
-        "point_id=HN_CENTER/"
-        "data.json"
-    )
+    ) == (f"{prefix}/point_id=HN_CENTER/data.json")
 
-    assert build_summary_object_name(
-        prefix
-    ) == (
-        f"{prefix}/run_summary.json"
-    )
+    assert build_summary_object_name(prefix) == (f"{prefix}/run_summary.json")
 
 
 def test_loads_only_active_points(
     tmp_path: Path,
 ) -> None:
-    csv_path = (
-        tmp_path
-        / "monitoring_points.csv"
-    )
+    csv_path = tmp_path / "monitoring_points.csv"
 
     csv_path.write_text(
         (
@@ -94,18 +80,11 @@ def test_loads_only_active_points(
         encoding="utf-8",
     )
 
-    points = (
-        load_active_monitoring_points(
-            csv_path
-        )
-    )
+    points = load_active_monitoring_points(csv_path)
 
     assert len(points) == 1
 
-    assert (
-        points[0].point_id
-        == "HN_CENTER"
-    )
+    assert points[0].point_id == "HN_CENTER"
 
 
 def test_extracts_and_writes_minio_objects(
@@ -142,9 +121,7 @@ def test_extracts_and_writes_minio_objects(
             "etag": "test-etag",
             "version_id": None,
             "size_bytes": 100,
-            "content_type": (
-                "application/json"
-            ),
+            "content_type": ("application/json"),
         }
 
     monkeypatch.setattr(
@@ -156,10 +133,7 @@ def test_extracts_and_writes_minio_objects(
     def fake_fetch_air_quality(
         point: MonitoringPoint,
     ):
-        assert (
-            point.point_id
-            == "HN_CENTER"
-        )
+        assert point.point_id == "HN_CENTER"
 
         return {
             "hourly": {
@@ -174,77 +148,42 @@ def test_extracts_and_writes_minio_objects(
             }
         }
 
-    summary = (
-        extract_monitoring_points_to_minio(
-            monitoring_points=[
-                build_test_point()
-            ],
-            fetch_air_quality=(
-                fake_fetch_air_quality
-            ),
-            settings=(
-                build_test_settings()
-            ),
-            client=object(),
-            batch_id="test_batch",
-            started_at=datetime(
-                2026,
-                7,
-                13,
-                14,
-                0,
-                tzinfo=timezone.utc,
-            ),
-        )
+    summary = extract_monitoring_points_to_minio(
+        monitoring_points=[build_test_point()],
+        fetch_air_quality=(fake_fetch_air_quality),
+        settings=(build_test_settings()),
+        client=object(),
+        batch_id="test_batch",
+        started_at=datetime(
+            2026,
+            7,
+            13,
+            14,
+            0,
+            tzinfo=timezone.utc,
+        ),
     )
 
     assert summary["status"] == "SUCCESS"
 
-    assert (
-        summary["records_extracted"]
-        == 2
-    )
+    assert summary["records_extracted"] == 2
 
-    assert (
-        summary["successful_points"]
-        == 1
-    )
+    assert summary["successful_points"] == 1
 
-    assert (
-        summary["failed_points"]
-        == 0
-    )
+    assert summary["failed_points"] == 0
 
     assert len(uploaded_objects) == 2
 
     raw_object = uploaded_objects[0]
     summary_object = uploaded_objects[1]
 
-    assert raw_object[
-        "object_name"
-    ].endswith(
-        "point_id=HN_CENTER/data.json"
-    )
+    assert raw_object["object_name"].endswith("point_id=HN_CENTER/data.json")
 
-    assert (
-        raw_object["data"]["point"][
-            "location_id"
-        ]
-        == "HN"
-    )
+    assert raw_object["data"]["point"]["location_id"] == "HN"
 
-    assert (
-        raw_object["data"][
-            "api_response"
-        ]["hourly"]["time"]
-        == [
-            "2026-07-13T21:00",
-            "2026-07-13T22:00",
-        ]
-    )
+    assert raw_object["data"]["api_response"]["hourly"]["time"] == [
+        "2026-07-13T21:00",
+        "2026-07-13T22:00",
+    ]
 
-    assert summary_object[
-        "object_name"
-    ].endswith(
-        "run_summary.json"
-    )
+    assert summary_object["object_name"].endswith("run_summary.json")

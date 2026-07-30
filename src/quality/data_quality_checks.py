@@ -6,7 +6,6 @@ from typing import Any
 
 import pandas as pd
 
-
 POLLUTANT_COLUMNS: tuple[str, ...] = (
     "pm2_5",
     "pm10",
@@ -99,10 +98,7 @@ class DataQualityResult:
 
     @property
     def total_records(self) -> int:
-        return (
-            len(self.valid_records)
-            + len(self.bad_records)
-        )
+        return len(self.valid_records) + len(self.bad_records)
 
     @property
     def valid_count(self) -> int:
@@ -121,40 +117,25 @@ class DataQualityResult:
 
     @property
     def passed_check_count(self) -> int:
-        return sum(
-            check.get("status") == "PASSED"
-            for check in self.checks
-        )
+        return sum(check.get("status") == "PASSED" for check in self.checks)
 
     @property
     def warning_check_count(self) -> int:
-        return sum(
-            check.get("status") == "WARNED"
-            for check in self.checks
-        )
+        return sum(check.get("status") == "WARNED" for check in self.checks)
 
     @property
     def failed_check_count(self) -> int:
-        return sum(
-            check.get("status") == "FAILED"
-            for check in self.checks
-        )
+        return sum(check.get("status") == "FAILED" for check in self.checks)
 
 
 def _validate_required_columns(
     dataframe: pd.DataFrame,
 ) -> None:
-    missing_columns = (
-        REQUIRED_COLUMNS
-        - set(dataframe.columns)
-    )
+    missing_columns = REQUIRED_COLUMNS - set(dataframe.columns)
 
     if missing_columns:
         raise DataQualitySchemaError(
-            "DataFrame thiếu các cột bắt buộc: "
-            + ", ".join(
-                sorted(missing_columns)
-            )
+            "DataFrame thiếu các cột bắt buộc: " + ", ".join(sorted(missing_columns))
         )
 
 
@@ -167,46 +148,27 @@ def _validate_config_columns(
         dataframe,
         pd.DataFrame,
     ):
-        raise DataQualityConfigurationError(
-            f"{config_name} phải là Pandas DataFrame."
-        )
+        raise DataQualityConfigurationError(f"{config_name} phải là Pandas DataFrame.")
 
     if dataframe.empty:
-        raise DataQualityConfigurationError(
-            f"{config_name} không có dòng dữ liệu."
-        )
+        raise DataQualityConfigurationError(f"{config_name} không có dòng dữ liệu.")
 
-    missing_columns = (
-        required_columns
-        - set(dataframe.columns)
-    )
+    missing_columns = required_columns - set(dataframe.columns)
 
     if missing_columns:
         raise DataQualityConfigurationError(
-            f"{config_name} thiếu cột: "
-            + ", ".join(
-                sorted(missing_columns)
-            )
+            f"{config_name} thiếu cột: " + ", ".join(sorted(missing_columns))
         )
 
 
 def _active_mask(
     series: pd.Series,
 ) -> pd.Series:
-    if pd.api.types.is_bool_dtype(
-        series.dtype
-    ):
-        return (
-            series.fillna(False)
-            .astype(bool)
-        )
+    if pd.api.types.is_bool_dtype(series.dtype):
+        return series.fillna(False).astype(bool)
 
     return (
-        series.astype("string")
-        .str.strip()
-        .str.lower()
-        .isin(TRUE_VALUES)
-        .fillna(False)
+        series.astype("string").str.strip().str.lower().isin(TRUE_VALUES).fillna(False)
     )
 
 
@@ -215,11 +177,7 @@ def _blank_string_mask(
 ) -> pd.Series:
     values = series.astype("string")
 
-    return (
-        values.isna()
-        | values.str.strip().eq("")
-        .fillna(True)
-    )
+    return values.isna() | values.str.strip().eq("").fillna(True)
 
 
 def _aware_datetime_mask(
@@ -246,11 +204,7 @@ def _aware_datetime_mask(
         ):
             return False
 
-        return (
-            timestamp.tzinfo is not None
-            and timestamp.utcoffset()
-            is not None
-        )
+        return timestamp.tzinfo is not None and timestamp.utcoffset() is not None
 
     return series.map(is_aware)
 
@@ -263,10 +217,7 @@ def _required_numeric_invalid_mask(
         errors="coerce",
     )
 
-    return (
-        series.isna()
-        | numeric_values.isna()
-    )
+    return series.isna() | numeric_values.isna()
 
 
 def _non_negative_invalid_mask(
@@ -277,11 +228,7 @@ def _non_negative_invalid_mask(
         errors="coerce",
     )
 
-    return (
-        series.isna()
-        | numeric_values.isna()
-        | numeric_values.lt(0)
-    )
+    return series.isna() | numeric_values.isna() | numeric_values.lt(0)
 
 
 def _range_invalid_mask(
@@ -319,25 +266,13 @@ def _prepare_active_configs(
     )
 
     active_points = (
-        monitoring_points.loc[
-            _active_mask(
-                monitoring_points[
-                    "is_active"
-                ]
-            )
-        ]
+        monitoring_points.loc[_active_mask(monitoring_points["is_active"])]
         .copy()
         .reset_index(drop=True)
     )
 
     active_locations = (
-        locations.loc[
-            _active_mask(
-                locations[
-                    "is_active"
-                ]
-            )
-        ]
+        locations.loc[_active_mask(locations["is_active"])]
         .copy()
         .reset_index(drop=True)
     )
@@ -351,8 +286,7 @@ def _prepare_active_configs(
 
     if duplicate_point_count:
         raise DataQualityConfigurationError(
-            "monitoring_points.csv có point_id "
-            "active bị trùng."
+            "monitoring_points.csv có point_id active bị trùng."
         )
 
     duplicate_location_count = int(
@@ -364,39 +298,22 @@ def _prepare_active_configs(
 
     if duplicate_location_count:
         raise DataQualityConfigurationError(
-            "locations.csv có location_id "
-            "active bị trùng."
+            "locations.csv có location_id active bị trùng."
         )
 
     active_location_ids = set(
-        active_locations[
-            "location_id"
-        ]
+        active_locations["location_id"].astype("string").str.strip().dropna().tolist()
+    )
+
+    orphan_points = active_points.loc[
+        ~active_points["location_id"]
         .astype("string")
         .str.strip()
-        .dropna()
-        .tolist()
-    )
-
-    orphan_points = (
-        active_points.loc[
-            ~active_points[
-                "location_id"
-            ]
-            .astype("string")
-            .str.strip()
-            .isin(active_location_ids)
-        ]
-    )
+        .isin(active_location_ids)
+    ]
 
     if not orphan_points.empty:
-        orphan_ids = ", ".join(
-            orphan_points[
-                "point_id"
-            ]
-            .astype(str)
-            .tolist()
-        )
+        orphan_ids = ", ".join(orphan_points["point_id"].astype(str).tolist())
 
         raise DataQualityConfigurationError(
             "Monitoring point active tham chiếu "
@@ -436,11 +353,7 @@ def _calculate_quality_score(
             )
         ).upper()
 
-        weight = (
-            2.0
-            if severity == "ERROR"
-            else 1.0
-        )
+        weight = 2.0 if severity == "ERROR" else 1.0
 
         status = str(
             check.get(
@@ -460,18 +373,11 @@ def _calculate_quality_score(
         weighted_earned += earned
 
     batch_percentage = (
-        (
-            weighted_earned
-            / weighted_total
-            * 100
-        )
-        if weighted_total
-        else 100.0
+        (weighted_earned / weighted_total * 100) if weighted_total else 100.0
     )
 
     return round(
-        row_component
-        + batch_percentage * 0.30,
+        row_component + batch_percentage * 0.30,
         2,
     )
 
@@ -489,14 +395,10 @@ def run_air_quality_data_quality(
         dataframe,
         pd.DataFrame,
     ):
-        raise TypeError(
-            "dataframe phải là Pandas DataFrame."
-        )
+        raise TypeError("dataframe phải là Pandas DataFrame.")
 
     if dataframe.empty:
-        raise DataQualitySchemaError(
-            "DataFrame không có record."
-        )
+        raise DataQualitySchemaError("DataFrame không có record.")
 
     if (
         not isinstance(
@@ -505,10 +407,7 @@ def run_air_quality_data_quality(
         )
         or expected_forecast_hours <= 0
     ):
-        raise ValueError(
-            "expected_forecast_hours phải "
-            "là số nguyên lớn hơn 0."
-        )
+        raise ValueError("expected_forecast_hours phải là số nguyên lớn hơn 0.")
 
     if (
         not isinstance(
@@ -517,19 +416,12 @@ def run_air_quality_data_quality(
         )
         or freshness_minutes <= 0
     ):
-        raise ValueError(
-            "freshness_minutes phải "
-            "là số nguyên lớn hơn 0."
-        )
+        raise ValueError("freshness_minutes phải là số nguyên lớn hơn 0.")
 
     if coordinate_tolerance < 0:
-        raise ValueError(
-            "coordinate_tolerance không được âm."
-        )
+        raise ValueError("coordinate_tolerance không được âm.")
 
-    _validate_required_columns(
-        dataframe
-    )
+    _validate_required_columns(dataframe)
 
     (
         active_points,
@@ -539,11 +431,7 @@ def run_air_quality_data_quality(
         locations,
     )
 
-    working = (
-        dataframe
-        .copy()
-        .reset_index(drop=True)
-    )
+    working = dataframe.copy().reset_index(drop=True)
 
     record_count = len(working)
 
@@ -553,19 +441,11 @@ def run_air_quality_data_quality(
         dtype=bool,
     )
 
-    row_error_codes: list[list[str]] = [
-        []
-        for _ in range(record_count)
-    ]
+    row_error_codes: list[list[str]] = [[] for _ in range(record_count)]
 
-    row_error_messages: list[list[str]] = [
-        []
-        for _ in range(record_count)
-    ]
+    row_error_messages: list[list[str]] = [[] for _ in range(record_count)]
 
-    row_checks: list[
-        dict[str, Any]
-    ] = []
+    row_checks: list[dict[str, Any]] = []
 
     def apply_row_rule(
         check_name: str,
@@ -575,29 +455,16 @@ def run_air_quality_data_quality(
     ) -> None:
         nonlocal invalid_record_mask
 
-        normalized_mask = (
-            invalid_mask
-            .reindex(
-                working.index
-            )
-            .fillna(True)
-            .astype(bool)
-        )
+        normalized_mask = invalid_mask.reindex(working.index).fillna(True).astype(bool)
 
-        bad_count = int(
-            normalized_mask.sum()
-        )
+        bad_count = int(normalized_mask.sum())
 
         row_checks.append(
             {
                 "check_name": check_name,
                 "check_scope": "ROW",
                 "severity": severity,
-                "status": (
-                    "PASSED"
-                    if bad_count == 0
-                    else "FAILED"
-                ),
+                "status": ("PASSED" if bad_count == 0 else "FAILED"),
                 "bad_records_count": bad_count,
                 "message": message,
                 "actual_value": bad_count,
@@ -605,25 +472,12 @@ def run_air_quality_data_quality(
             }
         )
 
-        invalid_record_mask = (
-            invalid_record_mask
-            | normalized_mask
-        )
+        invalid_record_mask = invalid_record_mask | normalized_mask
 
-        for row_index in working.index[
-            normalized_mask
-        ]:
-            row_error_codes[
-                int(row_index)
-            ].append(
-                check_name
-            )
+        for row_index in working.index[normalized_mask]:
+            row_error_codes[int(row_index)].append(check_name)
 
-            row_error_messages[
-                int(row_index)
-            ].append(
-                message
-            )
+            row_error_messages[int(row_index)].append(message)
 
     for column_name in (
         "point_id",
@@ -635,48 +489,24 @@ def run_air_quality_data_quality(
         "schema_version",
     ):
         apply_row_rule(
-            check_name=(
-                f"{column_name.upper()}_REQUIRED"
-            ),
-            message=(
-                f"{column_name} không được rỗng."
-            ),
-            invalid_mask=_blank_string_mask(
-                working[column_name]
-            ),
+            check_name=(f"{column_name.upper()}_REQUIRED"),
+            message=(f"{column_name} không được rỗng."),
+            invalid_mask=_blank_string_mask(working[column_name]),
         )
 
-    forecast_aware = (
-        _aware_datetime_mask(
-            working[
-                "forecast_time"
-            ]
-        )
-    )
+    forecast_aware = _aware_datetime_mask(working["forecast_time"])
 
     apply_row_rule(
         check_name="FORECAST_TIME_AWARE",
-        message=(
-            "forecast_time phải là datetime "
-            "hợp lệ và có timezone."
-        ),
+        message=("forecast_time phải là datetime hợp lệ và có timezone."),
         invalid_mask=~forecast_aware,
     )
 
-    ingested_aware = (
-        _aware_datetime_mask(
-            working[
-                "ingested_at"
-            ]
-        )
-    )
+    ingested_aware = _aware_datetime_mask(working["ingested_at"])
 
     apply_row_rule(
         check_name="INGESTED_AT_AWARE",
-        message=(
-            "ingested_at phải là datetime "
-            "hợp lệ và có timezone."
-        ),
+        message=("ingested_at phải là datetime hợp lệ và có timezone."),
         invalid_mask=~ingested_aware,
     )
 
@@ -685,44 +515,20 @@ def run_air_quality_data_quality(
         *AQI_COLUMNS,
     ):
         apply_row_rule(
-            check_name=(
-                f"{column_name.upper()}_REQUIRED_NUMERIC"
-            ),
-            message=(
-                f"{column_name} phải có giá trị số."
-            ),
-            invalid_mask=(
-                _required_numeric_invalid_mask(
-                    working[
-                        column_name
-                    ]
-                )
-            ),
+            check_name=(f"{column_name.upper()}_REQUIRED_NUMERIC"),
+            message=(f"{column_name} phải có giá trị số."),
+            invalid_mask=(_required_numeric_invalid_mask(working[column_name])),
         )
 
         apply_row_rule(
-            check_name=(
-                f"{column_name.upper()}_NON_NEGATIVE"
-            ),
-            message=(
-                f"{column_name} phải lớn hơn "
-                "hoặc bằng 0."
-            ),
-            invalid_mask=(
-                _non_negative_invalid_mask(
-                    working[
-                        column_name
-                    ]
-                )
-            ),
+            check_name=(f"{column_name.upper()}_NON_NEGATIVE"),
+            message=(f"{column_name} phải lớn hơn hoặc bằng 0."),
+            invalid_mask=(_non_negative_invalid_mask(working[column_name])),
         )
 
     apply_row_rule(
         check_name="LATITUDE_RANGE",
-        message=(
-            "latitude phải là số trong "
-            "khoảng -90 đến 90."
-        ),
+        message=("latitude phải là số trong khoảng -90 đến 90."),
         invalid_mask=_range_invalid_mask(
             working["latitude"],
             -90,
@@ -732,10 +538,7 @@ def run_air_quality_data_quality(
 
     apply_row_rule(
         check_name="LONGITUDE_RANGE",
-        message=(
-            "longitude phải là số trong "
-            "khoảng -180 đến 180."
-        ),
+        message=("longitude phải là số trong khoảng -180 đến 180."),
         invalid_mask=_range_invalid_mask(
             working["longitude"],
             -180,
@@ -743,152 +546,79 @@ def run_air_quality_data_quality(
         ),
     )
 
-    normalized_source = (
-        working["source"]
-        .astype("string")
-        .str.strip()
-        .str.lower()
-    )
+    normalized_source = working["source"].astype("string").str.strip().str.lower()
 
     apply_row_rule(
         check_name="SOURCE_OPEN_METEO",
-        message=(
-            "source phải là open_meteo."
-        ),
+        message=("source phải là open_meteo."),
         invalid_mask=(
-            normalized_source.isna()
-            | normalized_source.ne(
-                "open_meteo"
-            )
-            .fillna(True)
+            normalized_source.isna() | normalized_source.ne("open_meteo").fillna(True)
         ),
     )
 
-    duplicate_mask = (
-        working.duplicated(
-            list(
-                DUPLICATE_KEY_COLUMNS
-            ),
-            keep=False,
-        )
+    duplicate_mask = working.duplicated(
+        list(DUPLICATE_KEY_COLUMNS),
+        keep=False,
     )
 
     apply_row_rule(
         check_name="UNIQUE_LOGICAL_KEY",
-        message=(
-            "Không được duplicate theo "
-            "point_id + forecast_time + source."
-        ),
+        message=("Không được duplicate theo point_id + forecast_time + source."),
         invalid_mask=duplicate_mask,
     )
 
     expected_point_ids = set(
-        active_points[
-            "point_id"
-        ]
-        .astype("string")
-        .str.strip()
-        .dropna()
-        .tolist()
+        active_points["point_id"].astype("string").str.strip().dropna().tolist()
     )
 
     expected_location_ids = set(
-        active_locations[
-            "location_id"
-        ]
-        .astype("string")
-        .str.strip()
-        .dropna()
-        .tolist()
+        active_locations["location_id"].astype("string").str.strip().dropna().tolist()
     )
 
-    normalized_point_id = (
-        working["point_id"]
-        .astype("string")
-        .str.strip()
-    )
+    normalized_point_id = working["point_id"].astype("string").str.strip()
 
-    normalized_location_id = (
-        working["location_id"]
-        .astype("string")
-        .str.strip()
-    )
+    normalized_location_id = working["location_id"].astype("string").str.strip()
 
     apply_row_rule(
         check_name="KNOWN_ACTIVE_POINT_ID",
-        message=(
-            "point_id phải tồn tại và active "
-            "trong monitoring_points.csv."
-        ),
+        message=("point_id phải tồn tại và active trong monitoring_points.csv."),
         invalid_mask=(
-            normalized_point_id.isna()
-            | ~normalized_point_id.isin(
-                expected_point_ids
-            )
+            normalized_point_id.isna() | ~normalized_point_id.isin(expected_point_ids)
         ),
     )
 
     apply_row_rule(
         check_name="KNOWN_ACTIVE_LOCATION_ID",
-        message=(
-            "location_id phải tồn tại và active "
-            "trong locations.csv."
-        ),
+        message=("location_id phải tồn tại và active trong locations.csv."),
         invalid_mask=(
             normalized_location_id.isna()
-            | ~normalized_location_id.isin(
-                expected_location_ids
-            )
+            | ~normalized_location_id.isin(expected_location_ids)
         ),
     )
 
     point_location_map = (
-        active_points
-        .set_index("point_id")[
-            "location_id"
-        ]
+        active_points.set_index("point_id")["location_id"]
         .astype("string")
         .str.strip()
         .to_dict()
     )
 
-    expected_location_for_point = (
-        normalized_point_id.map(
-            point_location_map
-        )
-    )
+    expected_location_for_point = normalized_point_id.map(point_location_map)
 
     point_location_invalid = (
         expected_location_for_point.notna()
-        & normalized_location_id.ne(
-            expected_location_for_point
-        )
+        & normalized_location_id.ne(expected_location_for_point)
     )
 
     apply_row_rule(
         check_name="POINT_LOCATION_MATCH",
-        message=(
-            "point_id phải thuộc đúng location_id "
-            "trong monitoring_points.csv."
-        ),
+        message=("point_id phải thuộc đúng location_id trong monitoring_points.csv."),
         invalid_mask=point_location_invalid,
     )
 
-    expected_latitude_map = (
-        active_points
-        .set_index("point_id")[
-            "latitude"
-        ]
-        .to_dict()
-    )
+    expected_latitude_map = active_points.set_index("point_id")["latitude"].to_dict()
 
-    expected_longitude_map = (
-        active_points
-        .set_index("point_id")[
-            "longitude"
-        ]
-        .to_dict()
-    )
+    expected_longitude_map = active_points.set_index("point_id")["longitude"].to_dict()
 
     latitude_numeric = pd.to_numeric(
         working["latitude"],
@@ -900,34 +630,16 @@ def run_air_quality_data_quality(
         errors="coerce",
     )
 
-    expected_latitude = (
-        normalized_point_id.map(
-            expected_latitude_map
-        )
-    )
+    expected_latitude = normalized_point_id.map(expected_latitude_map)
 
-    expected_longitude = (
-        normalized_point_id.map(
-            expected_longitude_map
-        )
-    )
+    expected_longitude = normalized_point_id.map(expected_longitude_map)
 
     coordinate_mismatch = (
         expected_latitude.notna()
         & expected_longitude.notna()
         & (
-            (
-                latitude_numeric
-                - expected_latitude
-            ).abs().gt(
-                coordinate_tolerance
-            )
-            | (
-                longitude_numeric
-                - expected_longitude
-            ).abs().gt(
-                coordinate_tolerance
-            )
+            (latitude_numeric - expected_latitude).abs().gt(coordinate_tolerance)
+            | (longitude_numeric - expected_longitude).abs().gt(coordinate_tolerance)
         )
     )
 
@@ -942,96 +654,46 @@ def run_air_quality_data_quality(
     )
 
     if expected_batch_id:
-        normalized_expected_batch_id = (
-            str(
-                expected_batch_id
-            ).strip()
-        )
+        normalized_expected_batch_id = str(expected_batch_id).strip()
 
         apply_row_rule(
             check_name="BATCH_ID_MATCH",
-            message=(
-                "batch_id trong dữ liệu phải khớp "
-                "Transform summary."
-            ),
+            message=("batch_id trong dữ liệu phải khớp Transform summary."),
             invalid_mask=(
                 working["batch_id"]
                 .astype("string")
                 .str.strip()
-                .ne(
-                    normalized_expected_batch_id
-                )
+                .ne(normalized_expected_batch_id)
                 .fillna(True)
             ),
         )
 
-    valid_records = (
-        working.loc[
-            ~invalid_record_mask
-        ]
-        .copy()
-        .reset_index(drop=True)
-    )
+    valid_records = working.loc[~invalid_record_mask].copy().reset_index(drop=True)
 
-    bad_records = (
-        working.loc[
-            invalid_record_mask
-        ]
-        .copy()
-    )
+    bad_records = working.loc[invalid_record_mask].copy()
 
     if not bad_records.empty:
-        bad_indices = (
-            bad_records.index
-            .tolist()
-        )
+        bad_indices = bad_records.index.tolist()
 
-        checked_at = datetime.now(
-            timezone.utc
-        ).isoformat()
+        checked_at = datetime.now(timezone.utc).isoformat()
 
-        bad_records[
-            "dq_status"
-        ] = "FAILED"
+        bad_records["dq_status"] = "FAILED"
 
-        bad_records[
-            "dq_checked_at"
-        ] = checked_at
+        bad_records["dq_checked_at"] = checked_at
 
-        bad_records[
-            "dq_error_codes"
-        ] = [
-            "|".join(
-                row_error_codes[
-                    int(row_index)
-                ]
-            )
-            for row_index in bad_indices
+        bad_records["dq_error_codes"] = [
+            "|".join(row_error_codes[int(row_index)]) for row_index in bad_indices
         ]
 
-        bad_records[
-            "dq_error_messages"
-        ] = [
-            " | ".join(
-                row_error_messages[
-                    int(row_index)
-                ]
-            )
-            for row_index in bad_indices
+        bad_records["dq_error_messages"] = [
+            " | ".join(row_error_messages[int(row_index)]) for row_index in bad_indices
         ]
 
-        bad_records = (
-            bad_records
-            .reset_index(drop=True)
-        )
+        bad_records = bad_records.reset_index(drop=True)
     else:
-        checked_at = datetime.now(
-            timezone.utc
-        ).isoformat()
+        checked_at = datetime.now(timezone.utc).isoformat()
 
-    batch_checks: list[
-        dict[str, Any]
-    ] = []
+    batch_checks: list[dict[str, Any]] = []
 
     def add_batch_check(
         check_name: str,
@@ -1042,16 +704,11 @@ def run_air_quality_data_quality(
         severity: str = "ERROR",
         bad_records_count: int = 0,
     ) -> None:
-        normalized_severity = (
-            severity.strip().upper()
-        )
+        normalized_severity = severity.strip().upper()
 
         if passed:
             status = "PASSED"
-        elif (
-            normalized_severity
-            == "WARNING"
-        ):
+        elif normalized_severity == "WARNING":
             status = "WARNED"
         else:
             status = "FAILED"
@@ -1060,13 +717,9 @@ def run_air_quality_data_quality(
             {
                 "check_name": check_name,
                 "check_scope": "BATCH",
-                "severity": (
-                    normalized_severity
-                ),
+                "severity": (normalized_severity),
                 "status": status,
-                "bad_records_count": int(
-                    bad_records_count
-                ),
+                "bad_records_count": int(bad_records_count),
                 "message": message,
                 "actual_value": actual_value,
                 "expected_value": expected_value,
@@ -1074,114 +727,55 @@ def run_air_quality_data_quality(
         )
 
     actual_point_ids = set(
-        normalized_point_id
-        .dropna()
-        .loc[
-            lambda values: (
-                values.ne("")
-            )
-        ]
-        .tolist()
+        normalized_point_id.dropna().loc[lambda values: values.ne("")].tolist()
     )
 
-    missing_point_ids = sorted(
-        expected_point_ids
-        - actual_point_ids
-    )
+    missing_point_ids = sorted(expected_point_ids - actual_point_ids)
 
-    unexpected_point_ids = sorted(
-        actual_point_ids
-        - expected_point_ids
-    )
+    unexpected_point_ids = sorted(actual_point_ids - expected_point_ids)
 
     add_batch_check(
         check_name="EXPECTED_ACTIVE_POINTS",
-        passed=(
-            not missing_point_ids
-            and not unexpected_point_ids
-        ),
-        message=(
-            "Batch phải chứa đúng toàn bộ "
-            "monitoring point đang active."
-        ),
+        passed=(not missing_point_ids and not unexpected_point_ids),
+        message=("Batch phải chứa đúng toàn bộ monitoring point đang active."),
         actual_value={
-            "count": len(
-                actual_point_ids
-            ),
-            "missing": (
-                missing_point_ids
-            ),
-            "unexpected": (
-                unexpected_point_ids
-            ),
+            "count": len(actual_point_ids),
+            "missing": (missing_point_ids),
+            "unexpected": (unexpected_point_ids),
         },
         expected_value={
-            "count": len(
-                expected_point_ids
-            ),
-            "point_ids": sorted(
-                expected_point_ids
-            ),
+            "count": len(expected_point_ids),
+            "point_ids": sorted(expected_point_ids),
         },
-        bad_records_count=(
-            len(missing_point_ids)
-            + len(
-                unexpected_point_ids
-            )
-        ),
+        bad_records_count=(len(missing_point_ids) + len(unexpected_point_ids)),
     )
 
-    expected_records = (
-        len(expected_point_ids)
-        * expected_forecast_hours
-    )
+    expected_records = len(expected_point_ids) * expected_forecast_hours
 
     add_batch_check(
         check_name="EXPECTED_RECORD_COUNT",
-        passed=(
-            record_count
-            == expected_records
-        ),
-        message=(
-            "Số record phải bằng số point active "
-            "nhân số giờ forecast."
-        ),
+        passed=(record_count == expected_records),
+        message=("Số record phải bằng số point active nhân số giờ forecast."),
         actual_value=record_count,
         expected_value=expected_records,
-        bad_records_count=abs(
-            record_count
-            - expected_records
-        ),
+        bad_records_count=abs(record_count - expected_records),
     )
 
     parsed_forecast_time = pd.to_datetime(
-        working[
-            "forecast_time"
-        ],
+        working["forecast_time"],
         errors="coerce",
         utc=True,
     )
 
     forecast_count_frame = pd.DataFrame(
         {
-            "point_id": (
-                normalized_point_id
-            ),
-            "forecast_time": (
-                parsed_forecast_time
-            ),
+            "point_id": (normalized_point_id),
+            "forecast_time": (parsed_forecast_time),
         }
     ).dropna()
 
     hours_by_point = (
-        forecast_count_frame
-        .groupby(
-            "point_id"
-        )[
-            "forecast_time"
-        ]
-        .nunique()
-        .to_dict()
+        forecast_count_frame.groupby("point_id")["forecast_time"].nunique().to_dict()
     )
 
     incomplete_points = {
@@ -1191,9 +785,7 @@ def run_air_quality_data_quality(
                 0,
             )
         )
-        for point_id in sorted(
-            expected_point_ids
-        )
+        for point_id in sorted(expected_point_ids)
         if int(
             hours_by_point.get(
                 point_id,
@@ -1205,38 +797,23 @@ def run_air_quality_data_quality(
 
     add_batch_check(
         check_name="EXPECTED_FORECAST_HOURS_PER_POINT",
-        passed=(
-            not incomplete_points
-        ),
+        passed=(not incomplete_points),
         message=(
-            "Mỗi monitoring point phải có đủ "
-            f"{expected_forecast_hours} forecast hour."
+            f"Mỗi monitoring point phải có đủ {expected_forecast_hours} forecast hour."
         ),
         actual_value=(
             incomplete_points
             if incomplete_points
-            else {
-                "all_points": (
-                    expected_forecast_hours
-                )
-            }
+            else {"all_points": (expected_forecast_hours)}
         ),
-        expected_value=(
-            expected_forecast_hours
-        ),
-        bad_records_count=(
-            len(incomplete_points)
-        ),
+        expected_value=(expected_forecast_hours),
+        bad_records_count=(len(incomplete_points)),
     )
 
-    cadence_issues: dict[
-        str,
-        list[float]
-    ] = {}
+    cadence_issues: dict[str, list[float]] = {}
 
     for point_id, group in (
-        forecast_count_frame
-        .drop_duplicates(
+        forecast_count_frame.drop_duplicates(
             [
                 "point_id",
                 "forecast_time",
@@ -1248,250 +825,122 @@ def run_air_quality_data_quality(
                 "forecast_time",
             ]
         )
-        .groupby(
-            "point_id"
-        )
+        .groupby("point_id")
     ):
         differences = (
-            group[
-                "forecast_time"
-            ]
-            .diff()
-            .dropna()
-            .dt.total_seconds()
-            .div(3600)
+            group["forecast_time"].diff().dropna().dt.total_seconds().div(3600)
         )
 
-        invalid_differences = (
-            differences.loc[
-                ~differences.eq(1.0)
-            ]
-            .round(3)
-            .tolist()
-        )
+        invalid_differences = differences.loc[~differences.eq(1.0)].round(3).tolist()
 
         if invalid_differences:
-            cadence_issues[
-                str(point_id)
-            ] = invalid_differences
+            cadence_issues[str(point_id)] = invalid_differences
 
     add_batch_check(
         check_name="HOURLY_FORECAST_CADENCE",
-        passed=(
-            not cadence_issues
-        ),
-        message=(
-            "forecast_time của từng point "
-            "phải cách nhau đúng 1 giờ."
-        ),
-        actual_value=(
-            cadence_issues
-            if cadence_issues
-            else "1 hour"
-        ),
+        passed=(not cadence_issues),
+        message=("forecast_time của từng point phải cách nhau đúng 1 giờ."),
+        actual_value=(cadence_issues if cadence_issues else "1 hour"),
         expected_value="1 hour",
-        bad_records_count=(
-            len(cadence_issues)
-        ),
+        bad_records_count=(len(cadence_issues)),
     )
 
     distinct_batch_ids = sorted(
-        working[
-            "batch_id"
-        ]
+        working["batch_id"]
         .astype("string")
         .str.strip()
         .dropna()
-        .loc[
-            lambda values: (
-                values.ne("")
-            )
-        ]
+        .loc[lambda values: values.ne("")]
         .unique()
         .tolist()
     )
 
     add_batch_check(
         check_name="SINGLE_BATCH_ID",
-        passed=(
-            len(
-                distinct_batch_ids
-            )
-            == 1
-        ),
-        message=(
-            "Một transformed batch chỉ được "
-            "chứa một batch_id."
-        ),
+        passed=(len(distinct_batch_ids) == 1),
+        message=("Một transformed batch chỉ được chứa một batch_id."),
         actual_value=distinct_batch_ids,
         expected_value=1,
         bad_records_count=max(
             0,
-            len(
-                distinct_batch_ids
-            )
-            - 1,
+            len(distinct_batch_ids) - 1,
         ),
     )
 
     distinct_sources = sorted(
-        normalized_source
-        .dropna()
-        .loc[
-            lambda values: (
-                values.ne("")
-            )
-        ]
-        .unique()
-        .tolist()
+        normalized_source.dropna().loc[lambda values: values.ne("")].unique().tolist()
     )
 
     add_batch_check(
         check_name="SINGLE_SOURCE",
-        passed=(
-            distinct_sources
-            == [
-                "open_meteo"
-            ]
-        ),
-        message=(
-            "Batch chỉ được chứa source "
-            "open_meteo."
-        ),
+        passed=(distinct_sources == ["open_meteo"]),
+        message=("Batch chỉ được chứa source open_meteo."),
         actual_value=distinct_sources,
-        expected_value=[
-            "open_meteo"
-        ],
+        expected_value=["open_meteo"],
         bad_records_count=max(
             0,
-            len(
-                distinct_sources
-            )
-            - 1,
+            len(distinct_sources) - 1,
         ),
     )
 
     parsed_ingested_at = pd.to_datetime(
-        working[
-            "ingested_at"
-        ],
+        working["ingested_at"],
         errors="coerce",
         utc=True,
     )
 
-    valid_forecast_times = (
-        parsed_forecast_time.dropna()
-    )
+    valid_forecast_times = parsed_forecast_time.dropna()
 
-    valid_ingested_times = (
-        parsed_ingested_at.dropna()
-    )
+    valid_ingested_times = parsed_ingested_at.dropna()
 
-    if (
-        valid_forecast_times.empty
-        or valid_ingested_times.empty
-    ):
+    if valid_forecast_times.empty or valid_ingested_times.empty:
         freshness_passed = False
         freshness_delay_minutes = None
     else:
-        forecast_start = (
-            valid_forecast_times.min()
-        )
+        forecast_start = valid_forecast_times.min()
 
-        ingestion_hour = (
-            valid_ingested_times.max()
-            .floor("h")
-        )
+        ingestion_hour = valid_ingested_times.max().floor("h")
 
         freshness_delay_minutes = round(
-            abs(
-                (
-                    forecast_start
-                    - ingestion_hour
-                ).total_seconds()
-            )
-            / 60,
+            abs((forecast_start - ingestion_hour).total_seconds()) / 60,
             2,
         )
 
-        freshness_passed = (
-            freshness_delay_minutes
-            <= freshness_minutes
-        )
+        freshness_passed = freshness_delay_minutes <= freshness_minutes
 
     add_batch_check(
         check_name="DATA_FRESHNESS",
         passed=freshness_passed,
-        message=(
-            "Giờ bắt đầu forecast nên gần "
-            "giờ ingestion của batch."
-        ),
-        actual_value=(
-            freshness_delay_minutes
-        ),
-        expected_value=(
-            f"<= {freshness_minutes} minutes"
-        ),
+        message=("Giờ bắt đầu forecast nên gần giờ ingestion của batch."),
+        actual_value=(freshness_delay_minutes),
+        expected_value=(f"<= {freshness_minutes} minutes"),
         severity="WARNING",
-        bad_records_count=(
-            0
-            if freshness_passed
-            else 1
-        ),
+        bad_records_count=(0 if freshness_passed else 1),
     )
 
     valid_percentage = round(
-        (
-            len(valid_records)
-            / record_count
-            * 100
-        ),
+        (len(valid_records) / record_count * 100),
         2,
     )
 
-    quality_score = (
-        _calculate_quality_score(
-            valid_percentage,
-            batch_checks,
-        )
+    quality_score = _calculate_quality_score(
+        valid_percentage,
+        batch_checks,
     )
 
     critical_batch_failed = any(
-        (
-            check.get(
-                "severity"
-            )
-            == "ERROR"
-            and check.get(
-                "status"
-            )
-            == "FAILED"
-        )
+        (check.get("severity") == "ERROR" and check.get("status") == "FAILED")
         for check in batch_checks
     )
 
-    warning_present = any(
-        check.get(
-            "status"
-        )
-        == "WARNED"
-        for check in batch_checks
-    )
+    warning_present = any(check.get("status") == "WARNED" for check in batch_checks)
 
-    if (
-        critical_batch_failed
-        or len(valid_records) == 0
-    ):
+    if critical_batch_failed or len(valid_records) == 0:
         quality_status = "FAIL"
         pipeline_status = "FAILED"
-    elif (
-        len(bad_records) > 0
-        or warning_present
-    ):
+    elif len(bad_records) > 0 or warning_present:
         quality_status = "WARN"
-        pipeline_status = (
-            "PARTIAL_SUCCESS"
-        )
+        pipeline_status = "PARTIAL_SUCCESS"
     else:
         quality_status = "PASS"
         pipeline_status = "SUCCESS"
@@ -1508,24 +957,11 @@ def run_air_quality_data_quality(
         row_checks=row_checks,
         batch_checks=batch_checks,
         checked_at=checked_at,
-        quality_status=(
-            quality_status
-        ),
-        pipeline_status=(
-            pipeline_status
-        ),
+        quality_status=(quality_status),
+        pipeline_status=(pipeline_status),
         quality_score=quality_score,
         expected_records=expected_records,
-        expected_active_points=(
-            len(expected_point_ids)
-        ),
-        actual_active_points=(
-            len(
-                actual_point_ids
-                & expected_point_ids
-            )
-        ),
-        expected_forecast_hours=(
-            expected_forecast_hours
-        ),
+        expected_active_points=(len(expected_point_ids)),
+        actual_active_points=(len(actual_point_ids & expected_point_ids)),
+        expected_forecast_hours=(expected_forecast_hours),
     )

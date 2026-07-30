@@ -3,19 +3,13 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi.testclient import TestClient
+import pytest
 
 import api.main as api_main
 
-from typing import Any
-
-import pytest
-
-
 BATCH_ID = "20260721T123008Z_3d7a0d3b"
 
-client = TestClient(
-    api_main.app
-)
+client = TestClient(api_main.app)
 
 
 def build_air_quality_record() -> dict[str, Any]:
@@ -63,9 +57,7 @@ def normalize_sql(query: str) -> str:
     Nhờ vậy test không phụ thuộc vào cách xuống dòng hoặc indent
     trong chuỗi SQL của api/main.py.
     """
-    return " ".join(
-        query.lower().split()
-    )
+    return " ".join(query.lower().split())
 
 
 def assert_optimized_latest_batch_query(
@@ -74,31 +66,19 @@ def assert_optimized_latest_batch_query(
     """
     Kiểm tra query đang dùng cách tìm latest batch đã tối ưu.
     """
-    normalized_query = normalize_sql(
-        query
-    )
+    normalized_query = normalize_sql(query)
 
     assert (
         "from fact_air_quality_hourly "
         "order by ingested_at desc, "
-        "batch_id desc limit 1"
-        in normalized_query
+        "batch_id desc limit 1" in normalized_query
     )
 
-    assert (
-        "group by batch_id"
-        not in normalized_query
-    )
+    assert "group by batch_id" not in normalized_query
 
-    assert (
-        "max(ingested_at)"
-        not in normalized_query
-    )
+    assert "max(ingested_at)" not in normalized_query
 
-    assert (
-        "btrim(batch_id)"
-        not in normalized_query
-    )
+    assert "btrim(batch_id)" not in normalized_query
 
 
 def test_latest_air_quality_uses_optimized_query(
@@ -114,9 +94,7 @@ def test_latest_air_quality_uses_optimized_query(
         captured["query"] = query
         captured["parameters"] = parameters
 
-        return [
-            build_air_quality_record()
-        ]
+        return [build_air_quality_record()]
 
     monkeypatch.setattr(
         api_main,
@@ -133,13 +111,9 @@ def test_latest_air_quality_uses_optimized_query(
 
     assert response.status_code == 200
 
-    assert_optimized_latest_batch_query(
-        captured["query"]
-    )
+    assert_optimized_latest_batch_query(captured["query"])
 
-    assert captured["parameters"] == (
-        25,
-    )
+    assert captured["parameters"] == (25,)
 
 
 def test_air_quality_by_point_uses_optimized_query(
@@ -155,9 +129,7 @@ def test_air_quality_by_point_uses_optimized_query(
         captured["query"] = query
         captured["parameters"] = parameters
 
-        return [
-            build_air_quality_record()
-        ]
+        return [build_air_quality_record()]
 
     monkeypatch.setattr(
         api_main,
@@ -174,23 +146,13 @@ def test_air_quality_by_point_uses_optimized_query(
 
     assert response.status_code == 200
 
-    assert_optimized_latest_batch_query(
-        captured["query"]
-    )
+    assert_optimized_latest_batch_query(captured["query"])
 
-    normalized_query = normalize_sql(
-        captured["query"]
-    )
+    normalized_query = normalize_sql(captured["query"])
 
-    assert (
-        "and f.point_id = %s"
-        in normalized_query
-    )
+    assert "and f.point_id = %s" in normalized_query
 
-    assert (
-        "order by f.forecast_time"
-        in normalized_query
-    )
+    assert "order by f.forecast_time" in normalized_query
 
     assert captured["parameters"] == (
         "HN_CENTER",
@@ -222,7 +184,8 @@ def test_air_quality_by_point_returns_404_when_empty(
     )
 
     assert response.status_code == 404
-    
+
+
 def test_air_quality_by_location_uses_optimized_query(
     monkeypatch,
 ) -> None:
@@ -238,9 +201,7 @@ def test_air_quality_by_location_uses_optimized_query(
         captured["query"] = query
         captured["parameters"] = parameters
 
-        return [
-            location_record
-        ]
+        return [location_record]
 
     monkeypatch.setattr(
         api_main,
@@ -248,9 +209,7 @@ def test_air_quality_by_location_uses_optimized_query(
         fake_execute_query,
     )
 
-    response = client.get(
-        "/api/v1/air-quality/locations/hn"
-    )
+    response = client.get("/api/v1/air-quality/locations/hn")
 
     assert response.status_code == 200
 
@@ -260,36 +219,21 @@ def test_air_quality_by_location_uses_optimized_query(
 
     assert payload["location_id"] == "HN"
 
-    assert payload["location_name"] == (
-        "Hà Nội"
-    )
+    assert payload["location_name"] == ("Hà Nội")
 
     assert payload["batch_id"] == BATCH_ID
 
     assert payload["record_count"] == 1
 
-    assert payload["data"][0][
-        "location_id"
-    ] == "HN"
+    assert payload["data"][0]["location_id"] == "HN"
 
-    assert_optimized_latest_batch_query(
-        captured["query"]
-    )
+    assert_optimized_latest_batch_query(captured["query"])
 
-    normalized_query = normalize_sql(
-        captured["query"]
-    )
+    normalized_query = normalize_sql(captured["query"])
 
-    assert (
-        "and f.location_id = %s"
-        in normalized_query
-    )
+    assert "and f.location_id = %s" in normalized_query
 
-    assert (
-        "order by f.forecast_time, "
-        "f.point_id"
-        in normalized_query
-    )
+    assert "order by f.forecast_time, f.point_id" in normalized_query
 
     assert captured["parameters"] == (
         "HN",
@@ -335,9 +279,7 @@ def test_air_quality_by_location_returns_500_on_database_error(
         query: str,
         parameters: tuple[Any, ...] | None = None,
     ) -> list[dict[str, Any]]:
-        raise api_main.DatabaseConfigurationError(
-            "Test database configuration error"
-        )
+        raise api_main.DatabaseConfigurationError("Test database configuration error")
 
     monkeypatch.setattr(
         api_main,
@@ -345,18 +287,15 @@ def test_air_quality_by_location_returns_500_on_database_error(
         fake_execute_query,
     )
 
-    response = client.get(
-        "/api/v1/air-quality/locations/HN"
-    )
+    response = client.get("/api/v1/air-quality/locations/HN")
 
     assert response.status_code == 500
 
     payload = response.json()
 
-    assert "tỉnh/thành" in (
-        payload["detail"]
-    )
-    
+    assert "tỉnh/thành" in (payload["detail"])
+
+
 def test_top_polluted_uses_latest_batch_and_reference_time(
     monkeypatch,
 ) -> None:
@@ -375,16 +314,10 @@ def test_top_polluted_uses_latest_batch_and_reference_time(
 
     second_record["point_id"] = "HCM_CENTER"
     second_record["location_id"] = "HCM"
-    second_record["location_name"] = (
-        "Thành phố Hồ Chí Minh"
-    )
+    second_record["location_name"] = "Thành phố Hồ Chí Minh"
     second_record["us_aqi"] = 125
-    second_record["aqi_level"] = (
-        "Không tốt cho nhóm nhạy cảm"
-    )
-    second_record["aqi_severity"] = (
-        "UNHEALTHY_SENSITIVE"
-    )
+    second_record["aqi_level"] = "Không tốt cho nhóm nhạy cảm"
+    second_record["aqi_severity"] = "UNHEALTHY_SENSITIVE"
 
     def fake_execute_query(
         *,
@@ -419,54 +352,32 @@ def test_top_polluted_uses_latest_batch_and_reference_time(
     assert payload["status"] == "SUCCESS"
     assert payload["batch_id"] == BATCH_ID
 
-    assert payload["reference_time"] == (
-        first_record["forecast_time"]
-    )
+    assert payload["reference_time"] == (first_record["forecast_time"])
 
     assert payload["record_count"] == 2
     assert len(payload["data"]) == 2
 
-    assert payload["data"][0][
-        "point_id"
-    ] == "HN_CENTER"
+    assert payload["data"][0]["point_id"] == "HN_CENTER"
 
-    assert payload["data"][0][
-        "us_aqi"
-    ] == 175
+    assert payload["data"][0]["us_aqi"] == 175
 
-    assert captured["parameters"] == (
-        5,
-    )
+    assert captured["parameters"] == (5,)
 
-    assert_optimized_latest_batch_query(
-        captured["query"]
-    )
+    assert_optimized_latest_batch_query(captured["query"])
 
-    normalized_query = normalize_sql(
-        captured["query"]
-    )
+    normalized_query = normalize_sql(captured["query"])
 
-    assert (
-        "min(forecast_time) as forecast_time"
-        in normalized_query
-    )
+    assert "min(forecast_time) as forecast_time" in normalized_query
 
     assert (
         "and f.forecast_time = "
         "( select forecast_time "
-        "from reference_time )"
-        in normalized_query
+        "from reference_time )" in normalized_query
     )
 
-    assert (
-        "and f.us_aqi is not null"
-        in normalized_query
-    )
+    assert "and f.us_aqi is not null" in normalized_query
 
-    assert (
-        "order by f.us_aqi desc"
-        in normalized_query
-    )
+    assert "order by f.us_aqi desc" in normalized_query
 
     assert "limit %s" in normalized_query
 
@@ -487,9 +398,7 @@ def test_top_polluted_returns_empty_result(
         fake_execute_query,
     )
 
-    response = client.get(
-        "/api/v1/air-quality/top-polluted"
-    )
+    response = client.get("/api/v1/air-quality/top-polluted")
 
     assert response.status_code == 200
 
@@ -542,15 +451,11 @@ def test_top_polluted_uses_default_limit(
         fake_execute_query,
     )
 
-    response = client.get(
-        "/api/v1/air-quality/top-polluted"
-    )
+    response = client.get("/api/v1/air-quality/top-polluted")
 
     assert response.status_code == 200
 
-    assert captured["parameters"] == (
-        10,
-    )
+    assert captured["parameters"] == (10,)
 
 
 def test_top_polluted_returns_500_on_database_error(
@@ -561,9 +466,7 @@ def test_top_polluted_returns_500_on_database_error(
         query: str,
         parameters: tuple[Any, ...] | None = None,
     ) -> list[dict[str, Any]]:
-        raise api_main.DatabaseConfigurationError(
-            "Test database configuration error"
-        )
+        raise api_main.DatabaseConfigurationError("Test database configuration error")
 
     monkeypatch.setattr(
         api_main,
@@ -571,34 +474,27 @@ def test_top_polluted_returns_500_on_database_error(
         fake_execute_query,
     )
 
-    response = client.get(
-        "/api/v1/air-quality/top-polluted"
-    )
+    response = client.get("/api/v1/air-quality/top-polluted")
 
     assert response.status_code == 500
 
     payload = response.json()
 
-    assert "ô nhiễm nhất" in (
-        payload["detail"]
-    )
-    
+    assert "ô nhiễm nhất" in (payload["detail"])
+
+
 def test_air_quality_history_returns_recent_records(
     monkeypatch,
 ) -> None:
     captured: dict[str, Any] = {}
 
     first_record = build_air_quality_record()
-    first_record["forecast_time"] = (
-        "2026-07-21T18:00:00+07:00"
-    )
+    first_record["forecast_time"] = "2026-07-21T18:00:00+07:00"
     first_record["aqi_level"] = "Tốt"
     first_record["aqi_severity"] = "GOOD"
 
     second_record = build_air_quality_record()
-    second_record["forecast_time"] = (
-        "2026-07-21T19:00:00+07:00"
-    )
+    second_record["forecast_time"] = "2026-07-21T19:00:00+07:00"
     second_record["aqi_level"] = "Trung bình"
     second_record["aqi_severity"] = "MODERATE"
 
@@ -635,9 +531,7 @@ def test_air_quality_history_returns_recent_records(
     assert payload["status"] == "SUCCESS"
     assert payload["point_id"] == "HN_CENTER"
 
-    assert payload["point_name"] == (
-        "Hà Nội Center"
-    )
+    assert payload["point_name"] == ("Hà Nội Center")
 
     assert payload["location_id"] == "HN"
     assert payload["location_name"] == "Hà Nội"
@@ -645,44 +539,26 @@ def test_air_quality_history_returns_recent_records(
     assert payload["requested_hours"] == 168
     assert payload["record_count"] == 2
 
-    assert payload["first_forecast_time"] == (
-        first_record["forecast_time"]
-    )
+    assert payload["first_forecast_time"] == (first_record["forecast_time"])
 
-    assert payload["last_forecast_time"] == (
-        second_record["forecast_time"]
-    )
+    assert payload["last_forecast_time"] == (second_record["forecast_time"])
 
     assert captured["parameters"] == (
         "HN_CENTER",
         168,
     )
 
-    normalized_query = normalize_sql(
-        captured["query"]
-    )
+    normalized_query = normalize_sql(captured["query"])
 
-    assert (
-        "with recent_history as"
-        in normalized_query
-    )
+    assert "with recent_history as" in normalized_query
 
-    assert (
-        "where f.point_id = %s"
-        in normalized_query
-    )
+    assert "where f.point_id = %s" in normalized_query
 
-    assert (
-        "order by f.forecast_time desc"
-        in normalized_query
-    )
+    assert "order by f.forecast_time desc" in normalized_query
 
     assert "limit %s" in normalized_query
 
-    assert (
-        "order by history.forecast_time"
-        in normalized_query
-    )
+    assert "order by history.forecast_time" in normalized_query
 
 
 def test_air_quality_history_uses_custom_hours(
@@ -697,9 +573,7 @@ def test_air_quality_history_uses_custom_hours(
     ) -> list[dict[str, Any]]:
         captured["parameters"] = parameters
 
-        return [
-            build_air_quality_record()
-        ]
+        return [build_air_quality_record()]
 
     monkeypatch.setattr(
         api_main,
@@ -722,9 +596,7 @@ def test_air_quality_history_uses_custom_hours(
         24,
     )
 
-    assert response.json()[
-        "requested_hours"
-    ] == 24
+    assert response.json()["requested_hours"] == 24
 
 
 def test_air_quality_history_returns_404_when_empty(
@@ -753,16 +625,11 @@ def test_air_quality_history_returns_404_when_empty(
 
     assert response.status_code == 404
 
-    assert "NOT_EXIST" in (
-        response.json()["detail"]
-    )
+    assert "NOT_EXIST" in (response.json()["detail"])
 
 
-def test_air_quality_history_requires_point_id(
-) -> None:
-    response = client.get(
-        "/api/v1/air-quality/history"
-    )
+def test_air_quality_history_requires_point_id() -> None:
+    response = client.get("/api/v1/air-quality/history")
 
     assert response.status_code == 422
 
@@ -796,9 +663,7 @@ def test_air_quality_history_returns_500_on_database_error(
         query: str,
         parameters: tuple[Any, ...] | None = None,
     ) -> list[dict[str, Any]]:
-        raise api_main.DatabaseConfigurationError(
-            "Test database configuration error"
-        )
+        raise api_main.DatabaseConfigurationError("Test database configuration error")
 
     monkeypatch.setattr(
         api_main,
@@ -815,6 +680,4 @@ def test_air_quality_history_returns_500_on_database_error(
 
     assert response.status_code == 500
 
-    assert "lịch sử" in (
-        response.json()["detail"]
-    )
+    assert "lịch sử" in (response.json()["detail"])

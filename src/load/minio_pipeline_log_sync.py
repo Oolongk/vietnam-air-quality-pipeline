@@ -4,8 +4,8 @@ from collections.abc import Mapping
 from datetime import datetime, timezone
 from typing import Any
 
-import psycopg
 from minio import Minio
+import psycopg
 
 from src.load.minio_timescaledb_loader import (
     TimescaleDBSettings,
@@ -19,23 +19,14 @@ from src.utils.minio_object_io import (
     list_object_names,
 )
 
+LOAD_SUMMARY_PREFIX = "pipeline/load/timescaledb"
 
-LOAD_SUMMARY_PREFIX = (
-    "pipeline/load/timescaledb"
-)
+ALERT_SUMMARY_ROOT_PREFIX = "alerts/air_quality/hourly"
 
-ALERT_SUMMARY_ROOT_PREFIX = (
-    "alerts/air_quality/hourly"
-)
-
-MART_SUMMARY_ROOT_PREFIX = (
-    "air_quality/build_summary"
-)
+MART_SUMMARY_ROOT_PREFIX = "air_quality/build_summary"
 
 
-class MinioPipelineLogSyncError(
-    RuntimeError
-):
+class MinioPipelineLogSyncError(RuntimeError):
     """Lỗi khi đồng bộ pipeline logs từ MinIO."""
 
 
@@ -46,15 +37,9 @@ def _clean_text(
     if value is None:
         return default
 
-    cleaned_value = str(
-        value
-    ).strip()
+    cleaned_value = str(value).strip()
 
-    return (
-        cleaned_value
-        if cleaned_value
-        else default
-    )
+    return cleaned_value if cleaned_value else default
 
 
 def _safe_integer(
@@ -65,9 +50,7 @@ def _safe_integer(
         return default
 
     try:
-        return int(
-            value
-        )
+        return int(value)
     except (
         TypeError,
         ValueError,
@@ -83,9 +66,7 @@ def _safe_float(
         return default
 
     try:
-        return float(
-            value
-        )
+        return float(value)
     except (
         TypeError,
         ValueError,
@@ -118,24 +99,12 @@ def _parse_datetime(
             return None
 
         try:
-            parsed_value = (
-                datetime.fromisoformat(
-                    normalized_value
-                )
-            )
+            parsed_value = datetime.fromisoformat(normalized_value)
         except ValueError:
             return None
 
-    if (
-        parsed_value.tzinfo is None
-        or parsed_value.utcoffset()
-        is None
-    ):
-        parsed_value = (
-            parsed_value.replace(
-                tzinfo=timezone.utc
-            )
-        )
+    if parsed_value.tzinfo is None or parsed_value.utcoffset() is None:
+        parsed_value = parsed_value.replace(tzinfo=timezone.utc)
 
     return parsed_value
 
@@ -144,14 +113,11 @@ def _summary_timestamp(
     summary: Mapping[str, Any],
 ) -> datetime:
     parsed_value = _parse_datetime(
-        summary.get("finished_at")
-        or summary.get("started_at")
+        summary.get("finished_at") or summary.get("started_at")
     )
 
     if parsed_value is None:
-        return datetime.min.replace(
-            tzinfo=timezone.utc
-        )
+        return datetime.min.replace(tzinfo=timezone.utc)
 
     return parsed_value
 
@@ -160,38 +126,25 @@ def find_latest_load_summary(
     settings: MinioSettings | None = None,
     client: Minio | None = None,
 ) -> tuple[str, dict[str, Any]]:
-    resolved_settings = (
-        settings
-        or MinioSettings.from_environment()
-    )
+    resolved_settings = settings or MinioSettings.from_environment()
 
-    resolved_client = (
-        client
-        or get_minio_client(
-            resolved_settings
-        )
-    )
+    resolved_client = client or get_minio_client(resolved_settings)
 
     object_names = [
         object_name
         for object_name in list_object_names(
-            bucket_name=(
-                resolved_settings.mart_bucket
-            ),
+            bucket_name=(resolved_settings.mart_bucket),
             prefix=LOAD_SUMMARY_PREFIX,
             recursive=True,
             settings=resolved_settings,
             client=resolved_client,
         )
-        if object_name.endswith(
-            "/load_summary.json"
-        )
+        if object_name.endswith("/load_summary.json")
     ]
 
     if not object_names:
         raise MinioPipelineLogSyncError(
-            "Không tìm thấy load_summary.json "
-            "trong MinIO Mart."
+            "Không tìm thấy load_summary.json trong MinIO Mart."
         )
 
     candidates: list[
@@ -205,10 +158,7 @@ def find_latest_load_summary(
     for object_name in object_names:
         try:
             summary = get_json_object(
-                bucket_name=(
-                    resolved_settings
-                    .mart_bucket
-                ),
+                bucket_name=(resolved_settings.mart_bucket),
                 object_name=object_name,
                 settings=resolved_settings,
                 client=resolved_client,
@@ -220,18 +170,14 @@ def find_latest_load_summary(
             ):
                 continue
 
-            batch_id = _clean_text(
-                summary.get("batch_id")
-            )
+            batch_id = _clean_text(summary.get("batch_id"))
 
             if not batch_id:
                 continue
 
             candidates.append(
                 (
-                    _summary_timestamp(
-                        summary
-                    ),
+                    _summary_timestamp(summary),
                     object_name,
                     summary,
                 )
@@ -241,9 +187,7 @@ def find_latest_load_summary(
             continue
 
     if not candidates:
-        raise MinioPipelineLogSyncError(
-            "Không tìm thấy Load summary hợp lệ."
-        )
+        raise MinioPipelineLogSyncError("Không tìm thấy Load summary hợp lệ.")
 
     candidates.sort(
         key=lambda item: item[0],
@@ -269,17 +213,10 @@ def _read_required_summary(
     settings: MinioSettings,
     client: Minio,
 ) -> dict[str, Any]:
-    normalized_object_name = (
-        _clean_text(
-            object_name
-        )
-    )
+    normalized_object_name = _clean_text(object_name)
 
     if not normalized_object_name:
-        raise MinioPipelineLogSyncError(
-            f"Thiếu object name của "
-            f"{summary_name}."
-        )
+        raise MinioPipelineLogSyncError(f"Thiếu object name của {summary_name}.")
 
     summary = get_json_object(
         bucket_name=bucket_name,
@@ -293,8 +230,7 @@ def _read_required_summary(
         dict,
     ):
         raise MinioPipelineLogSyncError(
-            f"{summary_name} không phải "
-            "JSON object hợp lệ."
+            f"{summary_name} không phải JSON object hợp lệ."
         )
 
     return summary
@@ -320,20 +256,14 @@ def _find_alert_summary(
     object_names = [
         object_name
         for object_name in list_object_names(
-            bucket_name=(
-                settings.mart_bucket
-            ),
+            bucket_name=(settings.mart_bucket),
             prefix=expected_prefix,
             recursive=True,
             settings=settings,
             client=client,
         )
-        if object_name.endswith(
-            "/alert_summary.json"
-        )
-        or object_name.endswith(
-            "alert_summary.json"
-        )
+        if object_name.endswith("/alert_summary.json")
+        or object_name.endswith("alert_summary.json")
     ]
 
     if not object_names:
@@ -342,14 +272,10 @@ def _find_alert_summary(
             None,
         )
 
-    object_name = sorted(
-        object_names
-    )[0]
+    object_name = sorted(object_names)[0]
 
     summary = get_json_object(
-        bucket_name=(
-            settings.mart_bucket
-        ),
+        bucket_name=(settings.mart_bucket),
         object_name=object_name,
         settings=settings,
         client=client,
@@ -394,37 +320,25 @@ def _find_mart_summary(
     object_names = [
         object_name
         for object_name in list_object_names(
-            bucket_name=(
-                settings.mart_bucket
-            ),
+            bucket_name=(settings.mart_bucket),
             prefix=expected_prefix,
             recursive=True,
             settings=settings,
             client=client,
         )
-        if object_name.endswith(
-            "/mart_summary.json"
-        )
-        or object_name.endswith(
-            "mart_summary.json"
-        )
+        if object_name.endswith("/mart_summary.json")
+        or object_name.endswith("mart_summary.json")
     ]
 
     if not object_names:
         raise MinioPipelineLogSyncError(
-            "Không tìm thấy mart_summary.json "
-            "cho batch hiện tại: "
-            f"{batch_id}."
+            f"Không tìm thấy mart_summary.json cho batch hiện tại: {batch_id}."
         )
 
-    object_name = sorted(
-        object_names
-    )[0]
+    object_name = sorted(object_names)[0]
 
     summary = get_json_object(
-        bucket_name=(
-            settings.mart_bucket
-        ),
+        bucket_name=(settings.mart_bucket),
         object_name=object_name,
         settings=settings,
         client=client,
@@ -434,16 +348,9 @@ def _find_mart_summary(
         summary,
         dict,
     ):
-        raise MinioPipelineLogSyncError(
-            "Mart summary không phải "
-            "JSON object hợp lệ."
-        )
+        raise MinioPipelineLogSyncError("Mart summary không phải JSON object hợp lệ.")
 
-    summary_batch_id = _clean_text(
-        summary.get(
-            "batch_id"
-        )
-    )
+    summary_batch_id = _clean_text(summary.get("batch_id"))
 
     if summary_batch_id != batch_id:
         raise MinioPipelineLogSyncError(
@@ -462,17 +369,9 @@ def collect_latest_pipeline_summaries(
     settings: MinioSettings | None = None,
     client: Minio | None = None,
 ) -> dict[str, Any]:
-    resolved_settings = (
-        settings
-        or MinioSettings.from_environment()
-    )
+    resolved_settings = settings or MinioSettings.from_environment()
 
-    resolved_client = (
-        client
-        or get_minio_client(
-            resolved_settings
-        )
-    )
+    resolved_client = client or get_minio_client(resolved_settings)
 
     (
         load_object_name,
@@ -482,79 +381,34 @@ def collect_latest_pipeline_summaries(
         client=resolved_client,
     )
 
-    batch_id = _clean_text(
-        load_summary.get(
-            "batch_id"
-        )
+    batch_id = _clean_text(load_summary.get("batch_id"))
+
+    partition_date = _clean_text(load_summary.get("partition_date"))
+
+    partition_hour = _clean_text(load_summary.get("partition_hour"))
+
+    quality_summary = _read_required_summary(
+        bucket_name=(resolved_settings.clean_bucket),
+        object_name=(load_summary.get("quality_summary_object_name")),
+        summary_name=("Data Quality summary"),
+        settings=resolved_settings,
+        client=resolved_client,
     )
 
-    partition_date = _clean_text(
-        load_summary.get(
-            "partition_date"
-        )
+    transform_summary = _read_required_summary(
+        bucket_name=(resolved_settings.clean_bucket),
+        object_name=(quality_summary.get("transform_summary_object_name")),
+        summary_name=("Transform summary"),
+        settings=resolved_settings,
+        client=resolved_client,
     )
 
-    partition_hour = _clean_text(
-        load_summary.get(
-            "partition_hour"
-        )
-    )
-
-    quality_summary = (
-        _read_required_summary(
-            bucket_name=(
-                resolved_settings
-                .clean_bucket
-            ),
-            object_name=(
-                load_summary.get(
-                    "quality_summary_object_name"
-                )
-            ),
-            summary_name=(
-                "Data Quality summary"
-            ),
-            settings=resolved_settings,
-            client=resolved_client,
-        )
-    )
-
-    transform_summary = (
-        _read_required_summary(
-            bucket_name=(
-                resolved_settings
-                .clean_bucket
-            ),
-            object_name=(
-                quality_summary.get(
-                    "transform_summary_object_name"
-                )
-            ),
-            summary_name=(
-                "Transform summary"
-            ),
-            settings=resolved_settings,
-            client=resolved_client,
-        )
-    )
-
-    raw_summary = (
-        _read_required_summary(
-            bucket_name=(
-                resolved_settings
-                .raw_bucket
-            ),
-            object_name=(
-                transform_summary.get(
-                    "raw_summary_object_name"
-                )
-            ),
-            summary_name=(
-                "Extraction summary"
-            ),
-            settings=resolved_settings,
-            client=resolved_client,
-        )
+    raw_summary = _read_required_summary(
+        bucket_name=(resolved_settings.raw_bucket),
+        object_name=(transform_summary.get("raw_summary_object_name")),
+        summary_name=("Extraction summary"),
+        settings=resolved_settings,
+        client=resolved_client,
     )
 
     (
@@ -581,70 +435,36 @@ def collect_latest_pipeline_summaries(
 
     return {
         "batch_id": batch_id,
-        "partition_date": (
-            partition_date
-        ),
-        "partition_hour": (
-            partition_hour
-        ),
+        "partition_date": (partition_date),
+        "partition_hour": (partition_hour),
         "raw": {
-            "bucket_name": (
-                resolved_settings.raw_bucket
-            ),
-            "object_name": (
-                transform_summary.get(
-                    "raw_summary_object_name"
-                )
-            ),
+            "bucket_name": (resolved_settings.raw_bucket),
+            "object_name": (transform_summary.get("raw_summary_object_name")),
             "summary": raw_summary,
         },
         "transform": {
-            "bucket_name": (
-                resolved_settings.clean_bucket
-            ),
-            "object_name": (
-                quality_summary.get(
-                    "transform_summary_object_name"
-                )
-            ),
+            "bucket_name": (resolved_settings.clean_bucket),
+            "object_name": (quality_summary.get("transform_summary_object_name")),
             "summary": transform_summary,
         },
         "quality": {
-            "bucket_name": (
-                resolved_settings.clean_bucket
-            ),
-            "object_name": (
-                load_summary.get(
-                    "quality_summary_object_name"
-                )
-            ),
+            "bucket_name": (resolved_settings.clean_bucket),
+            "object_name": (load_summary.get("quality_summary_object_name")),
             "summary": quality_summary,
         },
         "load": {
-            "bucket_name": (
-                resolved_settings.mart_bucket
-            ),
-            "object_name": (
-                load_object_name
-            ),
+            "bucket_name": (resolved_settings.mart_bucket),
+            "object_name": (load_object_name),
             "summary": load_summary,
         },
         "alerts": {
-            "bucket_name": (
-                resolved_settings.mart_bucket
-            ),
-            "object_name": (
-                alert_object_name
-            ),
+            "bucket_name": (resolved_settings.mart_bucket),
+            "object_name": (alert_object_name),
             "summary": alert_summary,
         },
         "mart": {
-            "bucket_name": (
-                resolved_settings.mart_bucket
-            ),
-            "object_name": (
-                mart_object_name
-            ),
+            "bucket_name": (resolved_settings.mart_bucket),
+            "object_name": (mart_object_name),
             "summary": mart_summary,
         },
     }
@@ -656,9 +476,7 @@ def _first_count(
 ) -> int:
     for key in keys:
         if key in summary:
-            return _safe_integer(
-                summary.get(key)
-            )
+            return _safe_integer(summary.get(key))
 
     return 0
 
@@ -666,16 +484,10 @@ def _first_count(
 def build_pipeline_log_rows(
     summaries: Mapping[str, Any],
 ) -> list[dict[str, Any]]:
-    batch_id = _clean_text(
-        summaries.get(
-            "batch_id"
-        )
-    )
+    batch_id = _clean_text(summaries.get("batch_id"))
 
     if not batch_id:
-        raise MinioPipelineLogSyncError(
-            "Không xác định được batch_id."
-        )
+        raise MinioPipelineLogSyncError("Không xác định được batch_id.")
 
     stage_definitions = [
         (
@@ -689,45 +501,27 @@ def build_pipeline_log_rows(
                 "records_extracted",
                 "total_records",
             ),
-            (
-                "failed_points",
-            ),
+            ("failed_points",),
         ),
         (
             "transform",
             "transform",
-            (
-                "input_objects",
-            ),
-            (
-                "records_transformed",
-            ),
-            (
-                "failed_objects",
-            ),
+            ("input_objects",),
+            ("records_transformed",),
+            ("failed_objects",),
         ),
         (
             "data_quality",
             "quality",
-            (
-                "input_records",
-            ),
-            (
-                "valid_records",
-            ),
-            (
-                "bad_records",
-            ),
+            ("input_records",),
+            ("valid_records",),
+            ("bad_records",),
         ),
         (
             "load_timescaledb",
             "load",
-            (
-                "input_rows",
-            ),
-            (
-                "processed_rows",
-            ),
+            ("input_rows",),
+            ("processed_rows",),
             (),
         ),
         (
@@ -765,9 +559,7 @@ def build_pipeline_log_rows(
         ),
     ]
 
-    rows: list[
-        dict[str, Any]
-    ] = []
+    rows: list[dict[str, Any]] = []
 
     for (
         stage_name,
@@ -776,9 +568,7 @@ def build_pipeline_log_rows(
         output_keys,
         failed_keys,
     ) in stage_definitions:
-        stage_container = summaries.get(
-            summary_key
-        )
+        stage_container = summaries.get(summary_key)
 
         if not isinstance(
             stage_container,
@@ -786,9 +576,7 @@ def build_pipeline_log_rows(
         ):
             continue
 
-        summary = stage_container.get(
-            "summary"
-        )
+        summary = stage_container.get("summary")
 
         if not isinstance(
             summary,
@@ -796,23 +584,19 @@ def build_pipeline_log_rows(
         ):
             continue
 
-        failures = summary.get(
-            "failures"
-        )
+        failures = summary.get("failures")
 
         error_message = None
 
-        if isinstance(
-            failures,
-            list,
-        ) and failures:
-            error_message = (
-                str(failures[0])[:2000]
+        if (
+            isinstance(
+                failures,
+                list,
             )
-        run_id = (
-            f"{batch_id}:"
-            f"{stage_name}"
-        )
+            and failures
+        ):
+            error_message = str(failures[0])[:2000]
+        run_id = f"{batch_id}:{stage_name}"
 
         rows.append(
             {
@@ -820,52 +604,26 @@ def build_pipeline_log_rows(
                 "batch_id": batch_id,
                 "pipeline_name": (
                     _clean_text(
-                        summary.get(
-                            "pipeline_name"
-                        ),
-                        default=(
-                            "air_quality_pipeline"
-                        ),
+                        summary.get("pipeline_name"),
+                        default=("air_quality_pipeline"),
                     )
                 ),
                 "source": (
                     _clean_text(
-                        summary.get(
-                            "source"
-                        ),
+                        summary.get("source"),
                         default="open_meteo",
                     )
                 ),
                 "stage_name": stage_name,
                 "status": (
                     _clean_text(
-                        summary.get(
-                            "status"
-                        ),
+                        summary.get("status"),
                         default="UNKNOWN",
                     ).upper()
                 ),
-                "started_at": (
-                    _parse_datetime(
-                        summary.get(
-                            "started_at"
-                        )
-                    )
-                ),
-                "finished_at": (
-                    _parse_datetime(
-                        summary.get(
-                            "finished_at"
-                        )
-                    )
-                ),
-                "duration_seconds": (
-                    _safe_float(
-                        summary.get(
-                            "duration_seconds"
-                        )
-                    )
-                ),
+                "started_at": (_parse_datetime(summary.get("started_at"))),
+                "finished_at": (_parse_datetime(summary.get("finished_at"))),
+                "duration_seconds": (_safe_float(summary.get("duration_seconds"))),
                 "input_records": (
                     _first_count(
                         summary,
@@ -896,19 +654,9 @@ def build_pipeline_log_rows(
                         *output_keys,
                     )
                 ),
-                "summary_bucket": (
-                    stage_container.get(
-                        "bucket_name"
-                    )
-                ),
-                "summary_object_name": (
-                    stage_container.get(
-                        "object_name"
-                    )
-                ),
-                "error_message": (
-                    error_message
-                ),
+                "summary_bucket": (stage_container.get("bucket_name")),
+                "summary_object_name": (stage_container.get("object_name")),
+                "error_message": (error_message),
             }
         )
 
@@ -918,69 +666,40 @@ def build_pipeline_log_rows(
 def build_data_quality_log_rows(
     summaries: Mapping[str, Any],
 ) -> list[dict[str, Any]]:
-    quality_container = summaries.get(
-        "quality"
-    )
+    quality_container = summaries.get("quality")
 
     if not isinstance(
         quality_container,
         Mapping,
     ):
-        raise MinioPipelineLogSyncError(
-            "Thiếu Data Quality summary."
-        )
+        raise MinioPipelineLogSyncError("Thiếu Data Quality summary.")
 
-    quality_summary = (
-        quality_container.get(
-            "summary"
-        )
-    )
+    quality_summary = quality_container.get("summary")
 
     if not isinstance(
         quality_summary,
         Mapping,
     ):
-        raise MinioPipelineLogSyncError(
-            "Data Quality summary không hợp lệ."
-        )
+        raise MinioPipelineLogSyncError("Data Quality summary không hợp lệ.")
 
-    checks = quality_summary.get(
-        "checks"
-    )
+    checks = quality_summary.get("checks")
 
     if not isinstance(
         checks,
         list,
     ):
-        raise MinioPipelineLogSyncError(
-            "Data Quality summary thiếu checks."
-        )
+        raise MinioPipelineLogSyncError("Data Quality summary thiếu checks.")
 
-    batch_id = _clean_text(
-        summaries.get(
-            "batch_id"
-        )
+    batch_id = _clean_text(summaries.get("batch_id"))
+
+    checked_at = _parse_datetime(quality_summary.get("finished_at")) or datetime.now(
+        timezone.utc
     )
 
-    checked_at = (
-        _parse_datetime(
-            quality_summary.get(
-                "finished_at"
-            )
-        )
-        or datetime.now(
-            timezone.utc
-        )
-    )
+    rows: list[dict[str, Any]] = []
 
-    rows: list[
-        dict[str, Any]
-    ] = []
-    
-    data_quality_run_id = (
-        f"{batch_id}:data_quality"
-    )
-    
+    data_quality_run_id = f"{batch_id}:data_quality"
+
     for check in checks:
         if not isinstance(
             check,
@@ -988,11 +707,7 @@ def build_data_quality_log_rows(
         ):
             continue
 
-        check_name = _clean_text(
-            check.get(
-                "check_name"
-            )
-        )
+        check_name = _clean_text(check.get("check_name"))
 
         if not check_name:
             continue
@@ -1001,44 +716,18 @@ def build_data_quality_log_rows(
             {
                 "run_id": data_quality_run_id,
                 "batch_id": batch_id,
-                "check_name": (
-                    check_name
-                ),
+                "check_name": (check_name),
                 "status": (
                     _clean_text(
-                        check.get(
-                            "status"
-                        ),
+                        check.get("status"),
                         default="UNKNOWN",
                     ).upper()
                 ),
-                "bad_records_count": (
-                    _safe_integer(
-                        check.get(
-                            "bad_records_count"
-                        )
-                    )
-                ),
-                "message": (
-                    _clean_text(
-                        check.get(
-                            "message"
-                        )
-                    )
-                ),
-                "checked_at": (
-                    checked_at
-                ),
-                "summary_bucket": (
-                    quality_container.get(
-                        "bucket_name"
-                    )
-                ),
-                "summary_object_name": (
-                    quality_container.get(
-                        "object_name"
-                    )
-                ),
+                "bad_records_count": (_safe_integer(check.get("bad_records_count"))),
+                "message": (_clean_text(check.get("message"))),
+                "checked_at": (checked_at),
+                "summary_bucket": (quality_container.get("bucket_name")),
+                "summary_object_name": (quality_container.get("object_name")),
             }
         )
 
@@ -1126,6 +815,7 @@ def upsert_pipeline_log_rows(
 
     return len(rows)
 
+
 def upsert_data_quality_log_rows(
     connection: psycopg.Connection,
     rows: list[dict[str, Any]],
@@ -1183,74 +873,46 @@ def upsert_data_quality_log_rows(
 
     return len(rows)
 
+
 def sync_latest_minio_pipeline_health(
     minio_settings: MinioSettings | None = None,
     minio_client: Minio | None = None,
     database_settings: TimescaleDBSettings | None = None,
 ) -> dict[str, Any]:
-    resolved_minio_settings = (
-        minio_settings
-        or MinioSettings.from_environment()
-    )
+    resolved_minio_settings = minio_settings or MinioSettings.from_environment()
 
-    resolved_minio_client = (
-        minio_client
-        or get_minio_client(
-            resolved_minio_settings
-        )
-    )
+    resolved_minio_client = minio_client or get_minio_client(resolved_minio_settings)
 
     resolved_database_settings = (
-        database_settings
-        or TimescaleDBSettings.from_environment()
+        database_settings or TimescaleDBSettings.from_environment()
     )
 
-    summaries = (
-        collect_latest_pipeline_summaries(
-            settings=resolved_minio_settings,
-            client=resolved_minio_client,
-        )
+    summaries = collect_latest_pipeline_summaries(
+        settings=resolved_minio_settings,
+        client=resolved_minio_client,
     )
 
-    pipeline_rows = (
-        build_pipeline_log_rows(
-            summaries
-        )
-    )
+    pipeline_rows = build_pipeline_log_rows(summaries)
 
-    quality_rows = (
-        build_data_quality_log_rows(
-            summaries
-        )
-    )
+    quality_rows = build_data_quality_log_rows(summaries)
 
     if not pipeline_rows:
-        raise MinioPipelineLogSyncError(
-            "Không tạo được pipeline log row."
-        )
+        raise MinioPipelineLogSyncError("Không tạo được pipeline log row.")
 
     if not quality_rows:
-        raise MinioPipelineLogSyncError(
-            "Không tạo được Data Quality log row."
-        )
+        raise MinioPipelineLogSyncError("Không tạo được Data Quality log row.")
 
-    connection = (
-        resolved_database_settings.connect()
-    )
+    connection = resolved_database_settings.connect()
 
     try:
-        pipeline_log_count = (
-            upsert_pipeline_log_rows(
-                connection=connection,
-                rows=pipeline_rows,
-            )
+        pipeline_log_count = upsert_pipeline_log_rows(
+            connection=connection,
+            rows=pipeline_rows,
         )
 
-        quality_log_count = (
-            upsert_data_quality_log_rows(
-                connection=connection,
-                rows=quality_rows,
-            )
+        quality_log_count = upsert_data_quality_log_rows(
+            connection=connection,
+            rows=quality_rows,
         )
 
         connection.commit()
@@ -1264,17 +926,8 @@ def sync_latest_minio_pipeline_health(
 
     return {
         "status": "SUCCESS",
-        "batch_id": (
-            summaries["batch_id"]
-        ),
-        "pipeline_logs_upserted": (
-            pipeline_log_count
-        ),
-        "data_quality_logs_upserted": (
-            quality_log_count
-        ),
-        "stages": [
-            row["stage_name"]
-            for row in pipeline_rows
-        ],
+        "batch_id": (summaries["batch_id"]),
+        "pipeline_logs_upserted": (pipeline_log_count),
+        "data_quality_logs_upserted": (quality_log_count),
+        "stages": [row["stage_name"] for row in pipeline_rows],
     }

@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
-import pandas as pd
 import pytest
 
 import src.transform.minio_batch_transformer as transformer_module
@@ -34,9 +31,7 @@ def build_raw_object() -> dict:
         "schema_version": "1.0",
         "batch_id": "test_batch",
         "source": "open_meteo",
-        "extracted_at": (
-            "2026-07-13T14:00:00+00:00"
-        ),
+        "extracted_at": ("2026-07-13T14:00:00+00:00"),
         "point": {
             "point_id": "HN_CENTER",
             "location_id": "HN",
@@ -95,66 +90,42 @@ def build_raw_object() -> dict:
 
 
 def test_transforms_nested_raw_envelope() -> None:
-    dataframe = transform_raw_object(
-        build_raw_object()
-    )
+    dataframe = transform_raw_object(build_raw_object())
 
     assert len(dataframe) == 2
 
-    assert dataframe[
-        "point_id"
-    ].tolist() == [
+    assert dataframe["point_id"].tolist() == [
         "HN_CENTER",
         "HN_CENTER",
     ]
 
-    assert dataframe[
-        "location_id"
-    ].tolist() == [
+    assert dataframe["location_id"].tolist() == [
         "HN",
         "HN",
     ]
 
-    assert dataframe[
-        "us_aqi"
-    ].tolist() == [
+    assert dataframe["us_aqi"].tolist() == [
         75,
         80,
     ]
 
-    assert str(
-        dataframe[
-            "forecast_time"
-        ].dt.tz
-    ) == "Asia/Ho_Chi_Minh"
+    assert str(dataframe["forecast_time"].dt.tz) == "Asia/Ho_Chi_Minh"
 
-    assert (
-        str(dataframe["us_aqi"].dtype)
-        == "Int64"
-    )
+    assert str(dataframe["us_aqi"].dtype) == "Int64"
 
-    assert (
-        str(dataframe["pm2_5"].dtype)
-        == "Float64"
-    )
+    assert str(dataframe["pm2_5"].dtype) == "Float64"
 
 
 def test_rejects_mismatched_hourly_lengths() -> None:
     raw_object = build_raw_object()
 
-    raw_object[
-        "api_response"
-    ]["data"]["hourly"][
-        "pm2_5"
-    ] = [18.5]
+    raw_object["api_response"]["data"]["hourly"]["pm2_5"] = [18.5]
 
     with pytest.raises(
         MinioBatchTransformError,
         match="phần tử",
     ):
-        transform_raw_object(
-            raw_object
-        )
+        transform_raw_object(raw_object)
 
 
 def test_builds_transformed_prefix() -> None:
@@ -165,10 +136,7 @@ def test_builds_transformed_prefix() -> None:
     )
 
     assert result == (
-        "transformed/air_quality/hourly/"
-        "date=2026-07-13/"
-        "hour=21/"
-        "batch_id=test_batch"
+        "transformed/air_quality/hourly/date=2026-07-13/hour=21/batch_id=test_batch"
     )
 
 
@@ -201,28 +169,18 @@ def test_latest_batch_ignores_failed_summary(
     summaries = {
         summary_names[0]: {
             "status": "FAILED",
-            "started_at": (
-                "2026-07-13T14:00:00+00:00"
-            ),
-            "finished_at": (
-                "2026-07-13T14:01:00+00:00"
-            ),
+            "started_at": ("2026-07-13T14:00:00+00:00"),
+            "finished_at": ("2026-07-13T14:01:00+00:00"),
             "successes": [],
         },
         summary_names[1]: {
             "status": "SUCCESS",
-            "started_at": (
-                "2026-07-13T15:00:00+00:00"
-            ),
-            "finished_at": (
-                "2026-07-13T15:01:00+00:00"
-            ),
+            "started_at": ("2026-07-13T15:00:00+00:00"),
+            "finished_at": ("2026-07-13T15:01:00+00:00"),
             "successes": [
                 {
                     "point_id": "HN_CENTER",
-                    "object_name": (
-                        "raw/data.json"
-                    ),
+                    "object_name": ("raw/data.json"),
                 }
             ],
         },
@@ -231,9 +189,7 @@ def test_latest_batch_ignores_failed_summary(
     monkeypatch.setattr(
         transformer_module,
         "get_json_object",
-        lambda object_name, **kwargs: (
-            summaries[object_name]
-        ),
+        lambda object_name, **kwargs: summaries[object_name],
     )
 
     (
@@ -244,12 +200,6 @@ def test_latest_batch_ignores_failed_summary(
         client=object(),
     )
 
-    assert (
-        selected_name
-        == summary_names[1]
-    )
+    assert selected_name == summary_names[1]
 
-    assert (
-        selected_summary["status"]
-        == "SUCCESS"
-    )
+    assert selected_summary["status"] == "SUCCESS"

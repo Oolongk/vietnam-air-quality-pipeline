@@ -24,10 +24,7 @@ def write_csv(
 def test_prepare_locations_valid(
     tmp_path: Path,
 ) -> None:
-    csv_path = (
-        tmp_path
-        / "locations.csv"
-    )
+    csv_path = tmp_path / "locations.csv"
 
     dataframe = pd.DataFrame(
         [
@@ -46,30 +43,19 @@ def test_prepare_locations_valid(
         dataframe=dataframe,
     )
 
-    result = prepare_locations(
-        csv_path
-    )
+    result = prepare_locations(csv_path)
 
     assert len(result) == 1
 
-    assert (
-        result.iloc[0]["location_id"]
-        == "HN"
-    )
+    assert result.iloc[0]["location_id"] == "HN"
 
-    assert (
-        result.iloc[0]["location_name"]
-        == "Hà Nội"
-    )
+    assert result.iloc[0]["location_name"] == "Hà Nội"
 
 
 def test_reject_duplicate_location_id(
     tmp_path: Path,
 ) -> None:
-    csv_path = (
-        tmp_path
-        / "locations.csv"
-    )
+    csv_path = tmp_path / "locations.csv"
 
     dataframe = pd.DataFrame(
         [
@@ -95,21 +81,14 @@ def test_reject_duplicate_location_id(
         dataframe=dataframe,
     )
 
-    with pytest.raises(
-        DimensionLoaderError
-    ):
-        prepare_locations(
-            csv_path
-        )
+    with pytest.raises(DimensionLoaderError):
+        prepare_locations(csv_path)
 
 
 def test_reject_invalid_region(
     tmp_path: Path,
 ) -> None:
-    csv_path = (
-        tmp_path
-        / "locations.csv"
-    )
+    csv_path = tmp_path / "locations.csv"
 
     dataframe = pd.DataFrame(
         [
@@ -128,21 +107,14 @@ def test_reject_invalid_region(
         dataframe=dataframe,
     )
 
-    with pytest.raises(
-        DimensionLoaderError
-    ):
-        prepare_locations(
-            csv_path
-        )
+    with pytest.raises(DimensionLoaderError):
+        prepare_locations(csv_path)
 
 
 def test_prepare_monitoring_points_valid(
     tmp_path: Path,
 ) -> None:
-    csv_path = (
-        tmp_path
-        / "monitoring_points.csv"
-    )
+    csv_path = tmp_path / "monitoring_points.csv"
 
     dataframe = pd.DataFrame(
         [
@@ -172,24 +144,15 @@ def test_prepare_monitoring_points_valid(
 
     assert len(result) == 1
 
-    assert (
-        result.iloc[0]["point_id"]
-        == "HN_CENTER"
-    )
+    assert result.iloc[0]["point_id"] == "HN_CENTER"
 
-    assert (
-        result.iloc[0]["location_id"]
-        == "HN"
-    )
+    assert result.iloc[0]["location_id"] == "HN"
 
 
 def test_reject_unknown_location_id(
     tmp_path: Path,
 ) -> None:
-    csv_path = (
-        tmp_path
-        / "monitoring_points.csv"
-    )
+    csv_path = tmp_path / "monitoring_points.csv"
 
     dataframe = pd.DataFrame(
         [
@@ -210,9 +173,7 @@ def test_reject_unknown_location_id(
         dataframe=dataframe,
     )
 
-    with pytest.raises(
-        DimensionLoaderError
-    ):
+    with pytest.raises(DimensionLoaderError):
         prepare_monitoring_points(
             csv_path=csv_path,
             valid_location_ids={
@@ -224,10 +185,7 @@ def test_reject_unknown_location_id(
 def test_reject_invalid_latitude(
     tmp_path: Path,
 ) -> None:
-    csv_path = (
-        tmp_path
-        / "monitoring_points.csv"
-    )
+    csv_path = tmp_path / "monitoring_points.csv"
 
     dataframe = pd.DataFrame(
         [
@@ -248,9 +206,7 @@ def test_reject_invalid_latitude(
         dataframe=dataframe,
     )
 
-    with pytest.raises(
-        DimensionLoaderError
-    ):
+    with pytest.raises(DimensionLoaderError):
         prepare_monitoring_points(
             csv_path=csv_path,
             valid_location_ids={
@@ -262,10 +218,7 @@ def test_reject_invalid_latitude(
 def test_reject_duplicate_coordinates(
     tmp_path: Path,
 ) -> None:
-    csv_path = (
-        tmp_path
-        / "monitoring_points.csv"
-    )
+    csv_path = tmp_path / "monitoring_points.csv"
 
     dataframe = pd.DataFrame(
         [
@@ -295,9 +248,7 @@ def test_reject_duplicate_coordinates(
         dataframe=dataframe,
     )
 
-    with pytest.raises(
-        DimensionLoaderError
-    ):
+    with pytest.raises(DimensionLoaderError):
         prepare_monitoring_points(
             csv_path=csv_path,
             valid_location_ids={

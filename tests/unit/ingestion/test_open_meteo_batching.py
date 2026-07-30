@@ -19,16 +19,12 @@ def make_points(
             "latitude": 10.0 + index,
             "longitude": 106.0 + index,
         }
-        for index in range(
-            count
-        )
+        for index in range(count)
     ]
 
 
 def test_chunk_ten_points_by_ten() -> None:
-    points = make_points(
-        10
-    )
+    points = make_points(10)
 
     batches = list(
         chunk_monitoring_points(
@@ -42,9 +38,7 @@ def test_chunk_ten_points_by_ten() -> None:
 
 
 def test_chunk_ten_points_by_three() -> None:
-    points = make_points(
-        10
-    )
+    points = make_points(10)
 
     batches = list(
         chunk_monitoring_points(
@@ -55,10 +49,7 @@ def test_chunk_ten_points_by_three() -> None:
 
     assert len(batches) == 4
 
-    assert [
-        len(batch)
-        for batch in batches
-    ] == [
+    assert [len(batch) for batch in batches] == [
         3,
         3,
         3,
@@ -67,65 +58,48 @@ def test_chunk_ten_points_by_three() -> None:
 
 
 def test_reject_zero_batch_size() -> None:
-    points = make_points(
-        1
-    )
+    points = make_points(1)
 
-    with pytest.raises(
-        ValueError
-    ):
+    with pytest.raises(ValueError):
         list(
             chunk_monitoring_points(
                 monitoring_points=points,
                 batch_size=0,
             )
         )
-        
+
+
 def test_prefetches_points_in_http_batches() -> None:
     monitoring_points = [
         MonitoringPoint(
             point_id=f"POINT_{index}",
             location_id="TEST",
-            point_name=(
-                f"Test point {index}"
-            ),
+            point_name=(f"Test point {index}"),
             point_type="urban_center",
             latitude=10.0 + index,
             longitude=106.0 + index,
             is_active=True,
         )
-        for index in range(
-            5
-        )
+        for index in range(5)
     ]
 
     class FakeOpenMeteoClient:
         def __init__(
             self,
         ) -> None:
-            self.batch_sizes: list[
-                int
-            ] = []
+            self.batch_sizes: list[int] = []
 
         def fetch_hourly_air_quality_batch(
             self,
             monitoring_points,
         ):
-            self.batch_sizes.append(
-                len(
-                    monitoring_points
-                )
-            )
+            self.batch_sizes.append(len(monitoring_points))
 
             return [
                 {
                     "request": {
-                        "point_id": point[
-                            "point_id"
-                        ],
-                        "location_id": point[
-                            "location_id"
-                        ],
+                        "point_id": point["point_id"],
+                        "location_id": point["location_id"],
                     },
                     "response": {
                         "hourly": {
@@ -145,9 +119,7 @@ def test_prefetches_points_in_http_batches() -> None:
         failures,
     ) = prefetch_air_quality_batches(
         client=client,
-        monitoring_points=(
-            monitoring_points
-        ),
+        monitoring_points=(monitoring_points),
         batch_size=2,
     )
 
@@ -157,15 +129,8 @@ def test_prefetches_points_in_http_batches() -> None:
         1,
     ]
 
-    assert len(
-        responses
-    ) == 5
+    assert len(responses) == 5
 
     assert failures == {}
 
-    assert (
-        responses["POINT_0"]
-        ["request"]
-        ["point_id"]
-        == "POINT_0"
-    )
+    assert responses["POINT_0"]["request"]["point_id"] == "POINT_0"

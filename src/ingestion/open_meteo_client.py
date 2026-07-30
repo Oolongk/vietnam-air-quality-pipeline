@@ -1,18 +1,17 @@
 from __future__ import annotations
 
-import os
 from datetime import datetime, timezone
+import os
 from typing import Any, Sequence
 
-import requests
 from dotenv import load_dotenv
+import requests
 from tenacity import (
     Retrying,
     retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
 )
-
 
 DEFAULT_HOURLY_VARIABLES: tuple[str, ...] = (
     "pm2_5",
@@ -45,15 +44,11 @@ class OpenMeteoClientError(RuntimeError):
     """Lỗi chung khi giao tiếp với Open-Meteo API."""
 
 
-class RetryableOpenMeteoError(
-    OpenMeteoClientError
-):
+class RetryableOpenMeteoError(OpenMeteoClientError):
     """Lỗi tạm thời có thể thử gọi lại."""
 
 
-class InvalidOpenMeteoResponseError(
-    OpenMeteoClientError
-):
+class InvalidOpenMeteoResponseError(OpenMeteoClientError):
     """API phản hồi thành công nhưng dữ liệu không hợp lệ."""
 
 
@@ -85,14 +80,11 @@ def get_int_environment(
     ).strip()
 
     try:
-        return int(
-            raw_value
-        )
+        return int(raw_value)
 
     except ValueError as error:
         raise ValueError(
-            f"{name} phải là số nguyên, "
-            f"nhận được {raw_value!r}."
+            f"{name} phải là số nguyên, nhận được {raw_value!r}."
         ) from error
 
 
@@ -124,15 +116,10 @@ def get_float_environment(
     ).strip()
 
     try:
-        return float(
-            raw_value
-        )
+        return float(raw_value)
 
     except ValueError as error:
-        raise ValueError(
-            f"{name} phải là số, "
-            f"nhận được {raw_value!r}."
-        ) from error
+        raise ValueError(f"{name} phải là số, nhận được {raw_value!r}.") from error
 
 
 class OpenMeteoClient:
@@ -173,35 +160,17 @@ class OpenMeteoClient:
 
         load_dotenv()
 
-        configured_url = (
-            base_url
-            or os.getenv(
-                "OPEN_METEO_AIR_QUALITY_URL"
-            )
-        )
+        configured_url = base_url or os.getenv("OPEN_METEO_AIR_QUALITY_URL")
 
         if not configured_url:
-            raise OpenMeteoClientError(
-                "Chưa cấu hình "
-                "OPEN_METEO_AIR_QUALITY_URL."
-            )
+            raise OpenMeteoClientError("Chưa cấu hình OPEN_METEO_AIR_QUALITY_URL.")
 
-        selected_variables = tuple(
-            hourly_variables
-            or DEFAULT_HOURLY_VARIABLES
-        )
+        selected_variables = tuple(hourly_variables or DEFAULT_HOURLY_VARIABLES)
 
         if not selected_variables:
-            raise ValueError(
-                "Danh sách hourly_variables "
-                "không được rỗng."
-            )
+            raise ValueError("Danh sách hourly_variables không được rỗng.")
 
-        legacy_timeout = (
-            float(timeout_seconds)
-            if timeout_seconds is not None
-            else None
-        )
+        legacy_timeout = float(timeout_seconds) if timeout_seconds is not None else None
 
         configured_connect_timeout = (
             connect_timeout_seconds
@@ -266,90 +235,49 @@ class OpenMeteoClient:
         )
 
         if configured_connect_timeout <= 0:
-            raise ValueError(
-                "connect_timeout_seconds "
-                "phải lớn hơn 0."
-            )
+            raise ValueError("connect_timeout_seconds phải lớn hơn 0.")
 
         if configured_read_timeout <= 0:
-            raise ValueError(
-                "read_timeout_seconds "
-                "phải lớn hơn 0."
-            )
+            raise ValueError("read_timeout_seconds phải lớn hơn 0.")
 
         if configured_max_attempts <= 0:
-            raise ValueError(
-                "max_attempts phải lớn hơn 0."
-            )
+            raise ValueError("max_attempts phải lớn hơn 0.")
 
         if configured_backoff_multiplier < 0:
-            raise ValueError(
-                "backoff_multiplier "
-                "không được nhỏ hơn 0."
-            )
+            raise ValueError("backoff_multiplier không được nhỏ hơn 0.")
 
         if configured_backoff_min < 0:
-            raise ValueError(
-                "backoff_min_seconds "
-                "không được nhỏ hơn 0."
-            )
+            raise ValueError("backoff_min_seconds không được nhỏ hơn 0.")
 
         if configured_backoff_max < 0:
+            raise ValueError("backoff_max_seconds không được nhỏ hơn 0.")
+
+        if configured_backoff_max < configured_backoff_min:
             raise ValueError(
-                "backoff_max_seconds "
-                "không được nhỏ hơn 0."
+                "backoff_max_seconds không được nhỏ hơn backoff_min_seconds."
             )
 
-        if (
-            configured_backoff_max
-            < configured_backoff_min
-        ):
-            raise ValueError(
-                "backoff_max_seconds không được "
-                "nhỏ hơn backoff_min_seconds."
-            )
+        self.base_url = configured_url.rstrip("/")
 
-        self.base_url = (
-            configured_url.rstrip(
-                "/"
-            )
-        )
+        self.hourly_variables = selected_variables
 
-        self.hourly_variables = (
-            selected_variables
-        )
+        self.connect_timeout_seconds = float(configured_connect_timeout)
 
-        self.connect_timeout_seconds = float(
-            configured_connect_timeout
-        )
+        self.read_timeout_seconds = float(configured_read_timeout)
 
-        self.read_timeout_seconds = float(
-            configured_read_timeout
-        )
+        self.max_attempts = int(configured_max_attempts)
 
-        self.max_attempts = int(
-            configured_max_attempts
-        )
+        self.backoff_multiplier = float(configured_backoff_multiplier)
 
-        self.backoff_multiplier = float(
-            configured_backoff_multiplier
-        )
+        self.backoff_min_seconds = float(configured_backoff_min)
 
-        self.backoff_min_seconds = float(
-            configured_backoff_min
-        )
-
-        self.backoff_max_seconds = float(
-            configured_backoff_max
-        )
+        self.backoff_max_seconds = float(configured_backoff_max)
 
         self.session = requests.Session()
 
         self.session.headers.update(
             {
-                "User-Agent": (
-                    "vietnam-air-quality-pipeline/1.0"
-                ),
+                "User-Agent": ("vietnam-air-quality-pipeline/1.0"),
                 "Accept": "application/json",
             }
         )
@@ -373,16 +301,12 @@ class OpenMeteoClient:
             value,
             str,
         ):
-            raise TypeError(
-                f"{field_name} phải là chuỗi."
-            )
+            raise TypeError(f"{field_name} phải là chuỗi.")
 
         cleaned_value = value.strip()
 
         if not cleaned_value:
-            raise ValueError(
-                f"{field_name} không được rỗng."
-            )
+            raise ValueError(f"{field_name} không được rỗng.")
 
         return cleaned_value
 
@@ -396,34 +320,21 @@ class OpenMeteoClient:
         """
 
         try:
-            latitude_value = float(
-                latitude
-            )
+            latitude_value = float(latitude)
 
-            longitude_value = float(
-                longitude
-            )
+            longitude_value = float(longitude)
 
         except (
             TypeError,
             ValueError,
         ) as error:
-            raise ValueError(
-                "Latitude và longitude "
-                "phải là số."
-            ) from error
+            raise ValueError("Latitude và longitude phải là số.") from error
 
         if not -90 <= latitude_value <= 90:
-            raise ValueError(
-                "Latitude phải nằm trong "
-                "khoảng -90 đến 90."
-            )
+            raise ValueError("Latitude phải nằm trong khoảng -90 đến 90.")
 
         if not -180 <= longitude_value <= 180:
-            raise ValueError(
-                "Longitude phải nằm trong "
-                "khoảng -180 đến 180."
-            )
+            raise ValueError("Longitude phải nằm trong khoảng -180 đến 180.")
 
         return (
             latitude_value,
@@ -444,48 +355,32 @@ class OpenMeteoClient:
             forecast_hours,
             int,
         ):
-            raise TypeError(
-                "forecast_hours "
-                "phải là số nguyên."
-            )
+            raise TypeError("forecast_hours phải là số nguyên.")
 
         if forecast_hours <= 0:
-            raise ValueError(
-                "forecast_hours "
-                "phải lớn hơn 0."
-            )
+            raise ValueError("forecast_hours phải lớn hơn 0.")
 
         if not isinstance(
             timezone_name,
             str,
         ):
-            raise TypeError(
-                "timezone_name phải là chuỗi."
-            )
+            raise TypeError("timezone_name phải là chuỗi.")
 
-        cleaned_timezone = (
-            timezone_name.strip()
-        )
+        cleaned_timezone = timezone_name.strip()
 
         if not cleaned_timezone:
-            raise ValueError(
-                "timezone_name không được rỗng."
-            )
+            raise ValueError("timezone_name không được rỗng.")
 
         if not isinstance(
             domain,
             str,
         ):
-            raise TypeError(
-                "domain phải là chuỗi."
-            )
+            raise TypeError("domain phải là chuỗi.")
 
         cleaned_domain = domain.strip()
 
         if not cleaned_domain:
-            raise ValueError(
-                "domain không được rỗng."
-            )
+            raise ValueError("domain không được rỗng.")
 
         return (
             forecast_hours,
@@ -508,9 +403,7 @@ class OpenMeteoClient:
         return {
             "latitude": latitude,
             "longitude": longitude,
-            "hourly": ",".join(
-                self.hourly_variables
-            ),
+            "hourly": ",".join(self.hourly_variables),
             "timezone": timezone_name,
             "forecast_hours": forecast_hours,
             "domains": domain,
@@ -518,9 +411,7 @@ class OpenMeteoClient:
 
     def _build_batch_params(
         self,
-        monitoring_points: Sequence[
-            dict[str, Any]
-        ],
+        monitoring_points: Sequence[dict[str, Any]],
         forecast_hours: int,
         timezone_name: str,
         domain: str,
@@ -536,32 +427,18 @@ class OpenMeteoClient:
         longitudes: list[str] = []
 
         for point in monitoring_points:
-            latitude_value = float(
-                point["latitude"]
-            )
+            latitude_value = float(point["latitude"])
 
-            longitude_value = float(
-                point["longitude"]
-            )
+            longitude_value = float(point["longitude"])
 
-            latitudes.append(
-                str(latitude_value)
-            )
+            latitudes.append(str(latitude_value))
 
-            longitudes.append(
-                str(longitude_value)
-            )
+            longitudes.append(str(longitude_value))
 
         return {
-            "latitude": ",".join(
-                latitudes
-            ),
-            "longitude": ",".join(
-                longitudes
-            ),
-            "hourly": ",".join(
-                self.hourly_variables
-            ),
+            "latitude": ",".join(latitudes),
+            "longitude": ",".join(longitudes),
+            "hourly": ",".join(self.hourly_variables),
             "timezone": timezone_name,
             "forecast_hours": forecast_hours,
             "domains": domain,
@@ -579,36 +456,20 @@ class OpenMeteoClient:
             response_body = response.json()
 
         except ValueError:
-            response_text = (
-                response.text.strip()
-            )
+            response_text = response.text.strip()
 
-            return (
-                response_text
-                or "API không trả nội dung lỗi."
-            )
+            return response_text or "API không trả nội dung lỗi."
 
         if isinstance(
             response_body,
             dict,
         ):
-            reason = (
-                response_body.get(
-                    "reason"
-                )
-                or response_body.get(
-                    "message"
-                )
-            )
+            reason = response_body.get("reason") or response_body.get("message")
 
             if reason:
-                return str(
-                    reason
-                )
+                return str(reason)
 
-        return str(
-            response_body
-        )
+        return str(response_body)
 
     def _send_request_once(
         self,
@@ -641,33 +502,21 @@ class OpenMeteoClient:
 
         except requests.RequestException as error:
             raise OpenMeteoClientError(
-                "Không thể gửi request "
-                "đến Open-Meteo."
+                "Không thể gửi request đến Open-Meteo."
             ) from error
 
-        if (
-            response.status_code
-            in RETRYABLE_HTTP_STATUS_CODES
-        ):
-            reason = self._read_error_reason(
-                response
-            )
+        if response.status_code in RETRYABLE_HTTP_STATUS_CODES:
+            reason = self._read_error_reason(response)
 
             raise RetryableOpenMeteoError(
-                "Open-Meteo gặp lỗi tạm thời. "
-                f"HTTP {response.status_code}: "
-                f"{reason}"
+                f"Open-Meteo gặp lỗi tạm thời. HTTP {response.status_code}: {reason}"
             )
 
         if response.status_code >= 400:
-            reason = self._read_error_reason(
-                response
-            )
+            reason = self._read_error_reason(response)
 
             raise OpenMeteoClientError(
-                "Open-Meteo từ chối request. "
-                f"HTTP {response.status_code}: "
-                f"{reason}"
+                f"Open-Meteo từ chối request. HTTP {response.status_code}: {reason}"
             )
 
         try:
@@ -675,29 +524,20 @@ class OpenMeteoClient:
 
         except ValueError as error:
             raise InvalidOpenMeteoResponseError(
-                "Open-Meteo không trả "
-                "JSON hợp lệ."
+                "Open-Meteo không trả JSON hợp lệ."
             ) from error
 
         if isinstance(
             response_data,
             dict,
         ):
-            if (
-                response_data.get(
-                    "error"
-                )
-                is True
-            ):
+            if response_data.get("error") is True:
                 reason = response_data.get(
                     "reason",
                     "Không rõ nguyên nhân.",
                 )
 
-                raise OpenMeteoClientError(
-                    "Open-Meteo báo lỗi: "
-                    f"{reason}"
-                )
+                raise OpenMeteoClientError(f"Open-Meteo báo lỗi: {reason}")
 
             return response_data
 
@@ -732,19 +572,11 @@ class OpenMeteoClient:
                     RetryableOpenMeteoError,
                 )
             ),
-            stop=stop_after_attempt(
-                self.max_attempts
-            ),
+            stop=stop_after_attempt(self.max_attempts),
             wait=wait_exponential(
-                multiplier=(
-                    self.backoff_multiplier
-                ),
-                min=(
-                    self.backoff_min_seconds
-                ),
-                max=(
-                    self.backoff_max_seconds
-                ),
+                multiplier=(self.backoff_multiplier),
+                min=(self.backoff_min_seconds),
+                max=(self.backoff_max_seconds),
             ),
             reraise=True,
         )
@@ -752,14 +584,9 @@ class OpenMeteoClient:
         try:
             for attempt in retrying:
                 with attempt:
-                    self.last_request_attempts = (
-                        attempt.retry_state
-                        .attempt_number
-                    )
+                    self.last_request_attempts = attempt.retry_state.attempt_number
 
-                    return self._send_request_once(
-                        params=params
-                    )
+                    return self._send_request_once(params=params)
 
         except (
             requests.Timeout,
@@ -767,15 +594,10 @@ class OpenMeteoClient:
             RetryableOpenMeteoError,
         ) as error:
             raise OpenMeteoClientError(
-                "Không thể lấy dữ liệu từ "
-                "Open-Meteo sau "
-                f"{self.max_attempts} lần thử."
+                f"Không thể lấy dữ liệu từ Open-Meteo sau {self.max_attempts} lần thử."
             ) from error
 
-        raise OpenMeteoClientError(
-            "Request Open-Meteo kết thúc "
-            "không xác định."
-        )
+        raise OpenMeteoClientError("Request Open-Meteo kết thúc không xác định.")
 
     def _validate_response(
         self,
@@ -785,94 +607,59 @@ class OpenMeteoClient:
         Kiểm tra response của một monitoring point.
         """
 
-        hourly_data = response_data.get(
-            "hourly"
-        )
+        hourly_data = response_data.get("hourly")
 
-        hourly_units = response_data.get(
-            "hourly_units"
-        )
+        hourly_units = response_data.get("hourly_units")
 
         if not isinstance(
             hourly_data,
             dict,
         ):
-            raise InvalidOpenMeteoResponseError(
-                "Response thiếu object "
-                "'hourly'."
-            )
+            raise InvalidOpenMeteoResponseError("Response thiếu object 'hourly'.")
 
         if not isinstance(
             hourly_units,
             dict,
         ):
-            raise InvalidOpenMeteoResponseError(
-                "Response thiếu object "
-                "'hourly_units'."
-            )
+            raise InvalidOpenMeteoResponseError("Response thiếu object 'hourly_units'.")
 
         required_hourly_fields = {
             "time",
             *self.hourly_variables,
         }
 
-        missing_fields = (
-            required_hourly_fields
-            - set(
-                hourly_data
-            )
-        )
+        missing_fields = required_hourly_fields - set(hourly_data)
 
         if missing_fields:
-            missing_text = ", ".join(
-                sorted(
-                    missing_fields
-                )
-            )
+            missing_text = ", ".join(sorted(missing_fields))
 
             raise InvalidOpenMeteoResponseError(
-                "Object 'hourly' thiếu trường: "
-                f"{missing_text}"
+                f"Object 'hourly' thiếu trường: {missing_text}"
             )
 
-        time_values = hourly_data[
-            "time"
-        ]
+        time_values = hourly_data["time"]
 
         if not isinstance(
             time_values,
             list,
         ):
-            raise InvalidOpenMeteoResponseError(
-                "hourly.time phải là array."
-            )
+            raise InvalidOpenMeteoResponseError("hourly.time phải là array.")
 
         if not time_values:
-            raise InvalidOpenMeteoResponseError(
-                "hourly.time không có dữ liệu."
-            )
+            raise InvalidOpenMeteoResponseError("hourly.time không có dữ liệu.")
 
-        expected_length = len(
-            time_values
-        )
+        expected_length = len(time_values)
 
         for variable in self.hourly_variables:
-            values = hourly_data[
-                variable
-            ]
+            values = hourly_data[variable]
 
             if not isinstance(
                 values,
                 list,
             ):
-                raise InvalidOpenMeteoResponseError(
-                    f"hourly.{variable} "
-                    "phải là array."
-                )
+                raise InvalidOpenMeteoResponseError(f"hourly.{variable} phải là array.")
 
-            if len(
-                values
-            ) != expected_length:
+            if len(values) != expected_length:
                 raise InvalidOpenMeteoResponseError(
                     f"hourly.{variable} có "
                     f"{len(values)} phần tử, "
@@ -882,8 +669,7 @@ class OpenMeteoClient:
 
             if variable not in hourly_units:
                 raise InvalidOpenMeteoResponseError(
-                    "hourly_units thiếu đơn vị "
-                    f"của '{variable}'."
+                    f"hourly_units thiếu đơn vị của '{variable}'."
                 )
 
     def _normalize_batch_responses(
@@ -902,9 +688,7 @@ class OpenMeteoClient:
             response_data,
             dict,
         ):
-            responses: list[
-                dict[str, Any]
-            ] = [
+            responses: list[dict[str, Any]] = [
                 response_data,
             ]
 
@@ -914,9 +698,7 @@ class OpenMeteoClient:
         ):
             responses = []
 
-            for response_index, item in enumerate(
-                response_data
-            ):
+            for response_index, item in enumerate(response_data):
                 if not isinstance(
                     item,
                     dict,
@@ -929,19 +711,14 @@ class OpenMeteoClient:
                         )
                     )
 
-                responses.append(
-                    item
-                )
+                responses.append(item)
 
         else:
             raise InvalidOpenMeteoResponseError(
-                "Response batch không phải "
-                "JSON object hoặc array."
+                "Response batch không phải JSON object hoặc array."
             )
 
-        if len(
-            responses
-        ) != expected_count:
+        if len(responses) != expected_count:
             raise InvalidOpenMeteoResponseError(
                 "Số response Open-Meteo "
                 "không khớp số monitoring point. "
@@ -949,21 +726,15 @@ class OpenMeteoClient:
                 f"actual={len(responses)}."
             )
 
-        for response_index, item in enumerate(
-            responses
-        ):
-            if item.get(
-                "error"
-            ) is True:
+        for response_index, item in enumerate(responses):
+            if item.get("error") is True:
                 reason = item.get(
                     "reason",
                     "Không rõ nguyên nhân.",
                 )
 
                 raise OpenMeteoClientError(
-                    "Open-Meteo báo lỗi tại "
-                    f"response index {response_index}: "
-                    f"{reason}"
+                    f"Open-Meteo báo lỗi tại response index {response_index}: {reason}"
                 )
 
         return responses
@@ -988,35 +759,25 @@ class OpenMeteoClient:
         return {
             "schema_version": "1.0",
             "source": "open_meteo",
-            "ingested_at": datetime.now(
-                timezone.utc
-            ).isoformat(),
+            "ingested_at": datetime.now(timezone.utc).isoformat(),
             "request": {
                 "point_id": point_id,
                 "location_id": location_id,
                 "latitude": latitude,
                 "longitude": longitude,
-                "forecast_hours": (
-                    forecast_hours
-                ),
+                "forecast_hours": (forecast_hours),
                 "timezone": timezone_name,
                 "domain": domain,
-                "hourly_variables": list(
-                    self.hourly_variables
-                ),
+                "hourly_variables": list(self.hourly_variables),
             },
             "response": response_data,
         }
 
     def fetch_hourly_air_quality_batch(
         self,
-        monitoring_points: Sequence[
-            dict[str, Any]
-        ],
+        monitoring_points: Sequence[dict[str, Any]],
         forecast_hours: int = 24,
-        timezone_name: str = (
-            "Asia/Ho_Chi_Minh"
-        ),
+        timezone_name: str = ("Asia/Ho_Chi_Minh"),
         domain: str = "cams_global",
     ) -> list[dict[str, Any]]:
         """
@@ -1046,35 +807,26 @@ class OpenMeteoClient:
             domain=domain,
         )
 
-        validated_points: list[
-            dict[str, Any]
-        ] = []
+        validated_points: list[dict[str, Any]] = []
 
-        for point_index, point in enumerate(
-            monitoring_points
-        ):
+        for point_index, point in enumerate(monitoring_points):
             if not isinstance(
                 point,
                 dict,
             ):
                 raise TypeError(
-                    "Monitoring point tại index "
-                    f"{point_index} phải là dict."
+                    f"Monitoring point tại index {point_index} phải là dict."
                 )
 
             try:
-                point_id = (
-                    self._validate_identifier(
-                        point["point_id"],
-                        "point_id",
-                    )
+                point_id = self._validate_identifier(
+                    point["point_id"],
+                    "point_id",
                 )
 
-                location_id = (
-                    self._validate_identifier(
-                        point["location_id"],
-                        "location_id",
-                    )
+                location_id = self._validate_identifier(
+                    point["location_id"],
+                    "location_id",
                 )
 
                 (
@@ -1086,9 +838,7 @@ class OpenMeteoClient:
                 )
 
             except KeyError as error:
-                missing_field = str(
-                    error.args[0]
-                )
+                missing_field = str(error.args[0])
 
                 raise ValueError(
                     "Monitoring point tại index "
@@ -1106,70 +856,40 @@ class OpenMeteoClient:
             )
 
         params = self._build_batch_params(
-            monitoring_points=(
-                validated_points
-            ),
-            forecast_hours=(
-                validated_forecast_hours
-            ),
-            timezone_name=(
-                cleaned_timezone_name
-            ),
+            monitoring_points=(validated_points),
+            forecast_hours=(validated_forecast_hours),
+            timezone_name=(cleaned_timezone_name),
             domain=cleaned_domain,
         )
 
-        response_data = self._send_request(
-            params=params
+        response_data = self._send_request(params=params)
+
+        responses = self._normalize_batch_responses(
+            response_data=response_data,
+            expected_count=len(validated_points),
         )
 
-        responses = (
-            self._normalize_batch_responses(
-                response_data=response_data,
-                expected_count=len(
-                    validated_points
-                ),
-            )
-        )
-
-        results: list[
-            dict[str, Any]
-        ] = []
+        results: list[dict[str, Any]] = []
 
         for point, response_item in zip(
             validated_points,
             responses,
             strict=True,
         ):
-            self._validate_response(
-                response_data=response_item
-            )
+            self._validate_response(response_data=response_item)
 
             result = self._build_result(
-                point_id=point[
-                    "point_id"
-                ],
-                location_id=point[
-                    "location_id"
-                ],
-                latitude=point[
-                    "latitude"
-                ],
-                longitude=point[
-                    "longitude"
-                ],
-                forecast_hours=(
-                    validated_forecast_hours
-                ),
-                timezone_name=(
-                    cleaned_timezone_name
-                ),
+                point_id=point["point_id"],
+                location_id=point["location_id"],
+                latitude=point["latitude"],
+                longitude=point["longitude"],
+                forecast_hours=(validated_forecast_hours),
+                timezone_name=(cleaned_timezone_name),
                 domain=cleaned_domain,
                 response_data=response_item,
             )
 
-            results.append(
-                result
-            )
+            results.append(result)
 
         return results
 
@@ -1180,9 +900,7 @@ class OpenMeteoClient:
         latitude: float,
         longitude: float,
         forecast_hours: int = 24,
-        timezone_name: str = (
-            "Asia/Ho_Chi_Minh"
-        ),
+        timezone_name: str = ("Asia/Ho_Chi_Minh"),
         domain: str = "cams_global",
     ) -> dict[str, Any]:
         """
@@ -1192,27 +910,21 @@ class OpenMeteoClient:
         với các script và test đã có từ trước.
         """
 
-        results = (
-            self.fetch_hourly_air_quality_batch(
-                monitoring_points=[
-                    {
-                        "point_id": point_id,
-                        "location_id": (
-                            location_id
-                        ),
-                        "latitude": latitude,
-                        "longitude": longitude,
-                    }
-                ],
-                forecast_hours=forecast_hours,
-                timezone_name=timezone_name,
-                domain=domain,
-            )
+        results = self.fetch_hourly_air_quality_batch(
+            monitoring_points=[
+                {
+                    "point_id": point_id,
+                    "location_id": (location_id),
+                    "latitude": latitude,
+                    "longitude": longitude,
+                }
+            ],
+            forecast_hours=forecast_hours,
+            timezone_name=timezone_name,
+            domain=domain,
         )
 
-        return results[
-            0
-        ]
+        return results[0]
 
     def get_request_metrics(
         self,
@@ -1222,12 +934,8 @@ class OpenMeteoClient:
         """
 
         return {
-            "total_http_attempts": (
-                self.total_http_attempts
-            ),
-            "last_request_attempts": (
-                self.last_request_attempts
-            ),
+            "total_http_attempts": (self.total_http_attempts),
+            "last_request_attempts": (self.last_request_attempts),
         }
 
     def close(

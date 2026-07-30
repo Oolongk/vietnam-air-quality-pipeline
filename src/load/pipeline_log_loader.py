@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import json
 from datetime import datetime
+import json
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -10,7 +10,6 @@ import psycopg
 from src.utils.db import (
     get_database_connection,
 )
-
 
 PIPELINE_STAGES: tuple[str, ...] = (
     "extraction",
@@ -133,16 +132,12 @@ def _require_non_empty_string(
     value = container.get(key)
 
     if not isinstance(value, str):
-        raise PipelineLogLoadError(
-            f"{context} thiếu chuỗi '{key}'."
-        )
+        raise PipelineLogLoadError(f"{context} thiếu chuỗi '{key}'.")
 
     cleaned_value = value.strip()
 
     if not cleaned_value:
-        raise PipelineLogLoadError(
-            f"{context}.{key} không được rỗng."
-        )
+        raise PipelineLogLoadError(f"{context}.{key} không được rỗng.")
 
     return cleaned_value
 
@@ -152,16 +147,12 @@ def _parse_aware_datetime(
     field_name: str,
 ) -> datetime:
     if not isinstance(value, str):
-        raise PipelineLogLoadError(
-            f"{field_name} phải là chuỗi datetime."
-        )
+        raise PipelineLogLoadError(f"{field_name} phải là chuỗi datetime.")
 
     cleaned_value = value.strip()
 
     if not cleaned_value:
-        raise PipelineLogLoadError(
-            f"{field_name} không được rỗng."
-        )
+        raise PipelineLogLoadError(f"{field_name} không được rỗng.")
 
     normalized_value = cleaned_value.replace(
         "Z",
@@ -169,22 +160,14 @@ def _parse_aware_datetime(
     )
 
     try:
-        parsed_value = datetime.fromisoformat(
-            normalized_value
-        )
+        parsed_value = datetime.fromisoformat(normalized_value)
     except ValueError as error:
         raise PipelineLogLoadError(
-            f"{field_name} không phải ISO datetime "
-            f"hợp lệ: {value!r}"
+            f"{field_name} không phải ISO datetime hợp lệ: {value!r}"
         ) from error
 
-    if (
-        parsed_value.tzinfo is None
-        or parsed_value.utcoffset() is None
-    ):
-        raise PipelineLogLoadError(
-            f"{field_name} phải có timezone."
-        )
+    if parsed_value.tzinfo is None or parsed_value.utcoffset() is None:
+        raise PipelineLogLoadError(f"{field_name} phải có timezone.")
 
     return parsed_value
 
@@ -211,9 +194,7 @@ def _non_negative_integer(
         return default
 
     if isinstance(value, bool):
-        raise PipelineLogLoadError(
-            f"{field_name} phải là số nguyên."
-        )
+        raise PipelineLogLoadError(f"{field_name} phải là số nguyên.")
 
     try:
         converted_value = int(value)
@@ -221,14 +202,10 @@ def _non_negative_integer(
         TypeError,
         ValueError,
     ) as error:
-        raise PipelineLogLoadError(
-            f"{field_name} phải là số nguyên."
-        ) from error
+        raise PipelineLogLoadError(f"{field_name} phải là số nguyên.") from error
 
     if converted_value < 0:
-        raise PipelineLogLoadError(
-            f"{field_name} không được âm."
-        )
+        raise PipelineLogLoadError(f"{field_name} không được âm.")
 
     return converted_value
 
@@ -241,9 +218,7 @@ def _optional_non_negative_float(
         return None
 
     if isinstance(value, bool):
-        raise PipelineLogLoadError(
-            f"{field_name} phải là số."
-        )
+        raise PipelineLogLoadError(f"{field_name} phải là số.")
 
     try:
         converted_value = float(value)
@@ -251,14 +226,10 @@ def _optional_non_negative_float(
         TypeError,
         ValueError,
     ) as error:
-        raise PipelineLogLoadError(
-            f"{field_name} phải là số."
-        ) from error
+        raise PipelineLogLoadError(f"{field_name} phải là số.") from error
 
     if converted_value < 0:
-        raise PipelineLogLoadError(
-            f"{field_name} không được âm."
-        )
+        raise PipelineLogLoadError(f"{field_name} không được âm.")
 
     return converted_value
 
@@ -268,24 +239,14 @@ def _validate_pipeline_status(
     context: str,
 ) -> str:
     if not isinstance(value, str):
-        raise PipelineLogLoadError(
-            f"{context}.status phải là chuỗi."
-        )
+        raise PipelineLogLoadError(f"{context}.status phải là chuỗi.")
 
     normalized_value = value.strip().upper()
 
-    if (
-        normalized_value
-        not in ALLOWED_PIPELINE_STATUSES
-    ):
-        allowed_text = ", ".join(
-            sorted(ALLOWED_PIPELINE_STATUSES)
-        )
+    if normalized_value not in ALLOWED_PIPELINE_STATUSES:
+        allowed_text = ", ".join(sorted(ALLOWED_PIPELINE_STATUSES))
 
-        raise PipelineLogLoadError(
-            f"{context}.status phải thuộc: "
-            f"{allowed_text}."
-        )
+        raise PipelineLogLoadError(f"{context}.status phải thuộc: {allowed_text}.")
 
     return normalized_value
 
@@ -295,21 +256,14 @@ def _validate_dq_status(
     context: str,
 ) -> str:
     if not isinstance(value, str):
-        raise PipelineLogLoadError(
-            f"{context}.status phải là chuỗi."
-        )
+        raise PipelineLogLoadError(f"{context}.status phải là chuỗi.")
 
     normalized_value = value.strip().upper()
 
     if normalized_value not in ALLOWED_DQ_STATUSES:
-        allowed_text = ", ".join(
-            sorted(ALLOWED_DQ_STATUSES)
-        )
+        allowed_text = ", ".join(sorted(ALLOWED_DQ_STATUSES))
 
-        raise PipelineLogLoadError(
-            f"{context}.status phải thuộc: "
-            f"{allowed_text}."
-        )
+        raise PipelineLogLoadError(f"{context}.status phải thuộc: {allowed_text}.")
 
     return normalized_value
 
@@ -318,9 +272,7 @@ def _build_error_message(
     stage: str,
     summary: Mapping[str, Any],
 ) -> str | None:
-    status = str(
-        summary.get("status", "")
-    ).strip().upper()
+    status = str(summary.get("status", "")).strip().upper()
 
     if status == "SUCCESS":
         return None
@@ -352,9 +304,7 @@ def _build_error_message(
                 if not isinstance(check, Mapping):
                     continue
 
-                check_status = str(
-                    check.get("status", "")
-                ).strip().upper()
+                check_status = str(check.get("status", "")).strip().upper()
 
                 if check_status != "PASSED":
                     check_name = str(
@@ -364,39 +314,21 @@ def _build_error_message(
                         )
                     )
 
-                    failed_checks.append(
-                        check_name
-                    )
+                    failed_checks.append(check_name)
 
-        failed_checks_text = ", ".join(
-            failed_checks
-        )
+        failed_checks_text = ", ".join(failed_checks)
 
         if failed_checks_text:
-            return (
-                f"Bad records: {bad_records}. "
-                f"Failed checks: "
-                f"{failed_checks_text}."
-            )
+            return f"Bad records: {bad_records}. Failed checks: {failed_checks_text}."
 
-        return (
-            f"Bad records: {bad_records}."
-        )
+        return f"Bad records: {bad_records}."
 
-    existing_message = summary.get(
-        "error_message"
-    )
+    existing_message = summary.get("error_message")
 
-    if (
-        isinstance(existing_message, str)
-        and existing_message.strip()
-    ):
+    if isinstance(existing_message, str) and existing_message.strip():
         return existing_message.strip()
 
-    return (
-        f"Stage {stage} kết thúc với "
-        f"status={status or 'UNKNOWN'}."
-    )
+    return f"Stage {stage} kết thúc với status={status or 'UNKNOWN'}."
 
 
 def _stage_record_counts(
@@ -406,22 +338,16 @@ def _stage_record_counts(
     if stage == "extraction":
         return (
             _non_negative_integer(
-                summary.get(
-                    "records_extracted"
-                ),
+                summary.get("records_extracted"),
                 "extraction.records_extracted",
             ),
             0,
         )
 
     if stage == "transform":
-        transformed_records = (
-            _non_negative_integer(
-                summary.get(
-                    "records_transformed"
-                ),
-                "transform.records_transformed",
-            )
+        transformed_records = _non_negative_integer(
+            summary.get("records_transformed"),
+            "transform.records_transformed",
         )
 
         return (
@@ -447,28 +373,17 @@ def _stage_record_counts(
             "database_load.input_records",
         )
 
-        inserted_records = (
-            _non_negative_integer(
-                summary.get(
-                    "inserted_records"
-                ),
-                "database_load.inserted_records",
-            )
+        inserted_records = _non_negative_integer(
+            summary.get("inserted_records"),
+            "database_load.inserted_records",
         )
 
-        updated_records = (
-            _non_negative_integer(
-                summary.get(
-                    "updated_records"
-                ),
-                "database_load.updated_records",
-            )
+        updated_records = _non_negative_integer(
+            summary.get("updated_records"),
+            "database_load.updated_records",
         )
 
-        loaded_records = (
-            inserted_records
-            + updated_records
-        )
+        loaded_records = inserted_records + updated_records
 
         return input_records, loaded_records
 
@@ -479,38 +394,23 @@ def _stage_record_counts(
                 "alert_processing.input_records",
             ),
             _non_negative_integer(
-                summary.get(
-                    "alerts_generated"
-                ),
+                summary.get("alerts_generated"),
                 "alert_processing.alerts_generated",
             ),
         )
 
-    raise PipelineLogLoadError(
-        f"Stage không được hỗ trợ: {stage}"
-    )
+    raise PipelineLogLoadError(f"Stage không được hỗ trợ: {stage}")
 
 
 def _validate_summaries(
-    summaries: Mapping[
-        str,
-        Mapping[str, Any]
-    ],
+    summaries: Mapping[str, Mapping[str, Any]],
 ) -> str:
-    missing_stages = (
-        set(PIPELINE_STAGES)
-        - set(summaries)
-    )
+    missing_stages = set(PIPELINE_STAGES) - set(summaries)
 
     if missing_stages:
-        missing_text = ", ".join(
-            sorted(missing_stages)
-        )
+        missing_text = ", ".join(sorted(missing_stages))
 
-        raise PipelineLogLoadError(
-            "Thiếu summary của các stage: "
-            f"{missing_text}"
-        )
+        raise PipelineLogLoadError(f"Thiếu summary của các stage: {missing_text}")
 
     batch_ids: set[str] = set()
 
@@ -519,8 +419,7 @@ def _validate_summaries(
 
         if not isinstance(summary, Mapping):
             raise PipelineLogLoadError(
-                f"Summary của stage '{stage}' "
-                "phải là JSON object."
+                f"Summary của stage '{stage}' phải là JSON object."
             )
 
         batch_id = _require_non_empty_string(
@@ -532,43 +431,29 @@ def _validate_summaries(
         batch_ids.add(batch_id)
 
     if len(batch_ids) != 1:
-        batch_text = ", ".join(
-            sorted(batch_ids)
-        )
+        batch_text = ", ".join(sorted(batch_ids))
 
-        raise PipelineLogLoadError(
-            "Các summary không cùng batch_id: "
-            f"{batch_text}"
-        )
+        raise PipelineLogLoadError(f"Các summary không cùng batch_id: {batch_text}")
 
     return next(iter(batch_ids))
 
 
 def build_pipeline_log_records(
-    summaries: Mapping[
-        str,
-        Mapping[str, Any]
-    ],
+    summaries: Mapping[str, Mapping[str, Any]],
 ) -> list[dict[str, Any]]:
-    batch_id = _validate_summaries(
-        summaries
-    )
+    batch_id = _validate_summaries(summaries)
 
     records: list[dict[str, Any]] = []
 
     for stage in PIPELINE_STAGES:
         summary = summaries[stage]
 
-        context = (
-            f"{stage} summary"
-        )
+        context = f"{stage} summary"
 
-        pipeline_name = (
-            _require_non_empty_string(
-                container=summary,
-                key="pipeline_name",
-                context=context,
-            )
+        pipeline_name = _require_non_empty_string(
+            container=summary,
+            key="pipeline_name",
+            context=context,
         )
 
         source = _require_non_empty_string(
@@ -584,31 +469,17 @@ def build_pipeline_log_records(
 
         started_at = _parse_aware_datetime(
             value=summary.get("started_at"),
-            field_name=(
-                f"{stage}.started_at"
-            ),
+            field_name=(f"{stage}.started_at"),
         )
 
-        finished_at = (
-            _parse_optional_aware_datetime(
-                value=summary.get(
-                    "finished_at"
-                ),
-                field_name=(
-                    f"{stage}.finished_at"
-                ),
-            )
+        finished_at = _parse_optional_aware_datetime(
+            value=summary.get("finished_at"),
+            field_name=(f"{stage}.finished_at"),
         )
 
-        duration_seconds = (
-            _optional_non_negative_float(
-                value=summary.get(
-                    "duration_seconds"
-                ),
-                field_name=(
-                    f"{stage}.duration_seconds"
-                ),
-            )
+        duration_seconds = _optional_non_negative_float(
+            value=summary.get("duration_seconds"),
+            field_name=(f"{stage}.duration_seconds"),
         )
 
         (
@@ -621,31 +492,21 @@ def build_pipeline_log_records(
 
         records.append(
             {
-                "run_id": (
-                    f"{batch_id}:{stage}"
-                ),
-                "pipeline_name": (
-                    pipeline_name
-                ),
+                "run_id": (f"{batch_id}:{stage}"),
+                "pipeline_name": (pipeline_name),
                 "source": source,
                 "started_at": started_at,
                 "finished_at": finished_at,
                 "status": status,
-                "records_extracted": (
-                    records_extracted
-                ),
-                "records_loaded": (
-                    records_loaded
-                ),
+                "records_extracted": (records_extracted),
+                "records_loaded": (records_loaded),
                 "error_message": (
                     _build_error_message(
                         stage=stage,
                         summary=summary,
                     )
                 ),
-                "duration_seconds": (
-                    duration_seconds
-                ),
+                "duration_seconds": (duration_seconds),
             }
         )
 
@@ -653,90 +514,53 @@ def build_pipeline_log_records(
 
 
 def build_data_quality_log_records(
-    summaries: Mapping[
-        str,
-        Mapping[str, Any]
-    ],
+    summaries: Mapping[str, Mapping[str, Any]],
 ) -> list[dict[str, Any]]:
-    batch_id = _validate_summaries(
-        summaries
-    )
+    batch_id = _validate_summaries(summaries)
 
-    quality_summary = summaries[
-        "data_quality"
-    ]
+    quality_summary = summaries["data_quality"]
 
-    checks = quality_summary.get(
-        "checks"
-    )
+    checks = quality_summary.get("checks")
 
     if not isinstance(checks, list):
-        raise PipelineLogLoadError(
-            "Data Quality summary thiếu "
-            "danh sách 'checks'."
-        )
+        raise PipelineLogLoadError("Data Quality summary thiếu danh sách 'checks'.")
 
-    run_id = (
-        f"{batch_id}:data_quality"
-    )
+    run_id = f"{batch_id}:data_quality"
 
     records: list[dict[str, Any]] = []
 
     for index, check in enumerate(checks):
         if not isinstance(check, Mapping):
             raise PipelineLogLoadError(
-                "Data Quality check tại "
-                f"index {index} không phải object."
+                f"Data Quality check tại index {index} không phải object."
             )
 
-        check_name = (
-            _require_non_empty_string(
-                container=check,
-                key="check_name",
-                context=(
-                    f"data_quality.checks[{index}]"
-                ),
-            )
+        check_name = _require_non_empty_string(
+            container=check,
+            key="check_name",
+            context=(f"data_quality.checks[{index}]"),
         )
 
         status = _validate_dq_status(
             value=check.get("status"),
-            context=(
-                f"data_quality.checks[{index}]"
-            ),
+            context=(f"data_quality.checks[{index}]"),
         )
 
-        bad_records_count = (
-            _non_negative_integer(
-                check.get(
-                    "bad_records_count"
-                ),
-                (
-                    "data_quality.checks"
-                    f"[{index}]"
-                    ".bad_records_count"
-                ),
-            )
+        bad_records_count = _non_negative_integer(
+            check.get("bad_records_count"),
+            (f"data_quality.checks[{index}].bad_records_count"),
         )
 
-        message_value = check.get(
-            "message"
-        )
+        message_value = check.get("message")
 
-        message = (
-            str(message_value)
-            if message_value is not None
-            else None
-        )
+        message = str(message_value) if message_value is not None else None
 
         records.append(
             {
                 "run_id": run_id,
                 "check_name": check_name,
                 "status": status,
-                "bad_records_count": (
-                    bad_records_count
-                ),
+                "bad_records_count": (bad_records_count),
                 "message": message,
             }
         )
@@ -753,9 +577,7 @@ def _write_json_atomically(
         exist_ok=True,
     )
 
-    temporary_path = output_path.with_name(
-        output_path.name + ".tmp"
-    )
+    temporary_path = output_path.with_name(output_path.name + ".tmp")
 
     try:
         with temporary_path.open(
@@ -769,60 +591,31 @@ def _write_json_atomically(
                 indent=2,
             )
 
-        temporary_path.replace(
-            output_path
-        )
+        temporary_path.replace(output_path)
     except OSError as error:
         raise PipelineLogLoadError(
-            "Không thể ghi Pipeline Health "
-            f"summary: {output_path}"
+            f"Không thể ghi Pipeline Health summary: {output_path}"
         ) from error
 
 
 def sync_pipeline_health_logs(
-    summaries: Mapping[
-        str,
-        Mapping[str, Any]
-    ],
+    summaries: Mapping[str, Mapping[str, Any]],
     monitoring_root: Path,
     connection: Any | None = None,
 ) -> dict[str, Any]:
-    pipeline_records = (
-        build_pipeline_log_records(
-            summaries
-        )
-    )
+    pipeline_records = build_pipeline_log_records(summaries)
 
-    data_quality_records = (
-        build_data_quality_log_records(
-            summaries
-        )
-    )
+    data_quality_records = build_data_quality_log_records(summaries)
 
-    batch_id = str(
-        summaries[
-            "data_quality"
-        ]["batch_id"]
-    )
+    batch_id = str(summaries["data_quality"]["batch_id"])
 
-    partition_date = str(
-        summaries[
-            "data_quality"
-        ]["partition_date"]
-    )
+    partition_date = str(summaries["data_quality"]["partition_date"])
 
-    partition_hour = str(
-        summaries[
-            "data_quality"
-        ]["partition_hour"]
-    )
+    partition_hour = str(summaries["data_quality"]["partition_hour"])
 
     owns_connection = connection is None
 
-    resolved_connection = (
-        connection
-        or get_database_connection()
-    )
+    resolved_connection = connection or get_database_connection()
 
     started_at = datetime.now().astimezone()
 
@@ -846,14 +639,10 @@ def sync_pipeline_health_logs(
                     FROM pipeline_run_logs
                     WHERE run_id LIKE %s;
                     """,
-                    (
-                        f"{batch_id}:%",
-                    ),
+                    (f"{batch_id}:%",),
                 )
 
-                pipeline_count_row = (
-                    cursor.fetchone()
-                )
+                pipeline_count_row = cursor.fetchone()
 
                 cursor.execute(
                     """
@@ -861,51 +650,34 @@ def sync_pipeline_health_logs(
                     FROM data_quality_logs
                     WHERE run_id = %s;
                     """,
-                    (
-                        f"{batch_id}:data_quality",
-                    ),
+                    (f"{batch_id}:data_quality",),
                 )
 
-                quality_count_row = (
-                    cursor.fetchone()
-                )
+                quality_count_row = cursor.fetchone()
 
     except psycopg.Error as error:
         raise PipelineLogLoadError(
-            "TimescaleDB từ chối Pipeline "
-            f"Health logs: {error}"
+            f"TimescaleDB từ chối Pipeline Health logs: {error}"
         ) from error
     finally:
         if owns_connection:
             resolved_connection.close()
 
     if pipeline_count_row is None:
-        raise PipelineLogLoadError(
-            "Không kiểm tra được số pipeline logs."
-        )
+        raise PipelineLogLoadError("Không kiểm tra được số pipeline logs.")
 
     if quality_count_row is None:
-        raise PipelineLogLoadError(
-            "Không kiểm tra được số DQ logs."
-        )
+        raise PipelineLogLoadError("Không kiểm tra được số DQ logs.")
 
     if isinstance(pipeline_count_row, dict):
-        database_pipeline_logs = int(
-            pipeline_count_row["log_count"]
-        )
+        database_pipeline_logs = int(pipeline_count_row["log_count"])
     else:
-        database_pipeline_logs = int(
-            pipeline_count_row[0]
-        )
+        database_pipeline_logs = int(pipeline_count_row[0])
 
     if isinstance(quality_count_row, dict):
-        database_quality_logs = int(
-            quality_count_row["log_count"]
-        )
+        database_quality_logs = int(quality_count_row["log_count"])
     else:
-        database_quality_logs = int(
-            quality_count_row[0]
-        )
+        database_quality_logs = int(quality_count_row[0])
 
     finished_at = datetime.now().astimezone()
 
@@ -917,15 +689,10 @@ def sync_pipeline_health_logs(
         / f"batch_id={batch_id}"
     )
 
-    summary_path = (
-        output_directory
-        / "pipeline_log_sync_summary.json"
-    )
+    summary_path = output_directory / "pipeline_log_sync_summary.json"
 
     summary = {
-        "pipeline_name": (
-            "pipeline_health_log_sync"
-        ),
+        "pipeline_name": ("pipeline_health_log_sync"),
         "source": "open_meteo",
         "status": "SUCCESS",
         "batch_id": batch_id,
@@ -933,24 +700,12 @@ def sync_pipeline_health_logs(
         "partition_hour": partition_hour,
         "started_at": started_at.isoformat(),
         "finished_at": finished_at.isoformat(),
-        "duration_seconds": (
-            finished_at - started_at
-        ).total_seconds(),
-        "pipeline_logs_upserted": len(
-            pipeline_records
-        ),
-        "data_quality_logs_upserted": len(
-            data_quality_records
-        ),
-        "database_pipeline_logs_for_batch": (
-            database_pipeline_logs
-        ),
-        "database_quality_logs_for_batch": (
-            database_quality_logs
-        ),
-        "summary_path": str(
-            summary_path
-        ),
+        "duration_seconds": (finished_at - started_at).total_seconds(),
+        "pipeline_logs_upserted": len(pipeline_records),
+        "data_quality_logs_upserted": len(data_quality_records),
+        "database_pipeline_logs_for_batch": (database_pipeline_logs),
+        "database_quality_logs_for_batch": (database_quality_logs),
+        "summary_path": str(summary_path),
     }
 
     _write_json_atomically(

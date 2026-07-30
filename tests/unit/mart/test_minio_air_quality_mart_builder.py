@@ -9,13 +9,8 @@ import pytest
 
 import src.mart.minio_air_quality_mart_builder as mart
 
-
 OBJECT_NAME = (
-    "clean/air_quality/hourly/"
-    "date=2026-07-25/"
-    "hour=02/"
-    "batch_id=BATCH_1/"
-    "data.parquet"
+    "clean/air_quality/hourly/date=2026-07-25/hour=02/batch_id=BATCH_1/data.parquet"
 )
 
 
@@ -24,12 +19,8 @@ def make_clean_row(
     point_id: str = "HN_POINT_1",
     location_id: str = "HN",
     point_name: str = "Hà Nội Point 1",
-    forecast_time: str = (
-        "2026-07-25T09:00:00+07:00"
-    ),
-    ingested_at: str = (
-        "2026-07-25T02:15:00+00:00"
-    ),
+    forecast_time: str = ("2026-07-25T09:00:00+07:00"),
+    ingested_at: str = ("2026-07-25T02:15:00+00:00"),
     us_aqi: int = 50,
     batch_id: str = "BATCH_1",
     latitude: float = 21.0285,
@@ -85,9 +76,7 @@ def prepare_enriched_dataframe(
 
 
 def test_partition_parts_parses_clean_object() -> None:
-    result = mart._partition_parts(
-        OBJECT_NAME
-    )
+    result = mart._partition_parts(OBJECT_NAME)
 
     assert result == (
         "2026-07-25",
@@ -101,9 +90,7 @@ def test_partition_parts_rejects_invalid_object() -> None:
         mart.MinioMartBuildError,
         match="không đúng partition Clean",
     ):
-        mart._partition_parts(
-            "clean/invalid/data.parquet"
-        )
+        mart._partition_parts("clean/invalid/data.parquet")
 
 
 def test_normalize_clean_converts_timezones() -> None:
@@ -118,13 +105,9 @@ def test_normalize_clean_converts_timezones() -> None:
         OBJECT_NAME,
     )
 
-    assert str(
-        result["forecast_time"].dt.tz
-    ) == "Asia/Ho_Chi_Minh"
+    assert str(result["forecast_time"].dt.tz) == "Asia/Ho_Chi_Minh"
 
-    assert str(
-        result["ingested_at"].dt.tz
-    ) == "UTC"
+    assert str(result["ingested_at"].dt.tz) == "UTC"
 
 
 def test_normalize_clean_rejects_logical_duplicate() -> None:
@@ -151,10 +134,7 @@ def test_load_location_dimension_preserves_na_id(
     tmp_path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    location_path = (
-        tmp_path
-        / "locations.csv"
-    )
+    location_path = tmp_path / "locations.csv"
 
     pd.DataFrame(
         [
@@ -167,9 +147,7 @@ def test_load_location_dimension_preserves_na_id(
             {
                 "location_id": "NA",
                 "location_name": "Nghệ An",
-                "region": (
-                    "North Central Vietnam"
-                ),
+                "region": ("North Central Vietnam"),
                 "is_active": True,
             },
         ]
@@ -185,38 +163,24 @@ def test_load_location_dimension_preserves_na_id(
         location_path,
     )
 
-    result = (
-        mart._load_location_dimension()
-    )
+    result = mart._load_location_dimension()
 
-    assert "NA" in set(
-        result["location_id"]
-    )
+    assert "NA" in set(result["location_id"])
 
-    nghe_an = result.loc[
-        result["location_id"] == "NA"
-    ].iloc[0]
+    nghe_an = result.loc[result["location_id"] == "NA"].iloc[0]
 
-    assert nghe_an[
-        "location_name"
-    ] == "Nghệ An"
+    assert nghe_an["location_name"] == "Nghệ An"
 
 
 def test_current_aqi_prefers_future_when_tied() -> None:
     dataframe = prepare_enriched_dataframe(
         [
             make_clean_row(
-                forecast_time=(
-                    "2026-07-25T08:00:00"
-                    "+07:00"
-                ),
+                forecast_time=("2026-07-25T08:00:00+07:00"),
                 us_aqi=40,
             ),
             make_clean_row(
-                forecast_time=(
-                    "2026-07-25T10:00:00"
-                    "+07:00"
-                ),
+                forecast_time=("2026-07-25T10:00:00+07:00"),
                 us_aqi=80,
             ),
         ]
@@ -236,19 +200,11 @@ def test_current_aqi_prefers_future_when_tied() -> None:
 
     assert len(result) == 1
 
-    assert result.iloc[0][
-        "forecast_time"
-    ] == pd.Timestamp(
-        "2026-07-25T10:00:00+07:00"
-    )
+    assert result.iloc[0]["forecast_time"] == pd.Timestamp("2026-07-25T10:00:00+07:00")
 
-    assert result.iloc[0][
-        "us_aqi"
-    ] == 80
+    assert result.iloc[0]["us_aqi"] == 80
 
-    assert result.iloc[0][
-        "aqi_level"
-    ] == "Moderate"
+    assert result.iloc[0]["aqi_level"] == "Moderate"
 
 
 def test_location_summary_aggregates_three_points() -> None:
@@ -302,29 +258,15 @@ def test_location_summary_aggregates_three_points() -> None:
 
     summary = result.iloc[0]
 
-    assert summary[
-        "monitoring_point_count"
-    ] == 3
+    assert summary["monitoring_point_count"] == 3
 
-    assert float(
-        summary["average_us_aqi"]
-    ) == pytest.approx(
-        76.67
-    )
+    assert float(summary["average_us_aqi"]) == pytest.approx(76.67)
 
-    assert summary[
-        "maximum_us_aqi"
-    ] == 120
+    assert summary["maximum_us_aqi"] == 120
 
-    assert summary[
-        "worst_point_id"
-    ] == "HN_POINT_3"
+    assert summary["worst_point_id"] == "HN_POINT_3"
 
-    assert summary[
-        "aqi_level"
-    ] == (
-        "Unhealthy for Sensitive Groups"
-    )
+    assert summary["aqi_level"] == ("Unhealthy for Sensitive Groups")
 
 
 def test_daily_summary_keeps_latest_duplicate_hour() -> None:
@@ -332,18 +274,12 @@ def test_daily_summary_keeps_latest_duplicate_hour() -> None:
         [
             make_clean_row(
                 batch_id="BATCH_OLD",
-                ingested_at=(
-                    "2026-07-25T01:00:00"
-                    "+00:00"
-                ),
+                ingested_at=("2026-07-25T01:00:00+00:00"),
                 us_aqi=40,
             ),
             make_clean_row(
                 batch_id="BATCH_NEW",
-                ingested_at=(
-                    "2026-07-25T02:00:00"
-                    "+00:00"
-                ),
+                ingested_at=("2026-07-25T02:00:00+00:00"),
                 us_aqi=80,
             ),
         ]
@@ -365,29 +301,17 @@ def test_daily_summary_keeps_latest_duplicate_hour() -> None:
 
     summary = result.iloc[0]
 
-    assert summary[
-        "available_hours"
-    ] == 1
+    assert summary["available_hours"] == 1
 
-    assert summary[
-        "average_us_aqi"
-    ] == 80
+    assert summary["average_us_aqi"] == 80
 
-    assert summary[
-        "maximum_us_aqi"
-    ] == 80
+    assert summary["maximum_us_aqi"] == 80
 
-    assert summary[
-        "source_batch_count"
-    ] == 1
+    assert summary["source_batch_count"] == 1
 
-    assert summary[
-        "worst_hour_source_batch_id"
-    ] == "BATCH_NEW"
+    assert summary["worst_hour_source_batch_id"] == "BATCH_NEW"
 
-    assert summary[
-        "coverage_status"
-    ] == "PARTIAL"
+    assert summary["coverage_status"] == "PARTIAL"
 
 
 def test_build_latest_mart_writes_expected_outputs(
@@ -441,17 +365,13 @@ def test_build_latest_mart_writes_expected_outputs(
     monkeypatch.setattr(
         mart,
         "_read_parquet",
-        lambda client, bucket, name: (
-            clean_dataframe.copy()
-        ),
+        lambda client, bucket, name: clean_dataframe.copy(),
     )
 
     monkeypatch.setattr(
         mart,
         "_load_location_dimension",
-        lambda: (
-            location_dimension.copy()
-        ),
+        lambda: location_dimension.copy(),
     )
 
     def fake_put_parquet(
@@ -462,9 +382,7 @@ def test_build_latest_mart_writes_expected_outputs(
     ) -> None:
         assert bucket_name == "mart-bucket"
 
-        parquet_writes[
-            object_name
-        ] = dataframe.copy()
+        parquet_writes[object_name] = dataframe.copy()
 
     def fake_put_json(
         client,
@@ -474,9 +392,7 @@ def test_build_latest_mart_writes_expected_outputs(
     ) -> None:
         assert bucket_name == "mart-bucket"
 
-        json_writes[
-            object_name
-        ] = value.copy()
+        json_writes[object_name] = value.copy()
 
     monkeypatch.setattr(
         mart,
@@ -518,54 +434,26 @@ def test_build_latest_mart_writes_expected_outputs(
     assert summary["status"] == "SUCCESS"
     assert summary["batch_id"] == "BATCH_1"
 
-    assert summary[
-        "latest_clean_records"
-    ] == 2
+    assert summary["latest_clean_records"] == 2
 
-    assert summary[
-        "history_input_records"
-    ] == 2
+    assert summary["history_input_records"] == 2
 
-    assert summary[
-        "current_aqi_rows"
-    ] == 2
+    assert summary["current_aqi_rows"] == 2
 
-    assert summary[
-        "location_summary_rows"
-    ] == 1
+    assert summary["location_summary_rows"] == 1
 
-    assert summary[
-        "daily_summary_rows"
-    ] == 2
+    assert summary["daily_summary_rows"] == 2
 
-    assert summary[
-        "output_records"
-    ] == 5
+    assert summary["output_records"] == 5
 
-    assert set(
-        parquet_writes
-    ) == {
-        summary["outputs"][
-            "current_aqi"
-        ],
-        summary["outputs"][
-            "location_summary"
-        ],
-        summary["outputs"][
-            "daily_summary"
-        ],
+    assert set(parquet_writes) == {
+        summary["outputs"]["current_aqi"],
+        summary["outputs"]["location_summary"],
+        summary["outputs"]["daily_summary"],
     }
 
-    mart_summary_key = (
-        summary["outputs"][
-            "mart_summary"
-        ]
-    )
+    mart_summary_key = summary["outputs"]["mart_summary"]
 
-    assert mart_summary_key in (
-        json_writes
-    )
+    assert mart_summary_key in (json_writes)
 
-    assert json_writes[
-        mart_summary_key
-    ]["status"] == "SUCCESS"
+    assert json_writes[mart_summary_key]["status"] == "SUCCESS"

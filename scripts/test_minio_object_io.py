@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-import pandas as pd
 from minio.error import S3Error
+import pandas as pd
 
 from src.utils.minio_client import (
     MinioConfigurationError,
@@ -22,29 +22,16 @@ from src.utils.minio_object_io import (
     put_parquet_object,
 )
 
+JSON_OBJECT_NAME = "_system_tests/object_io/sample.json"
 
-JSON_OBJECT_NAME = (
-    "_system_tests/"
-    "object_io/"
-    "sample.json"
-)
-
-PARQUET_OBJECT_NAME = (
-    "_system_tests/"
-    "object_io/"
-    "sample.parquet"
-)
+PARQUET_OBJECT_NAME = "_system_tests/object_io/sample.parquet"
 
 
 def main() -> None:
     try:
-        settings = (
-            MinioSettings.from_environment()
-        )
+        settings = MinioSettings.from_environment()
 
-        client = get_minio_client(
-            settings
-        )
+        client = get_minio_client(settings)
 
         ensure_buckets(
             settings=settings,
@@ -52,53 +39,30 @@ def main() -> None:
         )
 
         json_data = {
-            "test_name": (
-                "minio_json_round_trip"
-            ),
+            "test_name": ("minio_json_round_trip"),
             "location_id": "HN",
             "point_id": "HN_CENTER",
-            "message": (
-                "Kiểm tra dữ liệu tiếng Việt"
-            ),
-            "created_at": (
-                datetime.now(
-                    timezone.utc
-                ).isoformat()
-            ),
+            "message": ("Kiểm tra dữ liệu tiếng Việt"),
+            "created_at": (datetime.now(timezone.utc).isoformat()),
         }
 
-        json_upload_result = (
-            put_json_object(
-                bucket_name=(
-                    settings.raw_bucket
-                ),
-                object_name=(
-                    JSON_OBJECT_NAME
-                ),
-                data=json_data,
-                settings=settings,
-                client=client,
-            )
+        json_upload_result = put_json_object(
+            bucket_name=(settings.raw_bucket),
+            object_name=(JSON_OBJECT_NAME),
+            data=json_data,
+            settings=settings,
+            client=client,
         )
 
-        downloaded_json = (
-            get_json_object(
-                bucket_name=(
-                    settings.raw_bucket
-                ),
-                object_name=(
-                    JSON_OBJECT_NAME
-                ),
-                settings=settings,
-                client=client,
-            )
+        downloaded_json = get_json_object(
+            bucket_name=(settings.raw_bucket),
+            object_name=(JSON_OBJECT_NAME),
+            settings=settings,
+            client=client,
         )
 
         if downloaded_json != json_data:
-            raise RuntimeError(
-                "JSON tải về không giống "
-                "JSON đã upload."
-            )
+            raise RuntimeError("JSON tải về không giống JSON đã upload.")
 
         expected_dataframe = pd.DataFrame(
             [
@@ -117,33 +81,19 @@ def main() -> None:
             ]
         )
 
-        parquet_upload_result = (
-            put_parquet_object(
-                bucket_name=(
-                    settings.clean_bucket
-                ),
-                object_name=(
-                    PARQUET_OBJECT_NAME
-                ),
-                dataframe=(
-                    expected_dataframe
-                ),
-                settings=settings,
-                client=client,
-            )
+        parquet_upload_result = put_parquet_object(
+            bucket_name=(settings.clean_bucket),
+            object_name=(PARQUET_OBJECT_NAME),
+            dataframe=(expected_dataframe),
+            settings=settings,
+            client=client,
         )
 
-        downloaded_dataframe = (
-            get_parquet_object(
-                bucket_name=(
-                    settings.clean_bucket
-                ),
-                object_name=(
-                    PARQUET_OBJECT_NAME
-                ),
-                settings=settings,
-                client=client,
-            )
+        downloaded_dataframe = get_parquet_object(
+            bucket_name=(settings.clean_bucket),
+            object_name=(PARQUET_OBJECT_NAME),
+            settings=settings,
+            client=client,
         )
 
         pd.testing.assert_frame_equal(
@@ -153,51 +103,31 @@ def main() -> None:
         )
 
         json_exists = object_exists(
-            bucket_name=(
-                settings.raw_bucket
-            ),
-            object_name=(
-                JSON_OBJECT_NAME
-            ),
+            bucket_name=(settings.raw_bucket),
+            object_name=(JSON_OBJECT_NAME),
             settings=settings,
             client=client,
         )
 
         parquet_exists = object_exists(
-            bucket_name=(
-                settings.clean_bucket
-            ),
-            object_name=(
-                PARQUET_OBJECT_NAME
-            ),
+            bucket_name=(settings.clean_bucket),
+            object_name=(PARQUET_OBJECT_NAME),
             settings=settings,
             client=client,
         )
 
-        raw_test_objects = (
-            list_object_names(
-                bucket_name=(
-                    settings.raw_bucket
-                ),
-                prefix=(
-                    "_system_tests/object_io"
-                ),
-                settings=settings,
-                client=client,
-            )
+        raw_test_objects = list_object_names(
+            bucket_name=(settings.raw_bucket),
+            prefix=("_system_tests/object_io"),
+            settings=settings,
+            client=client,
         )
 
-        clean_test_objects = (
-            list_object_names(
-                bucket_name=(
-                    settings.clean_bucket
-                ),
-                prefix=(
-                    "_system_tests/object_io"
-                ),
-                settings=settings,
-                client=client,
-            )
+        clean_test_objects = list_object_names(
+            bucket_name=(settings.clean_bucket),
+            prefix=("_system_tests/object_io"),
+            settings=settings,
+            client=client,
         )
 
     except (
@@ -208,84 +138,47 @@ def main() -> None:
         RuntimeError,
         AssertionError,
     ) as error:
-        print(
-            "Kiểm tra MinIO Object I/O "
-            f"thất bại: {error}"
-        )
+        print(f"Kiểm tra MinIO Object I/O thất bại: {error}")
 
         raise SystemExit(1) from error
 
-    print(
-        "Kiểm tra MinIO Object I/O "
-        "thành công."
-    )
+    print("Kiểm tra MinIO Object I/O thành công.")
 
     print()
     print("JSON object:")
 
-    print(
-        "Bucket: "
-        f"{json_upload_result['bucket_name']}"
-    )
+    print(f"Bucket: {json_upload_result['bucket_name']}")
 
-    print(
-        "Object: "
-        f"{json_upload_result['object_name']}"
-    )
+    print(f"Object: {json_upload_result['object_name']}")
 
-    print(
-        "Size: "
-        f"{json_upload_result['size_bytes']} bytes"
-    )
+    print(f"Size: {json_upload_result['size_bytes']} bytes")
 
-    print(
-        "Exists: "
-        f"{json_exists}"
-    )
+    print(f"Exists: {json_exists}")
 
     print()
     print("Parquet object:")
 
-    print(
-        "Bucket: "
-        f"{parquet_upload_result['bucket_name']}"
-    )
+    print(f"Bucket: {parquet_upload_result['bucket_name']}")
 
-    print(
-        "Object: "
-        f"{parquet_upload_result['object_name']}"
-    )
+    print(f"Object: {parquet_upload_result['object_name']}")
 
-    print(
-        "Size: "
-        f"{parquet_upload_result['size_bytes']} bytes"
-    )
+    print(f"Size: {parquet_upload_result['size_bytes']} bytes")
 
-    print(
-        "Rows: "
-        f"{len(downloaded_dataframe)}"
-    )
+    print(f"Rows: {len(downloaded_dataframe)}")
 
-    print(
-        "Exists: "
-        f"{parquet_exists}"
-    )
+    print(f"Exists: {parquet_exists}")
 
     print()
     print("Raw test objects:")
 
     for object_name in raw_test_objects:
-        print(
-            f"- {object_name}"
-        )
+        print(f"- {object_name}")
 
     print()
     print("Clean test objects:")
 
     for object_name in clean_test_objects:
-        print(
-            f"- {object_name}"
-        )
+        print(f"- {object_name}")
 
 
 if __name__ == "__main__":

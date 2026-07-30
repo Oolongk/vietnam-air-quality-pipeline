@@ -5,7 +5,6 @@ from typing import Any
 
 import pandas as pd
 
-
 POLLUTANT_COLUMNS: tuple[str, ...] = (
     "pm2_5",
     "pm10",
@@ -57,8 +56,7 @@ def _require_mapping(
 
     if not isinstance(value, Mapping):
         raise AirQualityTransformError(
-            f"{context} thiếu object '{key}' "
-            "hoặc giá trị không phải JSON object."
+            f"{context} thiếu object '{key}' hoặc giá trị không phải JSON object."
         )
 
     return value
@@ -72,16 +70,12 @@ def _require_non_empty_string(
     value = container.get(key)
 
     if not isinstance(value, str):
-        raise AirQualityTransformError(
-            f"{context}.{key} phải là chuỗi."
-        )
+        raise AirQualityTransformError(f"{context}.{key} phải là chuỗi.")
 
     cleaned_value = value.strip()
 
     if not cleaned_value:
-        raise AirQualityTransformError(
-            f"{context}.{key} không được rỗng."
-        )
+        raise AirQualityTransformError(f"{context}.{key} không được rỗng.")
 
     return cleaned_value
 
@@ -96,9 +90,7 @@ def _require_number(
     try:
         return float(value)
     except (TypeError, ValueError) as error:
-        raise AirQualityTransformError(
-            f"{context}.{key} phải là số."
-        ) from error
+        raise AirQualityTransformError(f"{context}.{key} phải là số.") from error
 
 
 def _validate_hourly_arrays(
@@ -107,14 +99,10 @@ def _validate_hourly_arrays(
     time_values = hourly_data.get("time")
 
     if not isinstance(time_values, list):
-        raise AirQualityTransformError(
-            "response.hourly.time phải là một array."
-        )
+        raise AirQualityTransformError("response.hourly.time phải là một array.")
 
     if not time_values:
-        raise AirQualityTransformError(
-            "response.hourly.time không có dữ liệu."
-        )
+        raise AirQualityTransformError("response.hourly.time không có dữ liệu.")
 
     expected_length = len(time_values)
 
@@ -123,8 +111,7 @@ def _validate_hourly_arrays(
 
         if not isinstance(values, list):
             raise AirQualityTransformError(
-                f"response.hourly.{column} "
-                "phải là một array."
+                f"response.hourly.{column} phải là một array."
             )
 
         if len(values) != expected_length:
@@ -149,33 +136,23 @@ def _parse_forecast_times(
         )
     except (TypeError, ValueError) as error:
         raise AirQualityTransformError(
-            "Không thể chuyển hourly.time "
-            "thành datetime."
+            "Không thể chuyển hourly.time thành datetime."
         ) from error
 
-    datetime_index = pd.DatetimeIndex(
-        parsed_times
-    )
+    datetime_index = pd.DatetimeIndex(parsed_times)
 
     try:
         if datetime_index.tz is None:
-            datetime_index = (
-                datetime_index.tz_localize(
-                    timezone_name,
-                    ambiguous="raise",
-                    nonexistent="raise",
-                )
+            datetime_index = datetime_index.tz_localize(
+                timezone_name,
+                ambiguous="raise",
+                nonexistent="raise",
             )
         else:
-            datetime_index = (
-                datetime_index.tz_convert(
-                    timezone_name
-                )
-            )
+            datetime_index = datetime_index.tz_convert(timezone_name)
     except (TypeError, ValueError) as error:
         raise AirQualityTransformError(
-            "Không thể áp dụng timezone "
-            f"'{timezone_name}' cho forecast_time."
+            f"Không thể áp dụng timezone '{timezone_name}' cho forecast_time."
         ) from error
 
     return datetime_index
@@ -191,9 +168,7 @@ def _convert_pollutant_columns(
             errors="coerce",
         )
 
-        dataframe[column] = (
-            numeric_values.astype("Float64")
-        )
+        dataframe[column] = numeric_values.astype("Float64")
 
 
 def _convert_aqi_columns(
@@ -207,13 +182,10 @@ def _convert_aqi_columns(
         )
 
         try:
-            dataframe[column] = (
-                numeric_values.astype("Int64")
-            )
+            dataframe[column] = numeric_values.astype("Int64")
         except (TypeError, ValueError) as error:
             raise AirQualityTransformError(
-                f"Không thể chuyển '{column}' "
-                "thành số nguyên."
+                f"Không thể chuyển '{column}' thành số nguyên."
             ) from error
 
 
@@ -221,16 +193,12 @@ def transform_open_meteo_payload(
     raw_payload: Mapping[str, Any],
 ) -> pd.DataFrame:
     if not isinstance(raw_payload, Mapping):
-        raise AirQualityTransformError(
-            "Raw payload phải là một JSON object."
-        )
+        raise AirQualityTransformError("Raw payload phải là một JSON object.")
 
-    schema_version = (
-        _require_non_empty_string(
-            raw_payload,
-            "schema_version",
-            "payload",
-        )
+    schema_version = _require_non_empty_string(
+        raw_payload,
+        "schema_version",
+        "payload",
     )
 
     source = _require_non_empty_string(
@@ -240,17 +208,12 @@ def transform_open_meteo_payload(
     )
 
     if source != "open_meteo":
-        raise AirQualityTransformError(
-            "payload.source phải là "
-            "'open_meteo'."
-        )
+        raise AirQualityTransformError("payload.source phải là 'open_meteo'.")
 
-    ingested_at_value = (
-        _require_non_empty_string(
-            raw_payload,
-            "ingested_at",
-            "payload",
-        )
+    ingested_at_value = _require_non_empty_string(
+        raw_payload,
+        "ingested_at",
+        "payload",
     )
 
     request_data = _require_mapping(
@@ -295,12 +258,10 @@ def transform_open_meteo_payload(
         "request",
     )
 
-    timezone_name = (
-        _require_non_empty_string(
-            request_data,
-            "timezone",
-            "request",
-        )
+    timezone_name = _require_non_empty_string(
+        request_data,
+        "timezone",
+        "request",
     )
 
     grid_latitude = _require_number(
@@ -315,9 +276,7 @@ def transform_open_meteo_payload(
         "response",
     )
 
-    record_count = _validate_hourly_arrays(
-        hourly_data
-    )
+    record_count = _validate_hourly_arrays(hourly_data)
 
     forecast_times = _parse_forecast_times(
         time_values=hourly_data["time"],
@@ -332,8 +291,7 @@ def transform_open_meteo_payload(
         )
     except (TypeError, ValueError) as error:
         raise AirQualityTransformError(
-            "payload.ingested_at không phải "
-            "datetime hợp lệ."
+            "payload.ingested_at không phải datetime hợp lệ."
         ) from error
 
     dataframe = pd.DataFrame(
@@ -352,20 +310,14 @@ def transform_open_meteo_payload(
         hourly_data=hourly_data,
     )
 
-    dataframe["schema_version"] = (
-        schema_version
-    )
+    dataframe["schema_version"] = schema_version
     dataframe["source"] = source
     dataframe["point_id"] = point_id
     dataframe["location_id"] = location_id
     dataframe["latitude"] = latitude
     dataframe["longitude"] = longitude
-    dataframe["grid_latitude"] = (
-        grid_latitude
-    )
-    dataframe["grid_longitude"] = (
-        grid_longitude
-    )
+    dataframe["grid_latitude"] = grid_latitude
+    dataframe["grid_longitude"] = grid_longitude
     dataframe["timezone"] = timezone_name
     dataframe["utc_offset_seconds"] = int(
         response_data.get(
@@ -387,8 +339,7 @@ def transform_open_meteo_payload(
 
     if len(dataframe) != record_count:
         raise AirQualityTransformError(
-            "Số record sau transform không bằng "
-            "số timestamp trong Raw payload."
+            "Số record sau transform không bằng số timestamp trong Raw payload."
         )
 
     return dataframe

@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-import json
-import os
+from collections.abc import Callable, Iterator
 import csv
-from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from collections.abc import Iterator
+import os
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -24,9 +22,7 @@ from src.utils.minio_object_io import (
 )
 
 
-class MinioAirQualityExtractionError(
-    RuntimeError
-):
+class MinioAirQualityExtractionError(RuntimeError):
     """Lỗi khi extraction dữ liệu vào MinIO."""
 
 
@@ -62,9 +58,7 @@ def _parse_boolean(
     value: str,
     field_name: str,
 ) -> bool:
-    normalized_value = (
-        value.strip().lower()
-    )
+    normalized_value = value.strip().lower()
 
     if normalized_value in {
         "true",
@@ -83,8 +77,7 @@ def _parse_boolean(
         return False
 
     raise MinioAirQualityExtractionError(
-        f"{field_name} phải là true hoặc false, "
-        f"nhận được: {value!r}"
+        f"{field_name} phải là true hoặc false, nhận được: {value!r}"
     )
 
 
@@ -97,16 +90,14 @@ def _require_text(
 
     if value is None:
         raise MinioAirQualityExtractionError(
-            f"Thiếu cột {field_name} "
-            f"tại dòng {row_number}."
+            f"Thiếu cột {field_name} tại dòng {row_number}."
         )
 
     cleaned_value = value.strip()
 
     if not cleaned_value:
         raise MinioAirQualityExtractionError(
-            f"{field_name} bị rỗng "
-            f"tại dòng {row_number}."
+            f"{field_name} bị rỗng tại dòng {row_number}."
         )
 
     return cleaned_value
@@ -126,13 +117,10 @@ def _parse_coordinate(
     )
 
     try:
-        coordinate = float(
-            raw_value
-        )
+        coordinate = float(raw_value)
     except ValueError as error:
         raise MinioAirQualityExtractionError(
-            f"{field_name} phải là số "
-            f"tại dòng {row_number}."
+            f"{field_name} phải là số tại dòng {row_number}."
         ) from error
 
     if not minimum <= coordinate <= maximum:
@@ -152,14 +140,12 @@ def load_active_monitoring_points(
 
     if not resolved_path.exists():
         raise MinioAirQualityExtractionError(
-            "Không tìm thấy monitoring points CSV: "
-            f"{resolved_path}"
+            f"Không tìm thấy monitoring points CSV: {resolved_path}"
         )
 
     if not resolved_path.is_file():
         raise MinioAirQualityExtractionError(
-            "Monitoring points path không phải file: "
-            f"{resolved_path}"
+            f"Monitoring points path không phải file: {resolved_path}"
         )
 
     try:
@@ -168,45 +154,31 @@ def load_active_monitoring_points(
             encoding="utf-8-sig",
             newline="",
         ) as csv_file:
-            reader = csv.DictReader(
-                csv_file
-            )
+            reader = csv.DictReader(csv_file)
 
             if reader.fieldnames is None:
                 raise (
                     MinioAirQualityExtractionError(
-                        "Monitoring points CSV "
-                        "không có header."
+                        "Monitoring points CSV không có header."
                     )
                 )
 
             actual_columns = {
-                column.strip()
-                for column in reader.fieldnames
-                if column is not None
+                column.strip() for column in reader.fieldnames if column is not None
             }
 
-            missing_columns = (
-                REQUIRED_POINT_COLUMNS
-                - actual_columns
-            )
+            missing_columns = REQUIRED_POINT_COLUMNS - actual_columns
 
             if missing_columns:
-                missing_text = ", ".join(
-                    sorted(missing_columns)
-                )
+                missing_text = ", ".join(sorted(missing_columns))
 
                 raise (
                     MinioAirQualityExtractionError(
-                        "Monitoring points CSV "
-                        "thiếu các cột: "
-                        f"{missing_text}"
+                        f"Monitoring points CSV thiếu các cột: {missing_text}"
                     )
                 )
 
-            monitoring_points: list[
-                MonitoringPoint
-            ] = []
+            monitoring_points: list[MonitoringPoint] = []
 
             point_ids: set[str] = set()
 
@@ -223,15 +195,11 @@ def load_active_monitoring_points(
                 if point_id in point_ids:
                     raise (
                         MinioAirQualityExtractionError(
-                            "Duplicate point_id "
-                            f"{point_id!r} tại dòng "
-                            f"{row_number}."
+                            f"Duplicate point_id {point_id!r} tại dòng {row_number}."
                         )
                     )
 
-                point_ids.add(
-                    point_id
-                )
+                point_ids.add(point_id)
 
                 is_active = _parse_boolean(
                     value=_require_text(
@@ -242,87 +210,60 @@ def load_active_monitoring_points(
                     field_name="is_active",
                 )
 
-                monitoring_point = (
-                    MonitoringPoint(
-                        point_id=point_id,
-                        location_id=(
-                            _require_text(
-                                row=row,
-                                field_name=(
-                                    "location_id"
-                                ),
-                                row_number=(
-                                    row_number
-                                ),
-                            )
-                        ),
-                        point_name=(
-                            _require_text(
-                                row=row,
-                                field_name=(
-                                    "point_name"
-                                ),
-                                row_number=(
-                                    row_number
-                                ),
-                            )
-                        ),
-                        point_type=(
-                            _require_text(
-                                row=row,
-                                field_name=(
-                                    "point_type"
-                                ),
-                                row_number=(
-                                    row_number
-                                ),
-                            )
-                        ),
-                        latitude=(
-                            _parse_coordinate(
-                                row=row,
-                                field_name=(
-                                    "latitude"
-                                ),
-                                row_number=(
-                                    row_number
-                                ),
-                                minimum=-90,
-                                maximum=90,
-                            )
-                        ),
-                        longitude=(
-                            _parse_coordinate(
-                                row=row,
-                                field_name=(
-                                    "longitude"
-                                ),
-                                row_number=(
-                                    row_number
-                                ),
-                                minimum=-180,
-                                maximum=180,
-                            )
-                        ),
-                        is_active=is_active,
-                    )
+                monitoring_point = MonitoringPoint(
+                    point_id=point_id,
+                    location_id=(
+                        _require_text(
+                            row=row,
+                            field_name=("location_id"),
+                            row_number=(row_number),
+                        )
+                    ),
+                    point_name=(
+                        _require_text(
+                            row=row,
+                            field_name=("point_name"),
+                            row_number=(row_number),
+                        )
+                    ),
+                    point_type=(
+                        _require_text(
+                            row=row,
+                            field_name=("point_type"),
+                            row_number=(row_number),
+                        )
+                    ),
+                    latitude=(
+                        _parse_coordinate(
+                            row=row,
+                            field_name=("latitude"),
+                            row_number=(row_number),
+                            minimum=-90,
+                            maximum=90,
+                        )
+                    ),
+                    longitude=(
+                        _parse_coordinate(
+                            row=row,
+                            field_name=("longitude"),
+                            row_number=(row_number),
+                            minimum=-180,
+                            maximum=180,
+                        )
+                    ),
+                    is_active=is_active,
                 )
 
                 if monitoring_point.is_active:
-                    monitoring_points.append(
-                        monitoring_point
-                    )
+                    monitoring_points.append(monitoring_point)
 
     except OSError as error:
         raise MinioAirQualityExtractionError(
-            "Không thể đọc monitoring points CSV: "
-            f"{resolved_path}"
+            f"Không thể đọc monitoring points CSV: {resolved_path}"
         ) from error
 
     if not monitoring_points:
-        raise MinioAirQualityExtractionError(
-            "Không có monitoring point active."
-        )
+        raise MinioAirQualityExtractionError("Không có monitoring point active.")
 
     return monitoring_points
 
@@ -345,20 +286,14 @@ def build_point_object_name(
     batch_prefix: str,
     point_id: str,
 ) -> str:
-    return (
-        f"{batch_prefix}/"
-        f"point_id={point_id}/"
-        "data.json"
-    )
+    return f"{batch_prefix}/point_id={point_id}/data.json"
 
 
 def build_summary_object_name(
     batch_prefix: str,
 ) -> str:
-    return (
-        f"{batch_prefix}/"
-        "run_summary.json"
-    )
+    return f"{batch_prefix}/run_summary.json"
+
 
 def _count_hourly_records(
     api_response: dict[str, Any],
@@ -382,25 +317,19 @@ def _count_hourly_records(
        }
     """
 
-    hourly = api_response.get(
-        "hourly"
-    )
+    hourly = api_response.get("hourly")
 
     if not isinstance(
         hourly,
         dict,
     ):
-        response_data = api_response.get(
-            "response"
-        )
+        response_data = api_response.get("response")
 
         if isinstance(
             response_data,
             dict,
         ):
-            hourly = response_data.get(
-                "hourly"
-            )
+            hourly = response_data.get("hourly")
 
     if not isinstance(
         hourly,
@@ -408,9 +337,7 @@ def _count_hourly_records(
     ):
         return 0
 
-    hourly_times = hourly.get(
-        "time"
-    )
+    hourly_times = hourly.get("time")
 
     if not isinstance(
         hourly_times,
@@ -418,9 +345,8 @@ def _count_hourly_records(
     ):
         return 0
 
-    return len(
-        hourly_times
-    )
+    return len(hourly_times)
+
 
 def _build_raw_envelope(
     point: MonitoringPoint,
@@ -432,27 +358,18 @@ def _build_raw_envelope(
         "schema_version": "1.0",
         "batch_id": batch_id,
         "source": "open_meteo",
-        "extracted_at": (
-            extracted_at.isoformat()
-        ),
+        "extracted_at": (extracted_at.isoformat()),
         "point": {
             "point_id": point.point_id,
-            "location_id": (
-                point.location_id
-            ),
-            "point_name": (
-                point.point_name
-            ),
-            "point_type": (
-                point.point_type
-            ),
+            "location_id": (point.location_id),
+            "point_name": (point.point_name),
+            "point_type": (point.point_type),
             "latitude": point.latitude,
-            "longitude": (
-                point.longitude
-            ),
+            "longitude": (point.longitude),
         },
         "api_response": api_response,
     }
+
 
 def chunk_monitoring_points(
     monitoring_points: list[dict[str, Any]],
@@ -467,19 +384,15 @@ def chunk_monitoring_points(
     """
 
     if batch_size <= 0:
-        raise ValueError(
-            "batch_size phải lớn hơn 0."
-        )
+        raise ValueError("batch_size phải lớn hơn 0.")
 
     for start_index in range(
         0,
         len(monitoring_points),
         batch_size,
     ):
-        yield monitoring_points[
-            start_index:
-            start_index + batch_size
-        ]
+        yield monitoring_points[start_index : start_index + batch_size]
+
 
 def get_open_meteo_batch_size() -> int:
     """
@@ -494,27 +407,21 @@ def get_open_meteo_batch_size() -> int:
     ).strip()
 
     try:
-        batch_size = int(
-            raw_value
-        )
+        batch_size = int(raw_value)
 
     except ValueError as error:
         raise ValueError(
-            "OPEN_METEO_BATCH_SIZE phải là số nguyên, "
-            f"nhận được {raw_value!r}."
+            f"OPEN_METEO_BATCH_SIZE phải là số nguyên, nhận được {raw_value!r}."
         ) from error
 
     if batch_size <= 0:
-        raise ValueError(
-            "OPEN_METEO_BATCH_SIZE phải lớn hơn 0."
-        )
+        raise ValueError("OPEN_METEO_BATCH_SIZE phải lớn hơn 0.")
 
     return batch_size
 
+
 def extract_monitoring_points_to_minio(
-    monitoring_points: list[
-        MonitoringPoint
-    ],
+    monitoring_points: list[MonitoringPoint],
     fetch_air_quality: AirQualityFetcher,
     settings: MinioSettings | None = None,
     client: Minio | None = None,
@@ -522,81 +429,34 @@ def extract_monitoring_points_to_minio(
     started_at: datetime | None = None,
 ) -> dict[str, Any]:
     if not monitoring_points:
-        raise MinioAirQualityExtractionError(
-            "Danh sách monitoring point rỗng."
-        )
+        raise MinioAirQualityExtractionError("Danh sách monitoring point rỗng.")
 
-    if not callable(
-        fetch_air_quality
-    ):
-        raise TypeError(
-            "fetch_air_quality phải là callable."
-        )
+    if not callable(fetch_air_quality):
+        raise TypeError("fetch_air_quality phải là callable.")
 
-    resolved_settings = (
-        settings
-        or MinioSettings.from_environment()
-    )
+    resolved_settings = settings or MinioSettings.from_environment()
 
-    resolved_client = (
-        client
-        or get_minio_client(
-            resolved_settings
-        )
-    )
+    resolved_client = client or get_minio_client(resolved_settings)
 
     ensure_buckets(
         settings=resolved_settings,
         client=resolved_client,
     )
 
-    resolved_started_at = (
-        started_at
-        or datetime.now(
-            timezone.utc
-        )
+    resolved_started_at = started_at or datetime.now(timezone.utc)
+
+    if resolved_started_at.tzinfo is None or resolved_started_at.utcoffset() is None:
+        raise MinioAirQualityExtractionError("started_at phải có timezone.")
+
+    local_started_at = resolved_started_at.astimezone(ZoneInfo("Asia/Ho_Chi_Minh"))
+
+    resolved_batch_id = batch_id or (
+        resolved_started_at.strftime("%Y%m%dT%H%M%SZ") + "_" + uuid4().hex[:8]
     )
 
-    if (
-        resolved_started_at.tzinfo
-        is None
-        or resolved_started_at.utcoffset()
-        is None
-    ):
-        raise MinioAirQualityExtractionError(
-            "started_at phải có timezone."
-        )
+    partition_date = local_started_at.strftime("%Y-%m-%d")
 
-    local_started_at = (
-        resolved_started_at.astimezone(
-            ZoneInfo(
-                "Asia/Ho_Chi_Minh"
-            )
-        )
-    )
-
-    resolved_batch_id = (
-        batch_id
-        or (
-            resolved_started_at.strftime(
-                "%Y%m%dT%H%M%SZ"
-            )
-            + "_"
-            + uuid4().hex[:8]
-        )
-    )
-
-    partition_date = (
-        local_started_at.strftime(
-            "%Y-%m-%d"
-        )
-    )
-
-    partition_hour = (
-        local_started_at.strftime(
-            "%H"
-        )
-    )
+    partition_hour = local_started_at.strftime("%H")
 
     batch_prefix = build_batch_prefix(
         partition_date=partition_date,
@@ -604,29 +464,17 @@ def extract_monitoring_points_to_minio(
         batch_id=resolved_batch_id,
     )
 
-    successes: list[
-        dict[str, Any]
-    ] = []
+    successes: list[dict[str, Any]] = []
 
-    failures: list[
-        dict[str, Any]
-    ] = []
+    failures: list[dict[str, Any]] = []
 
     records_extracted = 0
 
     for point in monitoring_points:
-        point_started_at = (
-            datetime.now(
-                timezone.utc
-            )
-        )
+        point_started_at = datetime.now(timezone.utc)
 
         try:
-            api_response = (
-                fetch_air_quality(
-                    point
-                )
-            )
+            api_response = fetch_air_quality(point)
 
             if not isinstance(
                 api_response,
@@ -634,213 +482,101 @@ def extract_monitoring_points_to_minio(
             ):
                 raise (
                     MinioAirQualityExtractionError(
-                        "Open-Meteo client phải "
-                        "trả về dictionary."
+                        "Open-Meteo client phải trả về dictionary."
                     )
                 )
 
-            record_count = (
-                _count_hourly_records(
-                    api_response
-                )
+            record_count = _count_hourly_records(api_response)
+
+            raw_envelope = _build_raw_envelope(
+                point=point,
+                api_response=(api_response),
+                batch_id=(resolved_batch_id),
+                extracted_at=(point_started_at),
             )
 
-            raw_envelope = (
-                _build_raw_envelope(
-                    point=point,
-                    api_response=(
-                        api_response
-                    ),
-                    batch_id=(
-                        resolved_batch_id
-                    ),
-                    extracted_at=(
-                        point_started_at
-                    ),
-                )
+            object_name = build_point_object_name(
+                batch_prefix=(batch_prefix),
+                point_id=(point.point_id),
             )
 
-            object_name = (
-                build_point_object_name(
-                    batch_prefix=(
-                        batch_prefix
-                    ),
-                    point_id=(
-                        point.point_id
-                    ),
-                )
+            upload_result = put_json_object(
+                bucket_name=(resolved_settings.raw_bucket),
+                object_name=(object_name),
+                data=raw_envelope,
+                settings=(resolved_settings),
+                client=(resolved_client),
             )
 
-            upload_result = (
-                put_json_object(
-                    bucket_name=(
-                        resolved_settings
-                        .raw_bucket
-                    ),
-                    object_name=(
-                        object_name
-                    ),
-                    data=raw_envelope,
-                    settings=(
-                        resolved_settings
-                    ),
-                    client=(
-                        resolved_client
-                    ),
-                )
-            )
-
-            records_extracted += (
-                record_count
-            )
+            records_extracted += record_count
 
             successes.append(
                 {
-                    "point_id": (
-                        point.point_id
-                    ),
-                    "location_id": (
-                        point.location_id
-                    ),
-                    "record_count": (
-                        record_count
-                    ),
-                    "bucket_name": (
-                        resolved_settings
-                        .raw_bucket
-                    ),
-                    "object_name": (
-                        object_name
-                    ),
-                    "etag": (
-                        upload_result[
-                            "etag"
-                        ]
-                    ),
-                    "size_bytes": (
-                        upload_result[
-                            "size_bytes"
-                        ]
-                    ),
+                    "point_id": (point.point_id),
+                    "location_id": (point.location_id),
+                    "record_count": (record_count),
+                    "bucket_name": (resolved_settings.raw_bucket),
+                    "object_name": (object_name),
+                    "etag": (upload_result["etag"]),
+                    "size_bytes": (upload_result["size_bytes"]),
                 }
             )
 
         except Exception as error:
             failures.append(
                 {
-                    "point_id": (
-                        point.point_id
-                    ),
-                    "location_id": (
-                        point.location_id
-                    ),
-                    "error_type": (
-                        type(error).__name__
-                    ),
-                    "error_message": (
-                        str(error)
-                    ),
+                    "point_id": (point.point_id),
+                    "location_id": (point.location_id),
+                    "error_type": (type(error).__name__),
+                    "error_message": (str(error)),
                 }
             )
 
-    finished_at = datetime.now(
-        timezone.utc
-    )
+    finished_at = datetime.now(timezone.utc)
 
-    successful_points = len(
-        successes
-    )
+    successful_points = len(successes)
 
-    failed_points = len(
-        failures
-    )
+    failed_points = len(failures)
 
-    if successful_points == len(
-        monitoring_points
-    ):
+    if successful_points == len(monitoring_points):
         status = "SUCCESS"
     elif successful_points > 0:
         status = "PARTIAL_SUCCESS"
     else:
         status = "FAILED"
 
-    summary_object_name = (
-        build_summary_object_name(
-            batch_prefix
-        )
-    )
+    summary_object_name = build_summary_object_name(batch_prefix)
 
     summary = {
-        "pipeline_name": (
-            "open_meteo_air_quality_extraction"
-        ),
+        "pipeline_name": ("open_meteo_air_quality_extraction"),
         "source": "open_meteo",
         "storage_backend": "minio",
         "status": status,
-        "batch_id": (
-            resolved_batch_id
-        ),
-        "partition_date": (
-            partition_date
-        ),
-        "partition_hour": (
-            partition_hour
-        ),
-        "started_at": (
-            resolved_started_at
-            .isoformat()
-        ),
-        "finished_at": (
-            finished_at.isoformat()
-        ),
-        "duration_seconds": (
-            finished_at
-            - resolved_started_at
-        ).total_seconds(),
-        "active_points": len(
-            monitoring_points
-        ),
-        "successful_points": (
-            successful_points
-        ),
-        "failed_points": (
-            failed_points
-        ),
-        "records_extracted": (
-            records_extracted
-        ),
-        "total_records": (
-            records_extracted
-        ),
-        "raw_bucket": (
-            resolved_settings.raw_bucket
-        ),
-        "batch_prefix": (
-            batch_prefix
-        ),
+        "batch_id": (resolved_batch_id),
+        "partition_date": (partition_date),
+        "partition_hour": (partition_hour),
+        "started_at": (resolved_started_at.isoformat()),
+        "finished_at": (finished_at.isoformat()),
+        "duration_seconds": (finished_at - resolved_started_at).total_seconds(),
+        "active_points": len(monitoring_points),
+        "successful_points": (successful_points),
+        "failed_points": (failed_points),
+        "records_extracted": (records_extracted),
+        "total_records": (records_extracted),
+        "raw_bucket": (resolved_settings.raw_bucket),
+        "batch_prefix": (batch_prefix),
         "successes": successes,
         "failures": failures,
-        "summary_bucket": (
-            resolved_settings.raw_bucket
-        ),
-        "summary_object_name": (
-            summary_object_name
-        ),
+        "summary_bucket": (resolved_settings.raw_bucket),
+        "summary_object_name": (summary_object_name),
     }
 
     try:
         put_json_object(
-            bucket_name=(
-                resolved_settings
-                .raw_bucket
-            ),
-            object_name=(
-                summary_object_name
-            ),
+            bucket_name=(resolved_settings.raw_bucket),
+            object_name=(summary_object_name),
             data=summary,
-            settings=(
-                resolved_settings
-            ),
+            settings=(resolved_settings),
             client=resolved_client,
         )
     except Exception as error:

@@ -11,7 +11,6 @@ from src.quality.quality_processor import (
     process_transformed_batch_quality,
 )
 
-
 BATCH_ID = "test_batch"
 PARTITION_DATE = "2026-07-11"
 PARTITION_HOUR = "12"
@@ -139,9 +138,7 @@ def run_quality(
 
 
 def test_valid_records_pass_all_checks() -> None:
-    result = run_quality(
-        build_valid_dataframe()
-    )
+    result = run_quality(build_valid_dataframe())
 
     assert result.quality_status == "PASS"
     assert result.pipeline_status == "SUCCESS"
@@ -156,13 +153,9 @@ def test_invalid_record_contains_error_reasons() -> None:
 
     dataframe.loc[0, "point_id"] = ""
     dataframe.loc[0, "pm2_5"] = -10.0
-    dataframe.loc[0, "source"] = (
-        "invalid_source"
-    )
+    dataframe.loc[0, "source"] = "invalid_source"
 
-    result = run_quality(
-        dataframe
-    )
+    result = run_quality(dataframe)
 
     assert result.bad_count >= 1
 
@@ -189,22 +182,16 @@ def test_duplicate_rows_are_rejected() -> None:
         ignore_index=True,
     )
 
-    result = run_quality(
-        dataframe
-    )
+    result = run_quality(dataframe)
 
-    duplicate_rows = (
-        result.bad_records[
-            result.bad_records[
-                "dq_error_codes"
-            ]
-            .astype(str)
-            .str.contains(
-                "UNIQUE_LOGICAL_KEY",
-                regex=False,
-            )
-        ]
-    )
+    duplicate_rows = result.bad_records[
+        result.bad_records["dq_error_codes"]
+        .astype(str)
+        .str.contains(
+            "UNIQUE_LOGICAL_KEY",
+            regex=False,
+        )
+    ]
 
     assert len(duplicate_rows) == 2
     assert result.quality_status == "FAIL"
@@ -215,15 +202,9 @@ def test_quality_processor_writes_clean_output(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    monitoring_points_path = (
-        tmp_path
-        / "monitoring_points.csv"
-    )
+    monitoring_points_path = tmp_path / "monitoring_points.csv"
 
-    locations_path = (
-        tmp_path
-        / "locations.csv"
-    )
+    locations_path = tmp_path / "locations.csv"
 
     build_monitoring_points().to_csv(
         monitoring_points_path,
@@ -274,16 +255,12 @@ def test_quality_processor_writes_clean_output(
     )
 
     build_valid_dataframe().to_parquet(
-        transformed_batch
-        / "data.parquet",
+        transformed_batch / "data.parquet",
         engine="pyarrow",
         index=False,
     )
 
-    (
-        transformed_batch
-        / "transform_summary.json"
-    ).write_text(
+    (transformed_batch / "transform_summary.json").write_text(
         (
             "{\n"
             '  "status": "SUCCESS",\n'
@@ -298,14 +275,10 @@ def test_quality_processor_writes_clean_output(
     clean_root = tmp_path / "clean"
     quality_root = tmp_path / "quality"
 
-    summary = (
-        process_transformed_batch_quality(
-            transformed_batch_directory=(
-                transformed_batch
-            ),
-            clean_root=clean_root,
-            quality_root=quality_root,
-        )
+    summary = process_transformed_batch_quality(
+        transformed_batch_directory=(transformed_batch),
+        clean_root=clean_root,
+        quality_root=quality_root,
     )
 
     clean_data_path = (
