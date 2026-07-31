@@ -1,267 +1,321 @@
 # Vietnam Air Quality Pipeline Architecture
 
-## 1. Tổng quan
+## 1. Mục tiêu
 
-Vietnam Air Quality Monitoring & Forecasting Data Pipeline là một project Data Engineering dùng để thu thập, xử lý, lưu trữ và hiển thị dữ liệu chất lượng không khí tại Việt Nam.
+Vietnam Air Quality Monitoring & Forecasting Data Pipeline là một hệ thống Data Engineering dùng để:
 
-Nguồn dữ liệu chính của project là Open-Meteo Air Quality API.
+- Thu thập dữ liệu chất lượng không khí theo tọa độ.
+- Lưu dữ liệu gốc và dữ liệu đã xử lý trong data lake.
+- Kiểm tra chất lượng trước khi load database.
+- Lưu dữ liệu chuỗi thời gian để truy vấn hiệu quả.
+- Phân loại AQI và tạo cảnh báo.
+- Xuất bản snapshot công khai mà không mở database trực tiếp ra Internet.
+- Hiển thị dữ liệu qua Streamlit dashboard.
 
-Dữ liệu Open-Meteo là dữ liệu mô hình và dự báo theo tọa độ, không phải dữ liệu đo trực tiếp từ trạm quan trắc tại tất cả tỉnh/thành.
+Nguồn chính là Open-Meteo Air Quality API. Đây là dữ liệu mô hình và dự báo, không phải dữ liệu đo trực tiếp từ trạm quan trắc tại toàn bộ tỉnh/thành.
 
-## 2. Luồng dữ liệu tổng quát
+## 2. Kiến trúc tổng thể
 
-```text
-Open-Meteo Air Quality API
-        ↓
-Apache Airflow
-        ↓
-MinIO Raw Zone
-        ↓
-Transform và chuẩn hóa dữ liệu
-        ↓
-Data Quality Check
-        ↓
-MinIO Clean Zone
-        ↓
-TimescaleDB
-        ↓
-AQI Level và Alert System
-        ↓
-FastAPI Backend
-        ↓
+````mermaid
+graph TD
+    A[Open-Meteo Air Quality API] --> B[Apache Airflow]
+    B --> C[MinIO Raw Zone]
+    C --> D[Transform & Standardize]
+    D --> E[Data Quality Validation]
+    E --> F[MinIO Clean Zone]
+    F --> G[TimescaleDB]
+    F --> H[MinIO Mart Zone]
+    F --> I[AQI Alert Processing]
+    I --> J[Alert records & MinIO artifacts]
+    G --> K[Internal FastAPI]
+    K --> L[Snapshot Publisher]
+    L --> M[Immutable JSON release]
+    M --> N[Private Amazon S3]
+    N --> O[Lambda Snapshot Reader]
+    O --> P[Streamlit Dashboard]
+    B --> Q[Pipeline Health]
+    Q --> G
+````
+
+## 3. Active runtime flow
+
+Luồng production hiện tại:
+
+````text
+Open-Meteo
+    ↓
+Airflow MinIO pipeline
+    ↓
+Raw → Transform → Data Quality → Clean
+    ├──→ TimescaleDB
+    ├──→ AQI Alerts
+    └──→ Mart datasets
+             ↓
+      Pipeline Health Sync
+             ↓
+TimescaleDB → FastAPI → Snapshot Publisher
+             ↓
+Local immutable JSON snapshot
+             ↓
+Private S3 release + current.json pointer
+             ↓
+Lambda Snapshot Reader
+             ↓
 Streamlit Dashboard
-```
+````
 
-## 3. Luồng xử lý chi tiết
+FastAPI là dịch vụ nội bộ, read-only. Docker Compose chỉ publish API trên loopback `127.0.0.1`, còn Airflow truy cập API qua private Docker network bằng `http://api:8000`.
 
-```text
-1. Airflow đọc danh sách điểm theo dõi từ file cấu hình.
+Dashboard nhận dữ liệu từ Lambda/CloudFront snapshot base URL, không truy cập trực tiếp TimescaleDB và không gọi FastAPI nội bộ từ Internet.
 
-2. Airflow chia các điểm theo dõi thành từng API batch.
+## 4. Airflow orchestration
 
-3. Pipeline gọi Open-Meteo Air Quality API theo latitude và longitude.
+DAG ID:
 
-4. Dữ liệu JSON gốc được lưu vào MinIO Raw Zone.
+````text
+vietnam_air_quality_minio_pipeline
+````
 
-5. Dữ liệu được transform và chuẩn hóa thành cấu trúc chung.
+Schedule:
 
-6. Data Quality Check kiểm tra dữ liệu thiếu, dữ liệu âm và dữ liệu trùng.
-
-7. Dữ liệu hợp lệ được lưu vào MinIO Clean Zone.
-
-8. Dữ liệu tổng hợp được lưu vào MinIO Mart Zone.
-
-9. Dữ liệu sạch được load vào TimescaleDB.
-
-10. Hệ thống phân loại AQI level.
-
-11. Hệ thống tạo alert khi AQI lớn hơn hoặc bằng 101.
-
-12. FastAPI đọc dữ liệu từ TimescaleDB.
-
-13. Streamlit gọi FastAPI để hiển thị dashboard.
-```
-
-## 4. Các thành phần chính
-
-### Open-Meteo Air Quality API
-
-Cung cấp dữ liệu chất lượng không khí theo tọa độ.
-
-Các biến chính được sử dụng:
-
-* `pm2_5`
-* `pm10`
-* `carbon_monoxide`
-* `nitrogen_dioxide`
-* `sulphur_dioxide`
-* `ozone`
-* `us_aqi`
-* `us_aqi_pm2_5`
-* `us_aqi_pm10`
-
-### Apache Airflow
-
-Dùng để:
-
-* Chạy pipeline theo lịch.
-* Điều phối thứ tự các task.
-* Retry khi task gặp lỗi.
-* Theo dõi trạng thái thành công hoặc thất bại.
-* Lưu log của từng lần chạy pipeline.
-
-Lịch chạy ban đầu:
-
-```text
-0 * * * *
-```
-
-Pipeline chạy một lần mỗi giờ.
-
-Lịch nâng cấp:
-
-```text
+````text
 */30 * * * *
-```
+````
 
-Pipeline chạy mỗi 30 phút.
+Active entrypoints:
 
-### MinIO
+1. `scripts.sync_dimensions_to_timescaledb`
+2. `scripts.extract_all_points_to_minio`
+3. `scripts.transform_latest_minio_batch`
+4. `scripts.run_latest_minio_data_quality`
+5. `scripts.load_latest_minio_clean_batch`
+6. `scripts.process_latest_aqi_alerts`
+7. `scripts.build_latest_minio_mart`
+8. `scripts.sync_latest_minio_pipeline_health`
+9. `scripts.publish_latest_snapshots`
+10. `scripts.upload_public_snapshots_to_s3`
 
-MinIO được sử dụng làm Data Lake local.
+Dependency graph:
 
-Project có ba lớp dữ liệu:
+````text
+sync_dimensions
+    ↓
+extract_to_minio
+    ↓
+transform_minio_batch
+    ↓
+run_data_quality
+    ↓
+load_timescaledb ─────────→ process_aqi_alerts
+    └─────────────────────→ build_minio_mart
+                                  ↓
+                         sync_pipeline_health
+                                  ↓
+                      publish_public_snapshots
+                                  ↓
+                   upload_public_snapshots_to_s3
+````
 
-```text
-Raw Zone
-Clean Zone
-Mart Zone
-```
+Operational controls:
 
-#### Raw Zone
+- `max_active_runs=1`
+- `max_active_tasks=2`
+- Two retries per task.
+- Exponential retry backoff.
+- Task execution timeout.
+- DAG run timeout.
+- Task failure, retry and DAG failure callbacks.
+- Optional webhook delivery.
 
-Lưu dữ liệu JSON gốc nhận từ API.
+## 5. Data lake layers
 
-```text
-raw/open_meteo/air_quality/date=YYYY-MM-DD/hour=HH/batch_id=xxx/data.json
-```
+### Raw Zone
 
-#### Clean Zone
+Bucket:
 
-Lưu dữ liệu đã làm sạch và chuẩn hóa.
+````text
+air-quality-raw
+````
 
-```text
-clean/air_quality/hourly/date=YYYY-MM-DD/hour=HH/data.parquet
-```
+Mục đích:
 
-#### Mart Zone
+- Giữ payload JSON gần với dữ liệu nguồn.
+- Hỗ trợ kiểm tra, tái xử lý và truy vết batch.
 
-Lưu dữ liệu đã tổng hợp để dashboard truy vấn nhanh hơn.
+Partition chính:
 
-```text
-mart/air_quality/location_summary/date=YYYY-MM-DD/data.parquet
-mart/air_quality/daily_summary/date=YYYY-MM-DD/data.parquet
-```
+````text
+open_meteo/air_quality/date=YYYY-MM-DD/hour=HH/batch_id=<batch_id>/
+````
 
-### Data Quality Check
+### Clean Zone
 
-Kiểm tra dữ liệu trước khi load vào TimescaleDB.
+Bucket:
 
-Một số rule chính:
+````text
+air-quality-clean
+````
 
-* `point_id` không được rỗng.
-* `location_id` không được rỗng.
-* `forecast_time` không được rỗng.
-* `pm2_5` không được âm.
-* `pm10` không được âm.
-* `us_aqi` không được âm.
-* `latitude` phải nằm trong khoảng từ `-90` đến `90`.
-* `longitude` phải nằm trong khoảng từ `-180` đến `180`.
-* `source` phải là `open_meteo`.
-* Không được trùng theo `point_id`, `forecast_time` và `source`.
+Mục đích:
 
-### TimescaleDB
+- Lưu dữ liệu đã chuẩn hóa thành Parquet.
+- Lưu transform summary và quality summary.
+- Chỉ cho phép batch đạt Data Quality đi tiếp tới load và downstream processing.
 
-TimescaleDB được dùng để lưu dữ liệu chất lượng không khí theo thời gian.
+### Mart Zone
 
-Database dự kiến gồm các bảng:
+Bucket:
 
-* `dim_location`
-* `dim_monitoring_point`
-* `fact_air_quality_hourly`
-* `fact_air_quality_alerts`
-* `pipeline_run_logs`
-* `data_quality_logs`
+````text
+air-quality-mart
+````
 
-### AQI Level và Alert System
+Datasets:
 
-Hệ thống sử dụng trường `us_aqi` từ Open-Meteo để phân loại mức chất lượng không khí.
+- `current_aqi`
+- `location_summary`
+- `daily_summary`
+- AQI alert artifacts
+
+Hiện Mart được tạo trong Airflow và lưu trên MinIO. Snapshot Publisher chưa đọc trực tiếp Mart; đây là hạng mục cải tiến kiến trúc tiếp theo.
+
+## 6. Data Quality layer
+
+Các nhóm kiểm tra chính:
+
+- Required columns và required values.
+- Numeric type và non-negative pollutant/AQI values.
+- Latitude/longitude range.
+- Expected source.
+- Expected `batch_id`.
+- Duplicate logical key `(point_id, forecast_time, source)`.
+- Timezone-aware timestamps.
+- Forecast coverage.
+- Freshness.
+
+Kết quả kiểm tra được lưu thành quality summary và đồng bộ vào `data_quality_logs`.
+
+## 7. TimescaleDB
+
+Các bảng chính:
+
+- `dim_location`
+- `dim_monitoring_point`
+- `fact_air_quality_hourly`
+- `fact_air_quality_alerts`
+- `pipeline_run_logs`
+- `data_quality_logs`
+
+`fact_air_quality_hourly` là hypertable phục vụ truy vấn dữ liệu AQI theo thời gian.
+
+SQL schema, indexes và migrations nằm trong `sql/`.
+
+## 8. AQI alert processing
 
 Alert được tạo khi:
 
-```text
+````text
 AQI >= 101
-```
+````
 
-Các mức cảnh báo:
+Mức cảnh báo:
 
-* `MEDIUM`: AQI từ 101 đến 150.
-* `HIGH`: AQI từ 151 đến 200.
-* `CRITICAL`: AQI từ 201 trở lên.
+- `MEDIUM`: 101–150
+- `HIGH`: 151–200
+- `CRITICAL`: từ 201 trở lên
 
-### FastAPI
+Alert records được cập nhật vào TimescaleDB. Summary và artifacts của batch được upload vào MinIO Mart bucket dưới prefix:
 
-FastAPI là lớp backend trung gian giữa TimescaleDB và Streamlit.
+````text
+alerts/air_quality/hourly/date=YYYY-MM-DD/hour=HH/batch_id=<batch_id>/
+````
 
-Luồng truy vấn:
+## 9. Internal FastAPI
 
-```text
-TimescaleDB
-    ↓
-FastAPI
-    ↓
-Streamlit Dashboard
-```
+FastAPI là lớp query nội bộ giữa TimescaleDB và Snapshot Publisher.
 
-FastAPI dự kiến cung cấp các endpoint:
+Các nhóm endpoint:
 
-* `GET /health`
-* `GET /locations`
-* `GET /monitoring-points`
-* `GET /current-aqi`
-* `GET /current-aqi/{location_id}`
-* `GET /history/{location_id}`
-* `GET /alerts`
-* `GET /top-polluted`
-* `GET /pipeline-health`
+- Health
+- Locations
+- Monitoring points
+- Latest AQI
+- Location and point AQI
+- AQI history
+- Top polluted locations
+- Latest alerts
+- Pipeline health
+- Data-quality results
 
-### Streamlit
+FastAPI không phải public website backend và không nên expose trực tiếp ra Internet.
 
-Streamlit dùng để xây dựng dashboard.
+## 10. Snapshot publishing và public delivery
 
-Dashboard dự kiến gồm:
+Snapshot Publisher gọi FastAPI, chuẩn hóa payload và ghi các file JSON như:
 
-* Overview Việt Nam.
-* Chi tiết tỉnh/thành.
-* Monitoring Points.
-* AQI Alerts.
-* Pipeline Health.
+````text
+health.json
+locations.json
+monitoring_points.json
+air_quality/latest.json
+air_quality/top_polluted.json
+air_quality/locations/<location_id>.json
+air_quality/points/<point_id>.json
+air_quality/history/<point_id>.json
+alerts/latest.json
+pipeline/health.json
+data_quality/latest.json
+manifest.json
+````
 
-## 5. Phạm vi bản chính
+S3 uploader:
 
-Project bản chính bao gồm:
+1. Upload toàn bộ file vào một immutable release prefix.
+2. Xác minh release và manifest.
+3. Cập nhật `current.json` pointer sau cùng.
 
-* Open-Meteo Air Quality API.
-* Từ 5 đến 10 tỉnh/thành trong giai đoạn đầu.
-* Mở rộng lên 34 tỉnh/thành.
-* Từ 1 điểm lên 3 hoặc 5 điểm theo dõi cho mỗi tỉnh/thành.
-* Apache Airflow.
-* MinIO Raw, Clean và Mart.
-* Data Quality Check.
-* TimescaleDB.
-* AQI Level.
-* Alert System.
-* FastAPI.
-* Streamlit.
+Lambda Snapshot Reader đọc pointer và chỉ trả về các đường dẫn snapshot hợp lệ. S3 bucket vẫn private.
 
-## 6. Ngoài phạm vi bản chính
+## 11. Dashboard
 
-Project bản chính không bao gồm:
+Dashboard Streamlit đọc snapshot public qua `PUBLIC_SNAPSHOT_BASE_URL`.
 
-* Machine Learning.
-* Mô hình tự huấn luyện.
-* Kafka.
-* Nhiệt độ.
-* Độ ẩm.
-* Cảm biến vật lý thời gian thực.
-* Email hoặc Telegram Alert.
+Các trang:
 
-Những thành phần này chỉ có thể được cân nhắc trong các phiên bản nâng cấp sau.
+1. Bản đồ AQI
+2. Phân tích
+3. Điểm theo dõi
+4. Lịch sử AQI
+5. Cảnh báo
+6. Trạng thái hệ thống
 
-## 7. Giới hạn dữ liệu
+Dashboard sử dụng Altair cho biểu đồ và PyDeck cho bản đồ.
 
-Dữ liệu Open-Meteo Air Quality API là dữ liệu mô hình và dự báo theo tọa độ.
+## 12. Runtime inventory và legacy pipeline
 
-Dữ liệu này không đại diện cho dữ liệu đo trực tiếp từ trạm quan trắc tại tất cả tỉnh/thành Việt Nam.
+Source of truth:
 
-Project được xây dựng cho mục đích học tập và portfolio Data Engineering. Project không dùng để thay thế cảnh báo môi trường hoặc y tế chính thức.
+````text
+src/operations/runtime_inventory.py
+````
+
+Generated catalog:
+
+````text
+contracts/runtime_components.v1.json
+````
+
+Pipeline local filesystem cũ được giữ tạm thời để recovery và historical verification, nhưng bị vô hiệu hóa mặc định. Muốn chạy có chủ đích phải đặt:
+
+````text
+ALLOW_LEGACY_LOCAL_PIPELINE=true
+````
+
+## 13. Current architectural improvements
+
+Các hạng mục đang được ưu tiên:
+
+1. Truyền `batch_id` xuyên suốt DAG và hỗ trợ retry/backfill đúng batch.
+2. Đưa Mart datasets vào Snapshot Publisher và Dashboard.
+3. Thêm CI, coverage và automated quality gates.
+4. Xóa legacy pipeline sau khi full-suite test xác nhận an toàn.
