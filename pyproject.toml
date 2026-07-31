@@ -51,3 +51,31 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "lf"
 docstring-code-format = true
+
+[tool.coverage.run]
+source = [
+    "src",
+    "api",
+]
+omit = [
+    "*/__init__.py",
+]
+relative_files = true
+
+[tool.coverage.report]
+fail_under = 60
+precision = 2
+show_missing = true
+skip_covered = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"

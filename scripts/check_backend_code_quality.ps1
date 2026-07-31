@@ -11,7 +11,7 @@ function Assert-LastCommandSucceeded {
     }
 }
 
-$targets = @(
+$requestedTargets = @(
     "api",
     "dags",
     "infra",
@@ -19,6 +19,16 @@ $targets = @(
     "src",
     "tests"
 )
+
+$targets = @(
+    $requestedTargets | Where-Object {
+        Test-Path $_
+    }
+)
+
+if ($targets.Count -eq 0) {
+    throw "No Python target directories were found."
+}
 
 Write-Host ""
 Write-Host "1. Ruff lint check"

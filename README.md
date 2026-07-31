@@ -5,6 +5,7 @@
 **End-to-end Data Engineering pipeline for collecting, validating, storing, serving, and visualizing air-quality model data across Vietnam.**
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![CI](https://github.com/Oolongk/vietnam-air-quality-pipeline/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Oolongk/vietnam-air-quality-pipeline/actions/workflows/ci.yml)
 [![Apache Airflow](https://img.shields.io/badge/Apache%20Airflow-2.11.2-017CEE?logo=apacheairflow&logoColor=white)](https://airflow.apache.org/)
 [![TimescaleDB](https://img.shields.io/badge/TimescaleDB-PostgreSQL%2017-FDB515?logo=postgresql&logoColor=white)](https://www.timescale.com/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
@@ -375,26 +376,27 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements-dev.txt -r dashboard/requirements.txt
 ````
 
-Chạy toàn bộ test:
+Chạy toàn bộ test và đo coverage cho backend:
 
 ````powershell
-python -m pytest tests -v
+.\scripts\run_backend_tests_with_coverage.ps1
 ````
 
-Chạy runtime inventory check:
+Coverage phải đạt tối thiểu **60%** cho `src/` và `api/`. Báo cáo HTML được tạo tại:
+
+````text
+htmlcov/index.html
+````
+
+Chạy toàn bộ kiểm tra chất lượng backend:
 
 ````powershell
-python -m scripts.check_runtime_inventory
+.\scripts\check_backend_code_quality.ps1
 ````
 
-Chạy Ruff:
+Lệnh trên kiểm tra Ruff lint, Ruff format, dependency consistency, data contract catalog và runtime inventory.
 
-````powershell
-ruff check .
-ruff format --check .
-````
-
-GitHub Actions và coverage threshold sẽ được bổ sung trong giai đoạn CI tiếp theo.
+GitHub Actions tự động chạy cùng các kiểm tra này khi push vào `main` hoặc mở pull request. Xem thêm [tài liệu Continuous Integration](docs/continuous_integration.md).
 
 ## API nội bộ
 
@@ -423,6 +425,7 @@ FastAPI là dịch vụ nội bộ phục vụ Snapshot Publisher và không đ�
 - [Data contracts](docs/data_contracts.md)
 - [FastAPI và runtime inventory](docs/fastapi_runtime_inventory.md)
 - [Hướng dẫn screenshot](docs/screenshots/README.md)
+- [Continuous Integration](docs/continuous_integration.md)
 
 ## Giới hạn hiện tại và roadmap
 
@@ -430,7 +433,6 @@ Các cải tiến kiến trúc đang được ưu tiên:
 
 - Truyền một `batch_id` cố định xuyên suốt DAG thay vì mỗi stage tự tìm batch mới nhất.
 - Cho Snapshot Publisher và Dashboard sử dụng trực tiếp dữ liệu Mart.
-- Thêm GitHub Actions, coverage report và CI badge.
 - Xóa pipeline local legacy sau khi full test và runtime review hoàn tất.
 - Hoàn thiện thêm runbook vận hành, ADR và ước tính chi phí AWS.
 
