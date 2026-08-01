@@ -19,6 +19,24 @@ LOCAL_TIMEZONE = pendulum.timezone("Asia/Ho_Chi_Minh")
 DAG_RUN_TIMEOUT = timedelta(minutes=80)
 DEFAULT_EXECUTION_TIMEOUT = timedelta(minutes=10)
 
+BATCH_ID_TEMPLATE = (
+    "{{ dag_run.conf.get('batch_id') "
+    "or (logical_date.in_timezone('UTC').strftime('%Y%m%dT%H%M%SZ') "
+    "~ '_airflow') }}"
+)
+PARTITION_DATE_TEMPLATE = (
+    "{{ dag_run.conf.get('partition_date') "
+    "or logical_date.in_timezone('Asia/Ho_Chi_Minh').strftime('%Y-%m-%d') }}"
+)
+PARTITION_HOUR_TEMPLATE = (
+    "{{ dag_run.conf.get('partition_hour') "
+    "or logical_date.in_timezone('Asia/Ho_Chi_Minh').strftime('%H') }}"
+)
+STARTED_AT_TEMPLATE = (
+    "{{ dag_run.conf.get('started_at') "
+    "or logical_date.in_timezone('UTC').isoformat() }}"
+)
+
 
 def build_python_command(
     module_name: str,
@@ -49,6 +67,10 @@ def create_python_task(
         append_env=True,
         env={
             "PYTHONUNBUFFERED": "1",
+            "PIPELINE_BATCH_ID": BATCH_ID_TEMPLATE,
+            "PIPELINE_PARTITION_DATE": PARTITION_DATE_TEMPLATE,
+            "PIPELINE_PARTITION_HOUR": PARTITION_HOUR_TEMPLATE,
+            "PIPELINE_STARTED_AT": STARTED_AT_TEMPLATE,
         },
         do_xcom_push=False,
     )
@@ -103,6 +125,9 @@ with DAG(
     - Mỗi task có execution timeout riêng.
     - Task lỗi được retry tối đa 2 lần với exponential backoff.
     - Chỉ một DAG run được hoạt động tại một thời điểm.
+    - Mọi task nhận cùng một `batch_id`, partition và `started_at`.
+    - Retry không tự chọn batch mới hơn; manual run có thể truyền batch context
+      qua `dag_run.conf`.
     - Task failure và DAG failure được lưu thành JSON Lines.
     - Webhook chỉ được gọi khi `AIRFLOW_ALERT_WEBHOOK_URL`
       được cấu hình.

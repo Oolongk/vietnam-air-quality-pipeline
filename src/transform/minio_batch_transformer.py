@@ -6,6 +6,7 @@ from typing import Any, Mapping
 from minio import Minio
 import pandas as pd
 
+from src.operations.batch_context import PipelineBatchContext
 from src.utils.minio_client import (
     MinioSettings,
     ensure_buckets,
@@ -553,6 +554,68 @@ def find_latest_transformable_raw_batch(
         latest_object_name,
         latest_summary,
     )
+
+
+def load_transformable_raw_batch_for_context(
+    context: PipelineBatchContext,
+    settings: MinioSettings | None = None,
+    client: Minio | None = None,
+) -> tuple[str, dict[str, Any]]:
+    resolved_settings = settings or MinioSettings.from_environment()
+    resolved_client = client or get_minio_client(resolved_settings)
+
+    summary_object_name = (
+        f"{RAW_ROOT_PREFIX}/"
+        f"date={context.partition_date}/"
+        f"hour={context.partition_hour}/"
+        f"batch_id={context.batch_id}/"
+        "run_summary.json"
+    )
+
+    summary = get_json_object(
+        bucket_name=resolved_settings.raw_bucket,
+        object_name=summary_object_name,
+        settings=resolved_settings,
+        client=resolved_client,
+    )
+
+    if not isinstance(summary, dict):
+        raise MinioBatchTransformError("Extraction summary phải là JSON object.")
+
+    context.validate_summary(summary, "Extraction summary")
+
+    status = str(summary.get("status", "")).strip().upper()
+    successes = summary.get("successes")
+
+    if status not in {"SUCCESS", "PARTIAL_SUCCESS"}:
+        raise MinioBatchTransformError(
+            f"Extraction summary không thể transform. Status={status or 'EMPTY'}."
+        )
+
+    if not isinstance(successes, list) or not successes:
+        raise MinioBatchTransformError(
+            "Extraction summary không có Raw object thành công để transform."
+        )
+
+    expected_raw_prefix = (
+        f"{RAW_ROOT_PREFIX}/"
+        f"date={context.partition_date}/"
+        f"hour={context.partition_hour}/"
+        f"batch_id={context.batch_id}/"
+    )
+    invalid_object_names = [
+        str(item.get("object_name", "")).strip()
+        for item in successes
+        if not isinstance(item, Mapping)
+        or not str(item.get("object_name", "")).strip().startswith(expected_raw_prefix)
+    ]
+    if invalid_object_names:
+        raise MinioBatchTransformError(
+            "Extraction summary chứa Raw object ngoài batch context: "
+            + ", ".join(name or "EMPTY" for name in invalid_object_names)
+        )
+
+    return summary_object_name, summary
 
 
 def build_transformed_prefix(

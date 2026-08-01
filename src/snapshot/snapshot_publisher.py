@@ -242,10 +242,18 @@ class SnapshotPublisher:
         self,
         settings: SnapshotSettings,
         session: requests.Session | None = None,
+        expected_batch_id: str | None = None,
     ) -> None:
         self.settings = settings
-
         self.session = session or build_http_session()
+
+        if expected_batch_id is None:
+            self.expected_batch_id = None
+        else:
+            normalized_expected_batch_id = str(expected_batch_id).strip()
+            if not normalized_expected_batch_id:
+                raise SnapshotConfigurationError("expected_batch_id không được rỗng.")
+            self.expected_batch_id = normalized_expected_batch_id
 
     def publish(
         self,
@@ -363,6 +371,11 @@ class SnapshotPublisher:
             endpoint=("/api/v1/air-quality/latest"),
         )
 
+        self._validate_expected_batch(
+            payload=latest_payload,
+            endpoint="/api/v1/air-quality/latest",
+        )
+
         self._write_json(
             root_directory=(staging_directory),
             relative_path=("air_quality/latest.json"),
@@ -388,6 +401,11 @@ class SnapshotPublisher:
         top_polluted_records = self._require_record_list(
             payload=(top_polluted_payload),
             endpoint=("/api/v1/air-quality/top-polluted"),
+        )
+
+        self._validate_expected_batch(
+            payload=top_polluted_payload,
+            endpoint="/api/v1/air-quality/top-polluted",
         )
 
         self._write_json(
@@ -436,6 +454,11 @@ class SnapshotPublisher:
         pipeline_records = self._require_record_list(
             payload=pipeline_payload,
             endpoint=("/api/v1/pipeline/health/latest"),
+        )
+
+        self._validate_expected_batch(
+            payload=pipeline_payload,
+            endpoint="/api/v1/pipeline/health/latest",
         )
 
         self._write_json(
@@ -501,6 +524,11 @@ class SnapshotPublisher:
                 endpoint=(f"/api/v1/air-quality/locations/{location_id}"),
             )
 
+            self._validate_expected_batch(
+                payload=location_payload,
+                endpoint=f"/api/v1/air-quality/locations/{location_id}",
+            )
+
             relative_path = f"air_quality/locations/{location_id}.json"
 
             self._write_json(
@@ -540,6 +568,11 @@ class SnapshotPublisher:
             self._require_record_list(
                 payload=point_payload,
                 endpoint=(f"/api/v1/air-quality/points/{point_id}"),
+            )
+
+            self._validate_expected_batch(
+                payload=point_payload,
+                endpoint=f"/api/v1/air-quality/points/{point_id}",
             )
 
             point_relative_path = f"air_quality/points/{point_id}.json"
@@ -636,6 +669,22 @@ class SnapshotPublisher:
             "point_count": len(point_ids),
             "manifest": (manifest_payload),
         }
+
+    def _validate_expected_batch(
+        self,
+        payload: dict[str, Any],
+        endpoint: str,
+    ) -> None:
+        if self.expected_batch_id is None:
+            return
+
+        actual_batch_id = str(payload.get("batch_id", "")).strip()
+        if actual_batch_id != self.expected_batch_id:
+            raise SnapshotValidationError(
+                f"Endpoint {endpoint} không khớp batch_id. "
+                f"Expected={self.expected_batch_id}; "
+                f"actual={actual_batch_id or 'EMPTY'}."
+            )
 
     def _fetch_json(
         self,
@@ -897,12 +946,14 @@ class SnapshotPublisher:
 def publish_snapshots(
     settings: SnapshotSettings | None = None,
     session: requests.Session | None = None,
+    expected_batch_id: str | None = None,
 ) -> dict[str, Any]:
     resolved_settings = settings or SnapshotSettings.from_environment()
 
     publisher = SnapshotPublisher(
         settings=resolved_settings,
         session=session,
+        expected_batch_id=expected_batch_id,
     )
 
     return publisher.publish()

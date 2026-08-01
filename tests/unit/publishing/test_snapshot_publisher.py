@@ -555,3 +555,23 @@ def test_settings_use_5000_as_default_latest_limit(
     assert settings.latest_limit == 5000
 
     assert settings.api_base_url == ("http://127.0.0.1:8000")
+
+
+def test_publish_rejects_api_batch_that_differs_from_expected(
+    tmp_path: Path,
+) -> None:
+    output_directory = tmp_path / "public_snapshots"
+    session = FakeSession(build_api_payloads())
+    publisher = SnapshotPublisher(
+        settings=build_settings(output_directory),
+        session=session,
+        expected_batch_id="ANOTHER_BATCH",
+    )
+
+    with pytest.raises(
+        SnapshotValidationError,
+        match="không khớp batch_id",
+    ):
+        publisher.publish()
+
+    assert not output_directory.exists()

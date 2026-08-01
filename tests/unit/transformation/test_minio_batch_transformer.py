@@ -203,3 +203,137 @@ def test_latest_batch_ignores_failed_summary(
     assert selected_name == summary_names[1]
 
     assert selected_summary["status"] == "SUCCESS"
+
+
+def test_context_batch_loads_exact_raw_summary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.operations.batch_context import PipelineBatchContext
+    from src.transform.minio_batch_transformer import (
+        load_transformable_raw_batch_for_context,
+    )
+
+    context = PipelineBatchContext.from_values(
+        batch_id="BATCH_1",
+        partition_date="2026-07-25",
+        partition_hour="08",
+        started_at="2026-07-25T01:00:00+00:00",
+    )
+    expected_object_name = (
+        "open_meteo/air_quality/date=2026-07-25/hour=08/"
+        "batch_id=BATCH_1/run_summary.json"
+    )
+    summary = {
+        "status": "SUCCESS",
+        "batch_id": "BATCH_1",
+        "partition_date": "2026-07-25",
+        "partition_hour": "08",
+        "successes": [
+            {
+                "point_id": "HN_CENTER",
+                "object_name": (
+                    "open_meteo/air_quality/date=2026-07-25/hour=08/"
+                    "batch_id=BATCH_1/point_id=HN_CENTER/raw.json"
+                ),
+            }
+        ],
+    }
+    captured: dict[str, object] = {}
+
+    def fake_get_json_object(**kwargs: object) -> dict:
+        captured.update(kwargs)
+        return summary
+
+    monkeypatch.setattr(
+        transformer_module,
+        "get_json_object",
+        fake_get_json_object,
+    )
+
+    selected_object_name, selected_summary = load_transformable_raw_batch_for_context(
+        context,
+        settings=build_test_settings(),
+        client=object(),
+    )
+
+    assert selected_object_name == expected_object_name
+    assert selected_summary is summary
+    assert captured["object_name"] == expected_object_name
+
+
+def test_context_batch_rejects_raw_summary_from_another_batch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.operations.batch_context import PipelineBatchContext
+    from src.transform.minio_batch_transformer import (
+        load_transformable_raw_batch_for_context,
+    )
+
+    context = PipelineBatchContext.from_values(
+        batch_id="BATCH_1",
+        partition_date="2026-07-25",
+        partition_hour="08",
+        started_at="2026-07-25T01:00:00+00:00",
+    )
+
+    monkeypatch.setattr(
+        transformer_module,
+        "get_json_object",
+        lambda **kwargs: {
+            "status": "SUCCESS",
+            "batch_id": "BATCH_2",
+            "partition_date": "2026-07-25",
+            "partition_hour": "08",
+            "successes": [{"object_name": "raw.json"}],
+        },
+    )
+
+    with pytest.raises(ValueError, match="không khớp batch_id"):
+        load_transformable_raw_batch_for_context(
+            context,
+            settings=build_test_settings(),
+            client=object(),
+        )
+
+
+def test_context_batch_rejects_raw_object_outside_batch_prefix(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.operations.batch_context import PipelineBatchContext
+    from src.transform.minio_batch_transformer import (
+        MinioBatchTransformError,
+        load_transformable_raw_batch_for_context,
+    )
+
+    context = PipelineBatchContext.from_values(
+        batch_id="BATCH_1",
+        partition_date="2026-07-25",
+        partition_hour="08",
+        started_at="2026-07-25T01:00:00+00:00",
+    )
+
+    monkeypatch.setattr(
+        transformer_module,
+        "get_json_object",
+        lambda **kwargs: {
+            "status": "SUCCESS",
+            "batch_id": "BATCH_1",
+            "partition_date": "2026-07-25",
+            "partition_hour": "08",
+            "successes": [
+                {
+                    "object_name": (
+                        "open_meteo/air_quality/date=2026-07-25/hour=08/"
+                        "batch_id=BATCH_2/point_id=HN_CENTER/raw.json"
+                    )
+                }
+            ],
+        },
+    )
+
+    with pytest.raises(MinioBatchTransformError, match="ngoài batch context"):
+        load_transformable_raw_batch_for_context(
+            context,
+            settings=build_test_settings(),
+            client=object(),
+        )

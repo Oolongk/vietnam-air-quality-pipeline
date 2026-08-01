@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from dotenv import load_dotenv
 from minio import Minio
@@ -743,15 +743,36 @@ def upsert_fact_dataframe(
     }
 
 
-def load_latest_minio_clean_batch(
+def build_load_summary_object_name(
+    partition_date: str,
+    partition_hour: str,
+    batch_id: str,
+) -> str:
+    return (
+        "pipeline/load/timescaledb/"
+        f"date={partition_date}/"
+        f"hour={partition_hour}/"
+        f"batch_id={batch_id}/"
+        "load_summary.json"
+    )
+
+
+def load_minio_clean_batch(
+    quality_summary: Mapping[str, Any],
+    quality_summary_object_name: str,
     minio_settings: MinioSettings | None = None,
     minio_client: Minio | None = None,
     database_settings: TimescaleDBSettings | None = None,
 ) -> dict[str, Any]:
+    if not isinstance(quality_summary, Mapping):
+        raise MinioTimescaleDBLoadError("Data Quality summary phải là JSON object.")
+
+    normalized_quality_summary_object_name = str(quality_summary_object_name).strip()
+    if not normalized_quality_summary_object_name:
+        raise MinioTimescaleDBLoadError("quality_summary_object_name không được rỗng.")
+
     resolved_minio_settings = minio_settings or MinioSettings.from_environment()
-
     resolved_minio_client = minio_client or get_minio_client(resolved_minio_settings)
-
     resolved_database_settings = (
         database_settings or TimescaleDBSettings.from_environment()
     )
@@ -761,64 +782,45 @@ def load_latest_minio_clean_batch(
         client=resolved_minio_client,
     )
 
-    (
-        quality_summary_object_name,
-        quality_summary,
-    ) = find_latest_loadable_quality_batch(
-        settings=resolved_minio_settings,
-        client=resolved_minio_client,
-    )
-
     clean_object_name = quality_summary.get("clean_object_name")
-
-    if (
-        not isinstance(
-            clean_object_name,
-            str,
-        )
-        or not clean_object_name.strip()
-    ):
+    if not isinstance(clean_object_name, str) or not clean_object_name.strip():
         raise MinioTimescaleDBLoadError("Data Quality summary thiếu clean_object_name.")
+    clean_object_name = clean_object_name.strip()
 
-    batch_id = str(
-        quality_summary.get(
-            "batch_id",
-            "",
-        )
-    ).strip()
+    batch_id = str(quality_summary.get("batch_id", "")).strip()
+    partition_date = str(quality_summary.get("partition_date", "")).strip()
+    partition_hour = str(quality_summary.get("partition_hour", "")).strip()
 
-    partition_date = str(
-        quality_summary.get(
-            "partition_date",
-            "",
-        )
-    ).strip()
-
-    partition_hour = str(
-        quality_summary.get(
-            "partition_hour",
-            "",
-        )
-    ).strip()
-
-    if not all(
-        (
-            batch_id,
-            partition_date,
-            partition_hour,
-        )
-    ):
+    if not all((batch_id, partition_date, partition_hour)):
         raise MinioTimescaleDBLoadError(
             "Data Quality summary thiếu batch_id hoặc partition."
+        )
+
+    status = str(quality_summary.get("status", "")).strip().upper()
+    if status not in {"SUCCESS", "PARTIAL_SUCCESS"}:
+        raise MinioTimescaleDBLoadError(
+            f"Data Quality summary không thể load. Status={status or 'EMPTY'}."
+        )
+
+    try:
+        valid_records = int(quality_summary.get("valid_records", 0))
+    except (TypeError, ValueError) as error:
+        raise MinioTimescaleDBLoadError(
+            "Data Quality summary có valid_records không hợp lệ."
+        ) from error
+
+    if valid_records <= 0:
+        raise MinioTimescaleDBLoadError(
+            "Data Quality summary không có valid_records để load."
         )
 
     started_at = datetime.now(timezone.utc)
 
     clean_dataframe = get_parquet_object(
-        bucket_name=(resolved_minio_settings.clean_bucket),
-        object_name=(clean_object_name),
-        settings=(resolved_minio_settings),
-        client=(resolved_minio_client),
+        bucket_name=resolved_minio_settings.clean_bucket,
+        object_name=clean_object_name,
+        settings=resolved_minio_settings,
+        client=resolved_minio_client,
     )
 
     connection = resolved_database_settings.connect()
@@ -829,28 +831,22 @@ def load_latest_minio_clean_batch(
             dataframe=clean_dataframe,
             expected_batch_id=batch_id,
         )
-
         connection.commit()
-
     except Exception:
         connection.rollback()
         raise
-
     finally:
         connection.close()
 
     finished_at = datetime.now(timezone.utc)
-
-    load_summary_object_name = (
-        "pipeline/load/timescaledb/"
-        f"date={partition_date}/"
-        f"hour={partition_hour}/"
-        f"batch_id={batch_id}/"
-        "load_summary.json"
+    load_summary_object_name = build_load_summary_object_name(
+        partition_date=partition_date,
+        partition_hour=partition_hour,
+        batch_id=batch_id,
     )
 
     load_summary = {
-        "pipeline_name": ("air_quality_timescaledb_load"),
+        "pipeline_name": "air_quality_timescaledb_load",
         "source": "open_meteo",
         "storage_backend": "minio",
         "database": "timescaledb",
@@ -858,30 +854,52 @@ def load_latest_minio_clean_batch(
         "batch_id": batch_id,
         "partition_date": partition_date,
         "partition_hour": partition_hour,
-        "started_at": (started_at.isoformat()),
-        "finished_at": (finished_at.isoformat()),
+        "started_at": started_at.isoformat(),
+        "finished_at": finished_at.isoformat(),
         "duration_seconds": (finished_at - started_at).total_seconds(),
-        "quality_summary_bucket": (resolved_minio_settings.clean_bucket),
-        "quality_summary_object_name": (quality_summary_object_name),
-        "clean_bucket": (resolved_minio_settings.clean_bucket),
-        "clean_object_name": (clean_object_name),
-        "input_rows": (len(clean_dataframe)),
-        "processed_rows": (load_result["processed_rows"]),
-        "inserted_rows": (load_result["inserted_rows"]),
-        "updated_rows": (load_result["updated_rows"]),
-        "fact_table": (FACT_TABLE_NAME),
-        "database_time_column": (load_result["time_column"]),
-        "database_columns": (load_result["database_columns"]),
-        "summary_bucket": (resolved_minio_settings.mart_bucket),
-        "summary_object_name": (load_summary_object_name),
+        "quality_summary_bucket": resolved_minio_settings.clean_bucket,
+        "quality_summary_object_name": normalized_quality_summary_object_name,
+        "clean_bucket": resolved_minio_settings.clean_bucket,
+        "clean_object_name": clean_object_name,
+        "input_rows": len(clean_dataframe),
+        "processed_rows": load_result["processed_rows"],
+        "inserted_rows": load_result["inserted_rows"],
+        "updated_rows": load_result["updated_rows"],
+        "fact_table": FACT_TABLE_NAME,
+        "database_time_column": load_result["time_column"],
+        "database_columns": load_result["database_columns"],
+        "summary_bucket": resolved_minio_settings.mart_bucket,
+        "summary_object_name": load_summary_object_name,
     }
 
     put_json_object(
-        bucket_name=(resolved_minio_settings.mart_bucket),
-        object_name=(load_summary_object_name),
+        bucket_name=resolved_minio_settings.mart_bucket,
+        object_name=load_summary_object_name,
         data=load_summary,
-        settings=(resolved_minio_settings),
-        client=(resolved_minio_client),
+        settings=resolved_minio_settings,
+        client=resolved_minio_client,
     )
 
     return load_summary
+
+
+def load_latest_minio_clean_batch(
+    minio_settings: MinioSettings | None = None,
+    minio_client: Minio | None = None,
+    database_settings: TimescaleDBSettings | None = None,
+) -> dict[str, Any]:
+    resolved_minio_settings = minio_settings or MinioSettings.from_environment()
+    resolved_minio_client = minio_client or get_minio_client(resolved_minio_settings)
+
+    quality_summary_object_name, quality_summary = find_latest_loadable_quality_batch(
+        settings=resolved_minio_settings,
+        client=resolved_minio_client,
+    )
+
+    return load_minio_clean_batch(
+        quality_summary=quality_summary,
+        quality_summary_object_name=quality_summary_object_name,
+        minio_settings=resolved_minio_settings,
+        minio_client=resolved_minio_client,
+        database_settings=database_settings,
+    )

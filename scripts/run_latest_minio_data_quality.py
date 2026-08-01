@@ -4,9 +4,14 @@ import sys
 
 from minio.error import S3Error
 
+from src.operations.batch_context import (
+    PipelineBatchContext,
+    PipelineBatchContextError,
+)
 from src.quality.minio_quality_processor import (
     MinioDataQualityError,
     find_latest_quality_candidate,
+    load_quality_candidate_for_context,
     process_transformed_batch_on_minio,
 )
 from src.utils.minio_client import (
@@ -41,19 +46,33 @@ def configure_console_encoding() -> None:
 def main() -> None:
     configure_console_encoding()
 
+    batch_context = None
+
     try:
-        (
-            transform_summary_object_name,
-            transform_summary,
-        ) = find_latest_quality_candidate()
+        batch_context = PipelineBatchContext.from_environment()
+
+        if batch_context is None:
+            (
+                transform_summary_object_name,
+                transform_summary,
+            ) = find_latest_quality_candidate()
+        else:
+            (
+                transform_summary_object_name,
+                transform_summary,
+            ) = load_quality_candidate_for_context(batch_context)
 
         quality_summary = process_transformed_batch_on_minio(
-            transform_summary=(transform_summary),
-            transform_summary_object_name=(transform_summary_object_name),
+            transform_summary=transform_summary,
+            transform_summary_object_name=transform_summary_object_name,
         )
+
+        if batch_context is not None:
+            batch_context.validate_summary(quality_summary, "Data Quality summary")
 
     except (
         MinioDataQualityError,
+        PipelineBatchContextError,
         MinioConfigurationError,
         MinioOperationError,
         MinioObjectIOError,
@@ -67,6 +86,8 @@ def main() -> None:
 
     print()
 
+    execution_mode = "AIRFLOW_BATCH" if batch_context is not None else "LATEST_MANUAL"
+    print(f"Execution mode: {execution_mode}")
     print(f"Pipeline status: {quality_summary['status']}")
 
     print(f"Quality status: {quality_summary['quality_status']}")

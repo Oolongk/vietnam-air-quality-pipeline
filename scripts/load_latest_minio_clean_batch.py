@@ -6,9 +6,15 @@ import psycopg
 from src.load.minio_timescaledb_loader import (
     MinioTimescaleDBLoadError,
     load_latest_minio_clean_batch,
+    load_minio_clean_batch,
+)
+from src.operations.batch_context import (
+    PipelineBatchContext,
+    PipelineBatchContextError,
 )
 from src.quality.minio_quality_processor import (
     MinioDataQualityError,
+    load_loadable_quality_batch_for_context,
 )
 from src.utils.minio_client import (
     MinioConfigurationError,
@@ -20,12 +26,31 @@ from src.utils.minio_object_io import (
 
 
 def main() -> None:
+    batch_context = None
+
     try:
-        summary = load_latest_minio_clean_batch()
+        batch_context = PipelineBatchContext.from_environment()
+
+        if batch_context is None:
+            summary = load_latest_minio_clean_batch()
+        else:
+            (
+                quality_summary_object_name,
+                quality_summary,
+            ) = load_loadable_quality_batch_for_context(batch_context)
+
+            summary = load_minio_clean_batch(
+                quality_summary=quality_summary,
+                quality_summary_object_name=quality_summary_object_name,
+            )
+
+        if batch_context is not None:
+            batch_context.validate_summary(summary, "Load summary")
 
     except (
         MinioTimescaleDBLoadError,
         MinioDataQualityError,
+        PipelineBatchContextError,
         MinioConfigurationError,
         MinioOperationError,
         MinioObjectIOError,
@@ -40,6 +65,8 @@ def main() -> None:
 
     print("Load Clean Parquet từ MinIO vào TimescaleDB hoàn tất.")
 
+    execution_mode = "AIRFLOW_BATCH" if batch_context is not None else "LATEST_MANUAL"
+    print(f"Execution mode: {execution_mode}")
     print(f"Status: {summary['status']}")
 
     print(f"Batch ID: {summary['batch_id']}")

@@ -151,3 +151,78 @@ def test_pipeline_rows_reject_missing_batch_id() -> None:
         match="batch_id",
     ):
         build_pipeline_log_rows(summaries)
+
+
+def test_collect_pipeline_summaries_for_context_uses_exact_load_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import src.load.minio_pipeline_log_sync as sync_module
+    from src.operations.batch_context import PipelineBatchContext
+    from src.utils.minio_client import MinioSettings
+
+    context = PipelineBatchContext.from_values(
+        batch_id="BATCH_1",
+        partition_date="2026-07-25",
+        partition_hour="08",
+        started_at="2026-07-25T01:00:00+00:00",
+    )
+    settings = MinioSettings(
+        endpoint="localhost:9000",
+        access_key="access-key",
+        secret_key="secret-key",
+        secure=False,
+        raw_bucket="air-quality-raw",
+        clean_bucket="air-quality-clean",
+        mart_bucket="air-quality-mart",
+    )
+    expected_load_object_name = (
+        "pipeline/load/timescaledb/date=2026-07-25/hour=08/"
+        "batch_id=BATCH_1/load_summary.json"
+    )
+    load_summary = {
+        "batch_id": "BATCH_1",
+        "partition_date": "2026-07-25",
+        "partition_hour": "08",
+    }
+    captured: dict[str, object] = {}
+
+    def fake_read_required_summary(**kwargs: object) -> dict[str, object]:
+        captured.update(kwargs)
+        return load_summary
+
+    expected_summaries = {
+        "batch_id": "BATCH_1",
+        "partition_date": "2026-07-25",
+        "partition_hour": "08",
+        **{
+            stage: {
+                "summary": {
+                    "batch_id": "BATCH_1",
+                    "partition_date": "2026-07-25",
+                    "partition_hour": "08",
+                }
+            }
+            for stage in ("raw", "transform", "quality", "load", "alerts", "mart")
+        },
+    }
+
+    monkeypatch.setattr(
+        sync_module,
+        "_read_required_summary",
+        fake_read_required_summary,
+    )
+    monkeypatch.setattr(
+        sync_module,
+        "_collect_pipeline_summaries_from_load",
+        lambda **kwargs: expected_summaries,
+    )
+
+    result = sync_module.collect_pipeline_summaries_for_context(
+        context=context,
+        settings=settings,
+        client=object(),
+    )
+
+    assert result is expected_summaries
+    assert captured["bucket_name"] == "air-quality-mart"
+    assert captured["object_name"] == expected_load_object_name

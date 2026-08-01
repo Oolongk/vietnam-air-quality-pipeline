@@ -9,7 +9,9 @@ import psycopg
 
 from src.load.minio_timescaledb_loader import (
     TimescaleDBSettings,
+    build_load_summary_object_name,
 )
+from src.operations.batch_context import PipelineBatchContext
 from src.utils.minio_client import (
     MinioSettings,
     get_minio_client,
@@ -365,109 +367,177 @@ def _find_mart_summary(
     )
 
 
+def _collect_pipeline_summaries_from_load(
+    load_object_name: str,
+    load_summary: Mapping[str, Any],
+    settings: MinioSettings,
+    client: Minio,
+) -> dict[str, Any]:
+    batch_id = _clean_text(load_summary.get("batch_id"))
+    partition_date = _clean_text(load_summary.get("partition_date"))
+    partition_hour = _clean_text(load_summary.get("partition_hour"))
+
+    if not all((batch_id, partition_date, partition_hour)):
+        raise MinioPipelineLogSyncError(
+            "Load summary thiếu batch_id hoặc partition metadata."
+        )
+
+    quality_summary = _read_required_summary(
+        bucket_name=settings.clean_bucket,
+        object_name=load_summary.get("quality_summary_object_name"),
+        summary_name="Data Quality summary",
+        settings=settings,
+        client=client,
+    )
+
+    transform_summary = _read_required_summary(
+        bucket_name=settings.clean_bucket,
+        object_name=quality_summary.get("transform_summary_object_name"),
+        summary_name="Transform summary",
+        settings=settings,
+        client=client,
+    )
+
+    raw_summary = _read_required_summary(
+        bucket_name=settings.raw_bucket,
+        object_name=transform_summary.get("raw_summary_object_name"),
+        summary_name="Extraction summary",
+        settings=settings,
+        client=client,
+    )
+
+    alert_object_name, alert_summary = _find_alert_summary(
+        batch_id=batch_id,
+        partition_date=partition_date,
+        partition_hour=partition_hour,
+        settings=settings,
+        client=client,
+    )
+
+    mart_object_name, mart_summary = _find_mart_summary(
+        batch_id=batch_id,
+        partition_date=partition_date,
+        partition_hour=partition_hour,
+        settings=settings,
+        client=client,
+    )
+
+    summaries = {
+        "batch_id": batch_id,
+        "partition_date": partition_date,
+        "partition_hour": partition_hour,
+        "raw": {
+            "bucket_name": settings.raw_bucket,
+            "object_name": transform_summary.get("raw_summary_object_name"),
+            "summary": raw_summary,
+        },
+        "transform": {
+            "bucket_name": settings.clean_bucket,
+            "object_name": quality_summary.get("transform_summary_object_name"),
+            "summary": transform_summary,
+        },
+        "quality": {
+            "bucket_name": settings.clean_bucket,
+            "object_name": load_summary.get("quality_summary_object_name"),
+            "summary": quality_summary,
+        },
+        "load": {
+            "bucket_name": settings.mart_bucket,
+            "object_name": load_object_name,
+            "summary": load_summary,
+        },
+        "alerts": {
+            "bucket_name": settings.mart_bucket,
+            "object_name": alert_object_name,
+            "summary": alert_summary,
+        },
+        "mart": {
+            "bucket_name": settings.mart_bucket,
+            "object_name": mart_object_name,
+            "summary": mart_summary,
+        },
+    }
+
+    for stage_name in ("raw", "transform", "quality", "load", "mart"):
+        stage_summary = summaries[stage_name]["summary"]
+        stage_batch_id = _clean_text(stage_summary.get("batch_id"))
+        if stage_batch_id != batch_id:
+            raise MinioPipelineLogSyncError(
+                f"{stage_name} summary không cùng batch_id. "
+                f"Expected={batch_id}; actual={stage_batch_id or 'EMPTY'}."
+            )
+
+    if isinstance(alert_summary, Mapping):
+        alert_batch_id = _clean_text(alert_summary.get("batch_id"))
+        if alert_batch_id != batch_id:
+            raise MinioPipelineLogSyncError(
+                "Alert summary không cùng batch_id. "
+                f"Expected={batch_id}; actual={alert_batch_id or 'EMPTY'}."
+            )
+
+    return summaries
+
+
+def collect_pipeline_summaries_for_context(
+    context: PipelineBatchContext,
+    settings: MinioSettings | None = None,
+    client: Minio | None = None,
+) -> dict[str, Any]:
+    resolved_settings = settings or MinioSettings.from_environment()
+    resolved_client = client or get_minio_client(resolved_settings)
+
+    load_object_name = build_load_summary_object_name(
+        partition_date=context.partition_date,
+        partition_hour=context.partition_hour,
+        batch_id=context.batch_id,
+    )
+    load_summary = _read_required_summary(
+        bucket_name=resolved_settings.mart_bucket,
+        object_name=load_object_name,
+        summary_name="Load summary",
+        settings=resolved_settings,
+        client=resolved_client,
+    )
+    context.validate_summary(load_summary, "Load summary")
+
+    summaries = _collect_pipeline_summaries_from_load(
+        load_object_name=load_object_name,
+        load_summary=load_summary,
+        settings=resolved_settings,
+        client=resolved_client,
+    )
+
+    for stage_name in ("raw", "transform", "quality", "load", "mart"):
+        context.validate_summary(
+            summaries[stage_name]["summary"],
+            f"{stage_name} summary",
+        )
+
+    alert_summary = summaries["alerts"]["summary"]
+    if isinstance(alert_summary, Mapping):
+        context.validate_summary(alert_summary, "Alert summary")
+
+    return summaries
+
+
 def collect_latest_pipeline_summaries(
     settings: MinioSettings | None = None,
     client: Minio | None = None,
 ) -> dict[str, Any]:
     resolved_settings = settings or MinioSettings.from_environment()
-
     resolved_client = client or get_minio_client(resolved_settings)
 
-    (
-        load_object_name,
-        load_summary,
-    ) = find_latest_load_summary(
+    load_object_name, load_summary = find_latest_load_summary(
         settings=resolved_settings,
         client=resolved_client,
     )
 
-    batch_id = _clean_text(load_summary.get("batch_id"))
-
-    partition_date = _clean_text(load_summary.get("partition_date"))
-
-    partition_hour = _clean_text(load_summary.get("partition_hour"))
-
-    quality_summary = _read_required_summary(
-        bucket_name=(resolved_settings.clean_bucket),
-        object_name=(load_summary.get("quality_summary_object_name")),
-        summary_name=("Data Quality summary"),
+    return _collect_pipeline_summaries_from_load(
+        load_object_name=load_object_name,
+        load_summary=load_summary,
         settings=resolved_settings,
         client=resolved_client,
     )
-
-    transform_summary = _read_required_summary(
-        bucket_name=(resolved_settings.clean_bucket),
-        object_name=(quality_summary.get("transform_summary_object_name")),
-        summary_name=("Transform summary"),
-        settings=resolved_settings,
-        client=resolved_client,
-    )
-
-    raw_summary = _read_required_summary(
-        bucket_name=(resolved_settings.raw_bucket),
-        object_name=(transform_summary.get("raw_summary_object_name")),
-        summary_name=("Extraction summary"),
-        settings=resolved_settings,
-        client=resolved_client,
-    )
-
-    (
-        alert_object_name,
-        alert_summary,
-    ) = _find_alert_summary(
-        batch_id=batch_id,
-        partition_date=partition_date,
-        partition_hour=partition_hour,
-        settings=resolved_settings,
-        client=resolved_client,
-    )
-
-    (
-        mart_object_name,
-        mart_summary,
-    ) = _find_mart_summary(
-        batch_id=batch_id,
-        partition_date=partition_date,
-        partition_hour=partition_hour,
-        settings=resolved_settings,
-        client=resolved_client,
-    )
-
-    return {
-        "batch_id": batch_id,
-        "partition_date": (partition_date),
-        "partition_hour": (partition_hour),
-        "raw": {
-            "bucket_name": (resolved_settings.raw_bucket),
-            "object_name": (transform_summary.get("raw_summary_object_name")),
-            "summary": raw_summary,
-        },
-        "transform": {
-            "bucket_name": (resolved_settings.clean_bucket),
-            "object_name": (quality_summary.get("transform_summary_object_name")),
-            "summary": transform_summary,
-        },
-        "quality": {
-            "bucket_name": (resolved_settings.clean_bucket),
-            "object_name": (load_summary.get("quality_summary_object_name")),
-            "summary": quality_summary,
-        },
-        "load": {
-            "bucket_name": (resolved_settings.mart_bucket),
-            "object_name": (load_object_name),
-            "summary": load_summary,
-        },
-        "alerts": {
-            "bucket_name": (resolved_settings.mart_bucket),
-            "object_name": (alert_object_name),
-            "summary": alert_summary,
-        },
-        "mart": {
-            "bucket_name": (resolved_settings.mart_bucket),
-            "object_name": (mart_object_name),
-            "summary": mart_summary,
-        },
-    }
 
 
 def _first_count(
@@ -878,6 +948,7 @@ def sync_latest_minio_pipeline_health(
     minio_settings: MinioSettings | None = None,
     minio_client: Minio | None = None,
     database_settings: TimescaleDBSettings | None = None,
+    batch_context: PipelineBatchContext | None = None,
 ) -> dict[str, Any]:
     resolved_minio_settings = minio_settings or MinioSettings.from_environment()
 
@@ -887,10 +958,17 @@ def sync_latest_minio_pipeline_health(
         database_settings or TimescaleDBSettings.from_environment()
     )
 
-    summaries = collect_latest_pipeline_summaries(
-        settings=resolved_minio_settings,
-        client=resolved_minio_client,
-    )
+    if batch_context is None:
+        summaries = collect_latest_pipeline_summaries(
+            settings=resolved_minio_settings,
+            client=resolved_minio_client,
+        )
+    else:
+        summaries = collect_pipeline_summaries_for_context(
+            context=batch_context,
+            settings=resolved_minio_settings,
+            client=resolved_minio_client,
+        )
 
     pipeline_rows = build_pipeline_log_rows(summaries)
 

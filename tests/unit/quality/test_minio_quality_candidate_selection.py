@@ -254,3 +254,115 @@ def test_find_latest_loadable_quality_batch_selects_newest_valid_batch(
     assert selected_summary["batch_id"] == "BATCH_NEW"
 
     assert selected_summary["valid_records"] == 2448
+
+
+def build_batch_context():
+    from src.operations.batch_context import PipelineBatchContext
+
+    return PipelineBatchContext.from_values(
+        batch_id="BATCH_1",
+        partition_date="2026-07-25",
+        partition_hour="08",
+        started_at="2026-07-25T01:00:00+00:00",
+    )
+
+
+def test_context_selects_exact_transform_summary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected_object_name = (
+        "transformed/air_quality/hourly/date=2026-07-25/hour=08/"
+        "batch_id=BATCH_1/transform_summary.json"
+    )
+    expected_parquet = (
+        "transformed/air_quality/hourly/date=2026-07-25/hour=08/"
+        "batch_id=BATCH_1/data.parquet"
+    )
+    summary = {
+        "status": "SUCCESS",
+        "batch_id": "BATCH_1",
+        "partition_date": "2026-07-25",
+        "partition_hour": "08",
+        "transformed_object_name": expected_parquet,
+        "records_transformed": 2448,
+    }
+
+    monkeypatch.setattr(
+        quality_processor,
+        "get_json_object",
+        lambda **kwargs: summary,
+    )
+
+    object_name, selected = quality_processor.load_quality_candidate_for_context(
+        build_batch_context(),
+        settings=build_settings(),
+        client=object(),
+    )
+
+    assert object_name == expected_object_name
+    assert selected is summary
+
+
+def test_context_selects_exact_loadable_quality_summary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected_object_name = (
+        "quality/air_quality/hourly/date=2026-07-25/hour=08/"
+        "batch_id=BATCH_1/data_quality_summary.json"
+    )
+    clean_object_name = (
+        "clean/air_quality/hourly/date=2026-07-25/hour=08/batch_id=BATCH_1/data.parquet"
+    )
+    summary = {
+        "status": "SUCCESS",
+        "batch_id": "BATCH_1",
+        "partition_date": "2026-07-25",
+        "partition_hour": "08",
+        "clean_object_name": clean_object_name,
+        "valid_records": 2448,
+    }
+
+    monkeypatch.setattr(
+        quality_processor,
+        "get_json_object",
+        lambda **kwargs: summary,
+    )
+
+    object_name, selected = quality_processor.load_loadable_quality_batch_for_context(
+        build_batch_context(),
+        settings=build_settings(),
+        client=object(),
+    )
+
+    assert object_name == expected_object_name
+    assert selected is summary
+
+
+def test_context_rejects_transform_parquet_from_another_batch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        quality_processor,
+        "get_json_object",
+        lambda **kwargs: {
+            "status": "SUCCESS",
+            "batch_id": "BATCH_1",
+            "partition_date": "2026-07-25",
+            "partition_hour": "08",
+            "transformed_object_name": (
+                "transformed/air_quality/hourly/date=2026-07-25/hour=08/"
+                "batch_id=BATCH_2/data.parquet"
+            ),
+            "records_transformed": 2448,
+        },
+    )
+
+    with pytest.raises(
+        quality_processor.MinioDataQualityError,
+        match="đúng batch",
+    ):
+        quality_processor.load_quality_candidate_for_context(
+            build_batch_context(),
+            settings=build_settings(),
+            client=object(),
+        )

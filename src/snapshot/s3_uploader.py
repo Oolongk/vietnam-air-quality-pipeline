@@ -189,10 +189,18 @@ class S3SnapshotUploader:
         self,
         settings: S3SnapshotUploadSettings,
         client: BaseClient | None = None,
+        expected_batch_id: str | None = None,
     ) -> None:
         self.settings = settings
-
         self.client = client or build_s3_client(settings)
+
+        if expected_batch_id is None:
+            self.expected_batch_id = None
+        else:
+            normalized_expected_batch_id = str(expected_batch_id).strip()
+            if not normalized_expected_batch_id:
+                raise S3SnapshotConfigurationError("expected_batch_id không được rỗng.")
+            self.expected_batch_id = normalized_expected_batch_id
 
     def upload(
         self,
@@ -290,6 +298,7 @@ class S3SnapshotUploader:
             "bucket_name": (self.settings.bucket_name),
             "region_name": (self.settings.region_name),
             "snapshot_id": snapshot_id,
+            "latest_batch_id": manifest.get("latest_batch_id"),
             "release_prefix": (release_prefix),
             "pointer_key": (self.settings.pointer_key),
             "local_file_count": len(snapshot_files),
@@ -359,6 +368,20 @@ class S3SnapshotUploader:
         if missing_fields:
             raise S3SnapshotValidationError(
                 "manifest.json thiếu field: " + ", ".join(missing_fields)
+            )
+
+        manifest_batch_id = str(manifest.get("latest_batch_id", "")).strip()
+        if not manifest_batch_id:
+            raise S3SnapshotValidationError("manifest.json có latest_batch_id rỗng.")
+
+        if (
+            self.expected_batch_id is not None
+            and manifest_batch_id != self.expected_batch_id
+        ):
+            raise S3SnapshotValidationError(
+                "manifest.json không khớp batch_id. "
+                f"Expected={self.expected_batch_id}; "
+                f"actual={manifest_batch_id}."
             )
 
         snapshot_id = manifest["snapshot_id"]
@@ -566,12 +589,14 @@ def _calculate_sha256(
 def upload_public_snapshots_to_s3(
     settings: S3SnapshotUploadSettings | None = None,
     client: BaseClient | None = None,
+    expected_batch_id: str | None = None,
 ) -> dict[str, Any]:
     resolved_settings = settings or S3SnapshotUploadSettings.from_environment()
 
     uploader = S3SnapshotUploader(
         settings=resolved_settings,
         client=client,
+        expected_batch_id=expected_batch_id,
     )
 
     return uploader.upload()

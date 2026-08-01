@@ -9,6 +9,7 @@ from typing import Any
 from minio import Minio
 import pandas as pd
 
+from src.operations.batch_context import PipelineBatchContext
 from src.quality.data_quality_checks import (
     DataQualityConfigurationError,
     DataQualitySchemaError,
@@ -477,6 +478,135 @@ def find_latest_loadable_quality_batch(
         latest_object_name,
         latest_summary,
     )
+
+
+def load_loadable_quality_batch_for_context(
+    context: PipelineBatchContext,
+    settings: MinioSettings | None = None,
+    client: Minio | None = None,
+) -> tuple[str, dict[str, Any]]:
+    resolved_settings = settings or MinioSettings.from_environment()
+    resolved_client = client or get_minio_client(resolved_settings)
+
+    summary_object_name = (
+        f"{QUALITY_ROOT_PREFIX}/"
+        f"date={context.partition_date}/"
+        f"hour={context.partition_hour}/"
+        f"batch_id={context.batch_id}/"
+        "data_quality_summary.json"
+    )
+
+    summary = get_json_object(
+        bucket_name=resolved_settings.clean_bucket,
+        object_name=summary_object_name,
+        settings=resolved_settings,
+        client=resolved_client,
+    )
+
+    if not isinstance(summary, dict):
+        raise MinioDataQualityError("Data Quality summary phải là JSON object.")
+
+    context.validate_summary(summary, "Data Quality summary")
+
+    status = str(summary.get("status", "")).strip().upper()
+    clean_object_name = summary.get("clean_object_name")
+
+    try:
+        valid_records = int(summary.get("valid_records", 0))
+    except (TypeError, ValueError) as error:
+        raise MinioDataQualityError(
+            "Data Quality summary có valid_records không hợp lệ."
+        ) from error
+
+    expected_clean_object_name = (
+        f"{build_clean_prefix(context.partition_date, context.partition_hour, context.batch_id)}/"
+        "data.parquet"
+    )
+
+    if status not in {"SUCCESS", "PARTIAL_SUCCESS"}:
+        raise MinioDataQualityError(
+            f"Data Quality summary không thể load. Status={status or 'EMPTY'}."
+        )
+
+    if valid_records <= 0:
+        raise MinioDataQualityError(
+            "Data Quality summary không có valid_records để load."
+        )
+
+    if str(clean_object_name or "").strip() != expected_clean_object_name:
+        raise MinioDataQualityError(
+            "Data Quality summary trỏ sai Clean Parquet. "
+            f"Expected={expected_clean_object_name}; "
+            f"actual={str(clean_object_name or '').strip() or 'EMPTY'}."
+        )
+
+    return summary_object_name, summary
+
+
+def load_quality_candidate_for_context(
+    context: PipelineBatchContext,
+    settings: MinioSettings | None = None,
+    client: Minio | None = None,
+) -> tuple[str, dict[str, Any]]:
+    resolved_settings = settings or MinioSettings.from_environment()
+    resolved_client = client or get_minio_client(resolved_settings)
+
+    summary_object_name = (
+        f"{TRANSFORMED_ROOT_PREFIX}/"
+        f"date={context.partition_date}/"
+        f"hour={context.partition_hour}/"
+        f"batch_id={context.batch_id}/"
+        "transform_summary.json"
+    )
+
+    summary = get_json_object(
+        bucket_name=resolved_settings.clean_bucket,
+        object_name=summary_object_name,
+        settings=resolved_settings,
+        client=resolved_client,
+    )
+
+    if not isinstance(summary, dict):
+        raise MinioDataQualityError("Transform summary phải là JSON object.")
+
+    context.validate_summary(summary, "Transform summary")
+
+    status = str(summary.get("status", "")).strip().upper()
+    transformed_object_name = summary.get("transformed_object_name")
+
+    try:
+        records_transformed = int(summary.get("records_transformed", 0))
+    except (TypeError, ValueError) as error:
+        raise MinioDataQualityError(
+            "Transform summary có records_transformed không hợp lệ."
+        ) from error
+
+    if status not in {"SUCCESS", "PARTIAL_SUCCESS"}:
+        raise MinioDataQualityError(
+            "Transform summary không thể chạy Data Quality. "
+            f"Status={status or 'EMPTY'}."
+        )
+
+    expected_transformed_object_name = (
+        f"{TRANSFORMED_ROOT_PREFIX}/"
+        f"date={context.partition_date}/"
+        f"hour={context.partition_hour}/"
+        f"batch_id={context.batch_id}/"
+        "data.parquet"
+    )
+
+    if (
+        not isinstance(transformed_object_name, str)
+        or transformed_object_name.strip() != expected_transformed_object_name
+        or records_transformed <= 0
+    ):
+        raise MinioDataQualityError(
+            "Transform summary không có Parquet đúng batch cho Data Quality. "
+            f"Expected={expected_transformed_object_name}; "
+            f"actual={str(transformed_object_name or '').strip() or 'EMPTY'}."
+        )
+
+    return summary_object_name, summary
 
 
 def process_transformed_batch_on_minio(

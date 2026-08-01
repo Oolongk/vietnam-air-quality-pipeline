@@ -4,6 +4,10 @@ import json
 import sys
 from typing import Any
 
+from src.operations.batch_context import (
+    PipelineBatchContext,
+    PipelineBatchContextError,
+)
 from src.snapshot import (
     SnapshotAPIError,
     SnapshotConfigurationError,
@@ -64,7 +68,20 @@ def main() -> int:
     print("Bắt đầu tạo public snapshots...")
 
     try:
-        result = publish_snapshots()
+        batch_context = PipelineBatchContext.from_environment()
+        result = publish_snapshots(
+            expected_batch_id=(
+                batch_context.batch_id if batch_context is not None else None
+            )
+        )
+
+    except PipelineBatchContextError as error:
+        print(
+            "Snapshot Publisher thất bại do batch context không hợp lệ:",
+            file=sys.stderr,
+        )
+        print(str(error), file=sys.stderr)
+        return 1
 
     except SnapshotConfigurationError as error:
         print(
@@ -144,6 +161,19 @@ def main() -> int:
 
         return 1
 
+    if batch_context is not None:
+        actual_batch_id = str(result.get("latest_batch_id", "")).strip()
+        if actual_batch_id != batch_context.batch_id:
+            print(
+                "Snapshot Publisher trả về sai batch_id. "
+                f"Expected={batch_context.batch_id}; "
+                f"actual={actual_batch_id or 'EMPTY'}.",
+                file=sys.stderr,
+            )
+            return 1
+
+    execution_mode = "AIRFLOW_BATCH" if batch_context is not None else "LATEST_MANUAL"
+    print(f"Execution mode: {execution_mode}")
     print_publish_summary(result)
 
     return 0

@@ -504,3 +504,20 @@ def test_settings_read_sydney_region(
     assert settings.release_root_prefix == ("releases")
 
     assert settings.pointer_key == ("current.json")
+
+
+def test_upload_rejects_manifest_batch_that_differs_from_expected(
+    tmp_path: Path,
+) -> None:
+    snapshot_directory = create_snapshot_tree(tmp_path)
+    uploader = S3SnapshotUploader(
+        settings=build_settings(snapshot_directory),
+        client=FakeS3Client(),
+        expected_batch_id="ANOTHER_BATCH",
+    )
+
+    with pytest.raises(
+        S3SnapshotValidationError,
+        match="không khớp batch_id",
+    ):
+        uploader.upload()

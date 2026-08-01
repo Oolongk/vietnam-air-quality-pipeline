@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from minio.error import S3Error
 
+from src.operations.batch_context import (
+    PipelineBatchContext,
+    PipelineBatchContextError,
+)
 from src.transform.minio_batch_transformer import (
     MinioBatchTransformError,
     find_latest_transformable_raw_batch,
+    load_transformable_raw_batch_for_context,
     transform_raw_batch_to_minio,
 )
 from src.utils.minio_client import (
@@ -17,19 +22,33 @@ from src.utils.minio_object_io import (
 
 
 def main() -> None:
+    batch_context = None
+
     try:
-        (
-            raw_summary_object_name,
-            raw_summary,
-        ) = find_latest_transformable_raw_batch()
+        batch_context = PipelineBatchContext.from_environment()
+
+        if batch_context is None:
+            (
+                raw_summary_object_name,
+                raw_summary,
+            ) = find_latest_transformable_raw_batch()
+        else:
+            (
+                raw_summary_object_name,
+                raw_summary,
+            ) = load_transformable_raw_batch_for_context(batch_context)
 
         transform_summary = transform_raw_batch_to_minio(
             raw_summary=raw_summary,
-            raw_summary_object_name=(raw_summary_object_name),
+            raw_summary_object_name=raw_summary_object_name,
         )
+
+        if batch_context is not None:
+            batch_context.validate_summary(transform_summary, "Transform summary")
 
     except (
         MinioBatchTransformError,
+        PipelineBatchContextError,
         MinioConfigurationError,
         MinioOperationError,
         MinioObjectIOError,
@@ -43,6 +62,8 @@ def main() -> None:
 
     print("Transform trực tiếp trên MinIO hoàn tất.")
 
+    execution_mode = "AIRFLOW_BATCH" if batch_context is not None else "LATEST_MANUAL"
+    print(f"Execution mode: {execution_mode}")
     print(f"Status: {transform_summary['status']}")
 
     print(f"Batch ID: {transform_summary['batch_id']}")

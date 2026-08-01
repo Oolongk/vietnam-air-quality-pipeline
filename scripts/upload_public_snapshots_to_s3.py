@@ -4,6 +4,10 @@ import json
 import sys
 from typing import Any
 
+from src.operations.batch_context import (
+    PipelineBatchContext,
+    PipelineBatchContextError,
+)
 from src.snapshot import (
     S3SnapshotConfigurationError,
     S3SnapshotUploadError,
@@ -63,7 +67,20 @@ def main() -> int:
     print("Bắt đầu upload public snapshots lên Amazon S3...")
 
     try:
-        result = upload_public_snapshots_to_s3()
+        batch_context = PipelineBatchContext.from_environment()
+        result = upload_public_snapshots_to_s3(
+            expected_batch_id=(
+                batch_context.batch_id if batch_context is not None else None
+            )
+        )
+
+    except PipelineBatchContextError as error:
+        print(
+            "S3 Snapshot Uploader thất bại do batch context không hợp lệ:",
+            file=sys.stderr,
+        )
+        print(str(error), file=sys.stderr)
+        return 1
 
     except S3SnapshotConfigurationError as error:
         print(
@@ -135,6 +152,19 @@ def main() -> int:
 
         return 1
 
+    if batch_context is not None:
+        actual_batch_id = str(result.get("latest_batch_id", "")).strip()
+        if actual_batch_id != batch_context.batch_id:
+            print(
+                "S3 Snapshot Uploader trả về sai batch_id. "
+                f"Expected={batch_context.batch_id}; "
+                f"actual={actual_batch_id or 'EMPTY'}.",
+                file=sys.stderr,
+            )
+            return 1
+
+    execution_mode = "AIRFLOW_BATCH" if batch_context is not None else "LATEST_MANUAL"
+    print(f"Execution mode: {execution_mode}")
     print_upload_summary(result)
 
     return 0

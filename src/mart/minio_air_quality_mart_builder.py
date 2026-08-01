@@ -729,6 +729,8 @@ def build_daily_summary(
 def build_latest_minio_mart(
     settings: MinioSettings | None = None,
     client: Minio | None = None,
+    source_clean_object_name: str | None = None,
+    expected_batch_id: str | None = None,
 ) -> dict[str, Any]:
     resolved_settings = settings or MinioSettings.from_environment()
 
@@ -741,13 +743,32 @@ def build_latest_minio_mart(
         resolved_client,
     )
 
-    latest_object = clean_objects[-1]
+    if source_clean_object_name is None:
+        latest_object = clean_objects[-1]
+    else:
+        latest_object = str(source_clean_object_name).strip()
+        if not latest_object:
+            raise MinioMartBuildError("source_clean_object_name không được rỗng.")
+        if latest_object not in clean_objects:
+            raise MinioMartBuildError(
+                f"Không tìm thấy Clean Parquet được chỉ định: {latest_object}"
+            )
 
     (
         partition_date,
         partition_hour,
         batch_id,
     ) = _partition_parts(latest_object)
+
+    if expected_batch_id is not None:
+        normalized_expected_batch_id = str(expected_batch_id).strip()
+        if not normalized_expected_batch_id:
+            raise MinioMartBuildError("expected_batch_id không được rỗng.")
+        if batch_id != normalized_expected_batch_id:
+            raise MinioMartBuildError(
+                "Clean Parquet không khớp expected_batch_id. "
+                f"Expected={normalized_expected_batch_id}; actual={batch_id}."
+            )
 
     latest_clean = _normalize_clean(
         _read_parquet(

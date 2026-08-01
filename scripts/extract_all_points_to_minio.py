@@ -16,6 +16,10 @@ from src.ingestion.minio_air_quality_extractor import (
 from src.ingestion.open_meteo_client import (
     OpenMeteoClient,
 )
+from src.operations.batch_context import (
+    PipelineBatchContext,
+    PipelineBatchContextError,
+)
 from src.utils.minio_client import (
     MinioConfigurationError,
     MinioOperationError,
@@ -175,8 +179,10 @@ def build_prefetched_fetcher(
 
 def main() -> None:
     client = None
+    batch_context = None
 
     try:
+        batch_context = PipelineBatchContext.from_environment()
         monitoring_points = load_active_monitoring_points(MONITORING_POINTS_PATH)
 
         client = OpenMeteoClient()
@@ -198,12 +204,20 @@ def main() -> None:
         )
 
         summary = extract_monitoring_points_to_minio(
-            monitoring_points=(monitoring_points),
-            fetch_air_quality=(fetch_air_quality),
+            monitoring_points=monitoring_points,
+            fetch_air_quality=fetch_air_quality,
+            batch_id=(batch_context.batch_id if batch_context is not None else None),
+            started_at=(
+                batch_context.started_at if batch_context is not None else None
+            ),
         )
+
+        if batch_context is not None:
+            batch_context.validate_summary(summary, "Extraction summary")
 
     except (
         MinioAirQualityExtractionError,
+        PipelineBatchContextError,
         MinioConfigurationError,
         MinioOperationError,
         S3Error,
@@ -227,6 +241,8 @@ def main() -> None:
 
     print("Extraction trực tiếp lên MinIO hoàn tất.")
 
+    execution_mode = "AIRFLOW_BATCH" if batch_context is not None else "LATEST_MANUAL"
+    print(f"Execution mode: {execution_mode}")
     print(f"Status: {summary['status']}")
 
     print(f"Batch ID: {summary['batch_id']}")
