@@ -9,6 +9,8 @@ from src.operations.batch_context import (
     PipelineBatchContextError,
 )
 from src.snapshot import (
+    MartSnapshotReaderError,
+    MinioMartSnapshotReader,
     SnapshotAPIError,
     SnapshotConfigurationError,
     SnapshotPublishError,
@@ -69,15 +71,28 @@ def main() -> int:
 
     try:
         batch_context = PipelineBatchContext.from_environment()
+        expected_batch_id = (
+            batch_context.batch_id if batch_context is not None else None
+        )
+        mart_reader = MinioMartSnapshotReader(
+            expected_batch_id=expected_batch_id,
+        )
         result = publish_snapshots(
-            expected_batch_id=(
-                batch_context.batch_id if batch_context is not None else None
-            )
+            expected_batch_id=expected_batch_id,
+            mart_reader=mart_reader,
         )
 
     except PipelineBatchContextError as error:
         print(
             "Snapshot Publisher thất bại do batch context không hợp lệ:",
+            file=sys.stderr,
+        )
+        print(str(error), file=sys.stderr)
+        return 1
+
+    except MartSnapshotReaderError as error:
+        print(
+            "Snapshot Publisher thất bại khi đọc MinIO Mart:",
             file=sys.stderr,
         )
         print(str(error), file=sys.stderr)

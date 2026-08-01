@@ -228,6 +228,22 @@ class AirQualitySnapshotClient:
             limit=limit,
         )
 
+    def get_location_summary(
+        self,
+        limit: int = 1000,
+    ) -> dict[str, Any]:
+        payload = self._get_release_file(
+            "air_quality/location_summary.json"
+        )
+        return self._apply_record_limit(payload=payload, limit=limit)
+
+    def get_daily_summary(
+        self,
+        limit: int = 5000,
+    ) -> dict[str, Any]:
+        payload = self._get_release_file("air_quality/daily_summary.json")
+        return self._apply_record_limit(payload=payload, limit=limit)
+
     def get_point_history(
         self,
         point_id: str,

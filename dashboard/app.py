@@ -1109,6 +1109,98 @@ def build_location_summary_dataframe(
     ).reset_index(drop=True)
 
 
+def prepare_mart_location_summary_dataframe(
+    records: list[dict[str, Any]],
+) -> pd.DataFrame:
+    if not records:
+        return pd.DataFrame()
+
+    dataframe = pd.DataFrame(records)
+    defaults: dict[str, Any] = {
+        "location_id": "",
+        "location_name": "",
+        "latitude": pd.NA,
+        "longitude": pd.NA,
+        "monitoring_point_count": 0,
+        "average_us_aqi": pd.NA,
+        "maximum_us_aqi": pd.NA,
+        "average_pm2_5": pd.NA,
+        "average_pm10": pd.NA,
+        "average_ozone": pd.NA,
+        "average_nitrogen_dioxide": pd.NA,
+        "worst_point_id": "",
+        "worst_point_name": "",
+        "worst_point_us_aqi": pd.NA,
+        "forecast_time": pd.NaT,
+    }
+    for column_name, default_value in defaults.items():
+        if column_name not in dataframe.columns:
+            dataframe[column_name] = default_value
+
+    dataframe["location_id"] = (
+        dataframe["location_id"]
+        .where(dataframe["location_id"].notna(), "")
+        .astype(str)
+        .str.strip()
+    )
+    dataframe = dataframe.loc[dataframe["location_id"].ne("")].copy()
+    numeric_columns = [
+        "latitude",
+        "longitude",
+        "monitoring_point_count",
+        "average_us_aqi",
+        "maximum_us_aqi",
+        "average_pm2_5",
+        "average_pm10",
+        "average_ozone",
+        "average_nitrogen_dioxide",
+        "worst_point_us_aqi",
+    ]
+    for column_name in numeric_columns:
+        dataframe[column_name] = pd.to_numeric(
+            dataframe[column_name],
+            errors="coerce",
+        )
+    dataframe["forecast_time"] = pd.to_datetime(
+        dataframe["forecast_time"],
+        errors="coerce",
+        utc=True,
+    )
+    dataframe["location_label"] = dataframe.apply(
+        lambda row: clean_text(
+            row.get("location_name"),
+            clean_text(row.get("location_id"), "Không rõ"),
+        ),
+        axis=1,
+    )
+    if "aqi_level" not in dataframe.columns:
+        dataframe["aqi_level"] = dataframe["average_us_aqi"].apply(classify_aqi)
+    dataframe["fill_color"] = dataframe["average_us_aqi"].apply(get_aqi_color)
+    dataframe["marker_radius"] = (
+        dataframe["average_us_aqi"]
+        .fillna(0)
+        .clip(lower=0, upper=300)
+        .mul(110)
+        .add(22000)
+    )
+    round_columns = [
+        "average_us_aqi",
+        "maximum_us_aqi",
+        "average_pm2_5",
+        "average_pm10",
+        "average_ozone",
+        "average_nitrogen_dioxide",
+        "latitude",
+        "longitude",
+    ]
+    dataframe[round_columns] = dataframe[round_columns].round(2)
+    return dataframe.sort_values(
+        ["average_us_aqi", "maximum_us_aqi"],
+        ascending=[False, False],
+        na_position="last",
+    ).reset_index(drop=True)
+
+
 def get_selected_location_from_map(
     map_event: Any,
 ) -> str | None:
@@ -1575,6 +1667,13 @@ def load_latest_air_quality(
 
 
 @st.cache_data(ttl=60, show_spinner=False)
+def load_location_summary(
+    snapshot_url: str,
+) -> dict[str, Any]:
+    return AirQualitySnapshotClient(snapshot_url).get_location_summary(limit=1000)
+
+
+@st.cache_data(ttl=60, show_spinner=False)
 def load_point_history(
     snapshot_url: str,
     point_id: str,
@@ -1652,6 +1751,11 @@ except AirQualitySnapshotError as error:
         (f"Nguồn dữ liệu có thể đang tạm thời gián đoạn. Chi tiết: {error}"),
         key="retry_latest_air_quality",
     )
+
+try:
+    location_summary_payload = load_location_summary(snapshot_url)
+except AirQualitySnapshotError:
+    location_summary_payload = {}
 
 records = latest_payload.get("data", [])
 if not isinstance(records, list):
@@ -1733,7 +1837,14 @@ def get_point_display_name(point_id: str) -> str:
 
 
 nearest_forecast_df = select_nearest_forecast_records(air_quality_df)
-location_summary_df = build_location_summary_dataframe(nearest_forecast_df)
+location_summary_records = location_summary_payload.get("data", [])
+if not isinstance(location_summary_records, list):
+    location_summary_records = []
+location_summary_df = prepare_mart_location_summary_dataframe(
+    location_summary_records
+)
+if location_summary_df.empty:
+    location_summary_df = build_location_summary_dataframe(nearest_forecast_df)
 
 location_labels = {
     clean_text(row.location_id): clean_text(

@@ -16,6 +16,10 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from src.snapshot.minio_mart_snapshot_reader import (
+    MinioMartSnapshotReader,
+)
+
 SAFE_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
@@ -237,15 +241,25 @@ def build_http_session() -> requests.Session:
     return session
 
 
+def _safe_numeric_sort_value(value: Any) -> float:
+    try:
+        numeric_value = float(value)
+    except (TypeError, ValueError):
+        return float("-inf")
+    return numeric_value
+
+
 class SnapshotPublisher:
     def __init__(
         self,
         settings: SnapshotSettings,
         session: requests.Session | None = None,
         expected_batch_id: str | None = None,
+        mart_reader: MinioMartSnapshotReader | None = None,
     ) -> None:
         self.settings = settings
         self.session = session or build_http_session()
+        self.mart_reader = mart_reader
 
         if expected_batch_id is None:
             self.expected_batch_id = None
@@ -261,7 +275,10 @@ class SnapshotPublisher:
         staging_directory = self._create_staging_directory()
 
         try:
-            result = self._build_snapshot(staging_directory)
+            if self.mart_reader is None:
+                result = self._build_snapshot(staging_directory)
+            else:
+                result = self._build_mart_snapshot(staging_directory)
 
             self._replace_output_directory(staging_directory)
 
@@ -670,6 +687,289 @@ class SnapshotPublisher:
             "manifest": (manifest_payload),
         }
 
+    def _build_mart_snapshot(
+        self,
+        staging_directory: Path,
+    ) -> dict[str, Any]:
+        if self.mart_reader is None:
+            raise SnapshotConfigurationError("Mart reader chưa được cấu hình.")
+
+        generated_at = datetime.now(timezone.utc)
+        snapshot_id = (
+            generated_at.strftime("%Y%m%dT%H%M%SZ") + "_" + uuid.uuid4().hex[:8]
+        )
+        bundle = self.mart_reader.read()
+        if (
+            self.expected_batch_id is not None
+            and bundle.batch_id != self.expected_batch_id
+        ):
+            raise SnapshotValidationError(
+                "MinIO Mart không khớp batch_id. "
+                f"Expected={self.expected_batch_id}; actual={bundle.batch_id}."
+            )
+
+        generated_files: list[str] = []
+
+        def write(relative_path: str, payload: dict[str, Any]) -> None:
+            self._write_json(
+                root_directory=staging_directory,
+                relative_path=relative_path,
+                payload=payload,
+            )
+            generated_files.append(relative_path)
+
+        health_payload = self._fetch_json(
+            path="/health",
+            required_fields=("status", "service", "database", "database_time"),
+        )
+        locations_payload = self._fetch_json(
+            path="/api/v1/locations",
+            required_fields=("status", "record_count", "data"),
+        )
+        location_records = self._require_record_list(
+            payload=locations_payload,
+            endpoint="/api/v1/locations",
+        )
+        points_payload = self._fetch_json(
+            path="/api/v1/monitoring-points",
+            required_fields=("status", "record_count", "data"),
+        )
+        point_records = self._require_record_list(
+            payload=points_payload,
+            endpoint="/api/v1/monitoring-points",
+        )
+        alerts_payload = self._fetch_json(
+            path="/api/v1/alerts/latest",
+            parameters={"limit": self.settings.alerts_limit},
+            required_fields=("status", "record_count", "data"),
+        )
+        alert_records = self._require_record_list(
+            payload=alerts_payload,
+            endpoint="/api/v1/alerts/latest",
+        )
+        pipeline_payload = self._fetch_json(
+            path="/api/v1/pipeline/health/latest",
+            required_fields=("status", "batch_id", "stage_count", "data"),
+        )
+        pipeline_records = self._require_record_list(
+            payload=pipeline_payload,
+            endpoint="/api/v1/pipeline/health/latest",
+        )
+        self._validate_expected_batch(
+            payload=pipeline_payload,
+            endpoint="/api/v1/pipeline/health/latest",
+        )
+        quality_payload = self._fetch_json(
+            path="/api/v1/data-quality/latest",
+            required_fields=(
+                "status",
+                "check_count",
+                "failed_check_count",
+                "data",
+            ),
+        )
+        quality_records = self._require_record_list(
+            payload=quality_payload,
+            endpoint="/api/v1/data-quality/latest",
+        )
+
+        current_records = list(bundle.current_aqi)
+        location_summary_records = list(bundle.location_summary)
+        daily_summary_records = list(bundle.daily_summary)
+        if not current_records:
+            raise SnapshotValidationError("Mart current_aqi đang rỗng.")
+
+        reference_time = max(
+            (
+                str(record.get("forecast_time", "")).strip()
+                for record in current_records
+            ),
+            default="",
+        )
+        latest_payload = {
+            "status": "SUCCESS",
+            "source": "minio_mart",
+            "batch_id": bundle.batch_id,
+            "reference_time": reference_time or None,
+            "record_count": len(current_records),
+            "data": current_records,
+        }
+        top_polluted_records = sorted(
+            current_records,
+            key=lambda record: _safe_numeric_sort_value(record.get("us_aqi")),
+            reverse=True,
+        )[: self.settings.top_polluted_limit]
+        top_polluted_payload = {
+            "status": "SUCCESS",
+            "source": "minio_mart",
+            "batch_id": bundle.batch_id,
+            "reference_time": reference_time or None,
+            "record_count": len(top_polluted_records),
+            "data": top_polluted_records,
+        }
+        location_summary_payload = {
+            "status": "SUCCESS",
+            "source": "minio_mart",
+            "batch_id": bundle.batch_id,
+            "record_count": len(location_summary_records),
+            "data": location_summary_records,
+        }
+        daily_summary_payload = {
+            "status": "SUCCESS",
+            "source": "minio_mart",
+            "batch_id": bundle.batch_id,
+            "record_count": len(daily_summary_records),
+            "data": daily_summary_records,
+        }
+
+        write("health.json", health_payload)
+        write("locations.json", locations_payload)
+        write("monitoring_points.json", points_payload)
+        write("air_quality/latest.json", latest_payload)
+        write("air_quality/top_polluted.json", top_polluted_payload)
+        write("air_quality/location_summary.json", location_summary_payload)
+        write("air_quality/daily_summary.json", daily_summary_payload)
+        write("alerts/latest.json", alerts_payload)
+        write("pipeline/health.json", pipeline_payload)
+        write("data_quality/latest.json", quality_payload)
+
+        location_ids = self._extract_unique_identifiers(
+            records=location_records,
+            field_name="location_id",
+            endpoint="/api/v1/locations",
+        )
+        for location_id in location_ids:
+            records = [
+                record
+                for record in current_records
+                if str(record.get("location_id", "")).strip() == location_id
+            ][: self.settings.location_limit]
+            location_name = next(
+                (
+                    str(record.get("location_name", "")).strip()
+                    for record in records
+                    if str(record.get("location_name", "")).strip()
+                ),
+                "",
+            )
+            write(
+                f"air_quality/locations/{location_id}.json",
+                {
+                    "status": "SUCCESS",
+                    "source": "minio_mart",
+                    "location_id": location_id,
+                    "location_name": location_name,
+                    "batch_id": bundle.batch_id,
+                    "record_count": len(records),
+                    "data": records,
+                },
+            )
+
+        point_ids = self._extract_unique_identifiers(
+            records=point_records,
+            field_name="point_id",
+            endpoint="/api/v1/monitoring-points",
+        )
+        for point_id in point_ids:
+            current_point_records = [
+                record
+                for record in current_records
+                if str(record.get("point_id", "")).strip() == point_id
+            ][: self.settings.point_limit]
+            daily_point_records = [
+                record
+                for record in daily_summary_records
+                if str(record.get("point_id", "")).strip() == point_id
+            ]
+            daily_point_records.sort(
+                key=lambda record: str(record.get("forecast_date", "")),
+                reverse=True,
+            )
+            write(
+                f"air_quality/points/{point_id}.json",
+                {
+                    "status": "SUCCESS",
+                    "source": "minio_mart",
+                    "point_id": point_id,
+                    "batch_id": bundle.batch_id,
+                    "record_count": len(current_point_records),
+                    "data": current_point_records,
+                },
+            )
+            write(
+                f"air_quality/history/{point_id}.json",
+                {
+                    "status": "SUCCESS",
+                    "source": "minio_mart",
+                    "granularity": "daily",
+                    "point_id": point_id,
+                    "batch_id": bundle.batch_id,
+                    "requested_hours": self.settings.history_hours,
+                    "record_count": len(daily_point_records),
+                    "data": daily_point_records,
+                },
+            )
+
+        manifest_payload = {
+            "schema_version": "1.1",
+            "snapshot_id": snapshot_id,
+            "generated_at": generated_at.isoformat(),
+            "source": {
+                "type": "hybrid",
+                "air_quality": {
+                    "type": "minio_mart",
+                    "bucket": self.mart_reader.settings.mart_bucket,
+                    "summary_object": bundle.summary_object_name,
+                    "outputs": bundle.outputs,
+                },
+                "operations": {
+                    "type": "fastapi",
+                    "base_url": self.settings.api_base_url,
+                    "service": health_payload["service"],
+                    "database": health_payload["database"],
+                },
+            },
+            "latest_batch_id": bundle.batch_id,
+            "statuses": {
+                "api": health_payload.get("status"),
+                "pipeline": pipeline_payload.get("status"),
+                "data_quality": quality_payload.get("status"),
+                "mart": bundle.summary.get("status"),
+            },
+            "counts": {
+                "locations": len(location_records),
+                "monitoring_points": len(point_records),
+                "latest_air_quality_records": len(current_records),
+                "location_summary_records": len(location_summary_records),
+                "daily_summary_records": len(daily_summary_records),
+                "top_polluted_records": len(top_polluted_records),
+                "alert_records": len(alert_records),
+                "pipeline_stages": len(pipeline_records),
+                "data_quality_checks": len(quality_records),
+                "location_snapshots": len(location_ids),
+                "point_snapshots": len(point_ids),
+                "history_snapshots": len(point_ids),
+            },
+            "files": sorted([*generated_files, "manifest.json"]),
+        }
+        self._write_json(
+            root_directory=staging_directory,
+            relative_path="manifest.json",
+            payload=manifest_payload,
+        )
+        generated_files.append("manifest.json")
+
+        return {
+            "status": "SUCCESS",
+            "snapshot_id": snapshot_id,
+            "generated_at": generated_at.isoformat(),
+            "latest_batch_id": bundle.batch_id,
+            "file_count": len(generated_files),
+            "location_count": len(location_ids),
+            "point_count": len(point_ids),
+            "manifest": manifest_payload,
+        }
+
     def _validate_expected_batch(
         self,
         payload: dict[str, Any],
@@ -947,6 +1247,7 @@ def publish_snapshots(
     settings: SnapshotSettings | None = None,
     session: requests.Session | None = None,
     expected_batch_id: str | None = None,
+    mart_reader: MinioMartSnapshotReader | None = None,
 ) -> dict[str, Any]:
     resolved_settings = settings or SnapshotSettings.from_environment()
 
@@ -954,6 +1255,7 @@ def publish_snapshots(
         settings=resolved_settings,
         session=session,
         expected_batch_id=expected_batch_id,
+        mart_reader=mart_reader,
     )
 
     return publisher.publish()
