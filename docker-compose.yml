@@ -23,6 +23,10 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__DEFAULT_TIMEZONE: Asia/Ho_Chi_Minh
     AIRFLOW__WEBSERVER__DEFAULT_UI_TIMEZONE: Asia/Ho_Chi_Minh
 
+    # Cho Gunicorn của Airflow Webserver thêm thời gian khởi động.
+    # Log trước đó cho thấy mốc 120 giây không đủ trên máy hiện tại.
+    AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT: "300"
+
     PYTHONPATH: /opt/airflow/project
     TZ: Asia/Ho_Chi_Minh
 
@@ -100,14 +104,12 @@ services:
 
     healthcheck:
       test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"
-        ]
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 20s
+      start_period: 30s
 
     restart: unless-stopped
 
@@ -115,7 +117,8 @@ services:
       air_quality_network:
         aliases:
           - timescaledb
-          
+
+
   api:
     build:
       context: .
@@ -156,7 +159,8 @@ services:
 
     networks:
       - air_quality_network
-      
+
+
   dashboard:
     build:
       context: .
@@ -199,6 +203,7 @@ services:
 
     networks:
       - air_quality_network
+
 
   minio:
     image: ${MINIO_IMAGE:-quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z}
@@ -337,9 +342,9 @@ services:
           "http://localhost:8080/health"
         ]
       interval: 30s
-      timeout: 10s
+      timeout: 20s
       retries: 10
-      start_period: 30s
+      start_period: 180s
 
     restart: unless-stopped
 
@@ -374,9 +379,9 @@ services:
           "airflow jobs check --job-type SchedulerJob --hostname \"$${HOSTNAME}\""
         ]
       interval: 30s
-      timeout: 10s
+      timeout: 30s
       retries: 10
-      start_period: 30s
+      start_period: 60s
 
     restart: unless-stopped
 
