@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "pricing_date": "2026-08-02",
+  "region": "ap-southeast-2",
+  "currency": "USD",
+  "workload": {
+    "pipeline_runs_per_day": 48,
+    "release_retention_days": 30,
+    "dashboard_requests_per_day": 500,
+    "s3_get_requests_per_dashboard_request": 2,
+    "lambda_memory_mb": 128,
+    "lambda_average_duration_ms": 100,
+    "average_response_kb": 256,
+    "cloudwatch_log_kb_per_request": 1
+  },
+  "fallback_snapshot": {
+    "file_count": 245,
+    "total_size_mb": 5.0
+  },
+  "pricing": {
+    "s3_standard_storage_gb_month_usd": 0.025,
+    "s3_put_per_1000_usd": 0.0055,
+    "s3_get_per_1000_usd": 0.00044,
+    "lambda_request_per_million_usd": 0.2,
+    "lambda_gb_second_usd": 0.0000166667,
+    "cloudwatch_log_ingestion_gb_usd": 0.76,
+    "internet_data_transfer_out_gb_usd": 0.114
+  },
+  "free_tier": {
+    "lambda_requests_per_month": 1000000,
+    "lambda_gb_seconds_per_month": 400000,
+    "internet_data_transfer_out_gb_per_month": 100
+  },
+  "notes": [
+    "Rates are editable reference assumptions, not an AWS quote.",
+    "Verify ap-southeast-2 prices in AWS Pricing Calculator before production use.",
+    "The estimator prefers a real local snapshot manifest when available."
+  ]
+}

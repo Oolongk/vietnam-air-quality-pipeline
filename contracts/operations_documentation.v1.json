@@ -1,0 +1,89 @@
+{
+  "catalog_owner": "operations-governance",
+  "documents": [
+    {
+      "path": "docs/architecture.md",
+      "sha256": "e409b610bb872a8b3270543b9a72100877feb09e52d45f573875b4c0614592a4",
+      "title": "Vietnam Air Quality Pipeline Architecture",
+      "type": "architecture"
+    },
+    {
+      "path": "docs/operations_runbook.md",
+      "sha256": "f49c6427c42e28e4382320f78f454ccd3f67657d47d19c9ee8d4660ed43d7a17",
+      "title": "Operations Runbook — Vietnam Air Quality Pipeline",
+      "type": "runbook"
+    },
+    {
+      "path": "docs/aws_cost_management.md",
+      "sha256": "1e42bf9ac9327b240a8fcebfb55e9de2bc5967f27f72c8c0a10fb55ece452703",
+      "title": "AWS Cost Management — Public Snapshot Delivery",
+      "type": "cost_management"
+    },
+    {
+      "path": "docs/adr/README.md",
+      "sha256": "c09977909be620b66815b32a144d0fd247c3604724f95ac164bc43bcf9a08879",
+      "title": "Architecture Decision Records",
+      "type": "adr_index"
+    },
+    {
+      "path": "docs/adr/0001-single-production-pipeline.md",
+      "sha256": "844ebfda16502a8bfb028fb39e8b35c47a8bdf75d2cd28384ffb36f6c9c7996e",
+      "status": "Accepted",
+      "title": "ADR-0001 — Airflow và MinIO là production write path duy nhất",
+      "type": "adr"
+    },
+    {
+      "path": "docs/adr/0002-deterministic-batch-context.md",
+      "sha256": "afb42c3db0abde6ab68104aacada022a189be95a7c0ed2e8c7c47691ee14c26a",
+      "status": "Accepted",
+      "title": "ADR-0002 — Dùng một deterministic batch context xuyên suốt DAG",
+      "type": "adr"
+    },
+    {
+      "path": "docs/adr/0003-minio-mart-serving.md",
+      "sha256": "54277cc644caa9c6e55efb1051517e8ccafbf24efb1b466cb6e9173cea3d43a7",
+      "status": "Accepted",
+      "title": "ADR-0003 — MinIO Mart là nguồn public AQI snapshot",
+      "type": "adr"
+    },
+    {
+      "path": "docs/adr/0004-private-s3-immutable-releases.md",
+      "sha256": "42f2115956e75ace2801f8d5777cccaa5ac0230e08ebf58056756bdf592640f6",
+      "status": "Accepted",
+      "title": "ADR-0004 — Private S3, immutable release và Lambda Snapshot Reader",
+      "type": "adr"
+    },
+    {
+      "path": "docs/legacy_local_pipeline_retirement.md",
+      "sha256": "6e56140ec85abe9a180a1e05c6f0b5b7049b554a92a318f4b2b7e9b715715f38",
+      "title": "Part 5 — Legacy Local Pipeline Retirement",
+      "type": "retirement"
+    },
+    {
+      "path": "docs/mart_serving_layer.md",
+      "sha256": "8ccc9e62fbb7713a8981ee2c48eb242acfa8f7d19d70cb64051755708f942944",
+      "title": "Part 4 — MinIO Mart Serving Layer",
+      "type": "serving"
+    },
+    {
+      "path": "docs/continuous_integration.md",
+      "sha256": "526c071269af3625473f84cde335147a307fc4eb653f7813880a2c1d1fdafd00",
+      "title": "Continuous Integration",
+      "type": "ci"
+    },
+    {
+      "path": "infra/aws/s3/snapshot-release-lifecycle.json",
+      "sha256": "ccf19d2926f0c4670a279b53351877aea7f10464cf5eea864f7647b928fb6f02",
+      "title": "snapshot-release-lifecycle.json",
+      "type": "aws_policy"
+    },
+    {
+      "path": "configs/aws_cost_assumptions.json",
+      "sha256": "37541daf4fda1fba64a85bdd02cb2ea4ff0fa40dd270336151fb9ee2da670a66",
+      "title": "aws_cost_assumptions.json",
+      "type": "cost_config"
+    }
+  ],
+  "project": "vietnam-air-quality-pipeline",
+  "schema_version": "1.0"
+}

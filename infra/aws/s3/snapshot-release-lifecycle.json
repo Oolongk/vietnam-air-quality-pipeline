@@ -1,0 +1,17 @@
+{
+  "Rules": [
+    {
+      "ID": "ExpireImmutableSnapshotReleasesAfter30Days",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "releases/"
+      },
+      "Expiration": {
+        "Days": 30
+      },
+      "AbortIncompleteMultipartUpload": {
+        "DaysAfterInitiation": 1
+      }
+    }
+  ]
+}

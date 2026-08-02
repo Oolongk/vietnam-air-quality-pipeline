@@ -360,3 +360,21 @@ MinIO Raw → Transform → Data Quality → MinIO Clean
 `contracts/runtime_components.v1.json` là catalog nguồn. Các automated check
 ngăn entrypoint/file/import đã retire xuất hiện trở lại.
 <!-- PART5_ARCHITECTURE_END -->
+
+<!-- PART6_GOVERNANCE_ARCHITECTURE_BEGIN -->
+## Part 6 — Operations and architecture governance
+
+Architecture hiện được quản lý bằng ba lớp tài liệu:
+
+1. `docs/architecture.md` mô tả cấu trúc hiện tại.
+2. `docs/adr/` lưu lý do và đánh đổi của các quyết định đã Accepted.
+3. `docs/operations_runbook.md` mô tả cách vận hành và phục hồi hệ thống.
+
+AWS public delivery có cost model được version tại
+`configs/aws_cost_assumptions.json`. Immutable release dưới `releases/` phải có
+lifecycle; `current.json` nằm ngoài prefix và không được expire.
+
+`contracts/operations_documentation.v1.json` lưu catalog và SHA-256 của tài liệu
+quan trọng. Local quality gate và CI từ chối catalog stale, ADR thiếu section,
+lifecycle sai prefix hoặc cost config không hợp lệ.
+<!-- PART6_GOVERNANCE_ARCHITECTURE_END -->

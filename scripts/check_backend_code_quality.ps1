@@ -74,4 +74,12 @@ Assert-LastCommandSucceeded `
     -StepName "Runtime inventory check"
 
 Write-Host ""
+Write-Host ""
+Write-Host "6. Operations documentation check"
+
+python -m scripts.check_operations_documentation
+
+Assert-LastCommandSucceeded `
+    -StepName "Operations documentation check"
+
 Write-Host "Backend code-quality checks passed."

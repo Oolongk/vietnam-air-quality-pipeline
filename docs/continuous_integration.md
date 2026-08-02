@@ -82,3 +82,21 @@ Start-Process ".\htmlcov\index.html"
 - **Workflow đỏ:** mở job bị lỗi, đọc step đầu tiên có dấu đỏ và sửa lỗi từ step đó.
 
 Không nên bỏ qua lỗi CI bằng cách xóa test, giảm coverage tùy tiện hoặc thêm `continue-on-error`. Chỉ giảm ngưỡng coverage khi có lý do kỹ thuật được ghi rõ trong commit hoặc tài liệu.
+
+<!-- PART6_CI_DOCUMENTATION_BEGIN -->
+## Operations documentation quality gate
+
+Part 6 bổ sung command:
+
+````powershell
+python -m scripts.check_operations_documentation
+````
+
+Check này xác minh runbook, ADR, AWS cost config, S3 lifecycle policy và
+`contracts/operations_documentation.v1.json`. Khi sửa tài liệu được catalog,
+regenerate bằng:
+
+````powershell
+python -m scripts.check_operations_documentation --write
+````
+<!-- PART6_CI_DOCUMENTATION_END -->

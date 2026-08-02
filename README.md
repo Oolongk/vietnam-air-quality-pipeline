@@ -492,3 +492,24 @@ Tài liệu chi tiết:
 
 Ưu tiên tiếp theo là runbook vận hành, ADR và ước tính chi phí AWS.
 <!-- PART5_LEGACY_RETIREMENT_END -->
+
+<!-- PART6_OPERATIONS_GOVERNANCE_BEGIN -->
+## Part 6 — Operations governance
+
+Project đã bổ sung lớp vận hành và governance có thể kiểm tra tự động:
+
+- [Operations runbook](docs/operations_runbook.md) cho startup, monitoring,
+  incident response, backup/restore và release checklist.
+- [Architecture Decision Records](docs/adr/README.md) lưu bốn quyết định kiến
+  trúc cốt lõi.
+- [AWS cost management](docs/aws_cost_management.md) mô tả cost drivers,
+  lifecycle, budget, tagging và monthly review.
+- `scripts.estimate_aws_snapshot_cost` đo file/bytes từ snapshot thật và tạo
+  estimate theo assumption có version.
+- `scripts.check_operations_documentation` kiểm tra tài liệu, ADR, lifecycle,
+  cost config và catalog SHA-256 trong local quality gate lẫn CI.
+
+Các cải tiến kiến trúc Part 3–5 đã hoàn thành. Ưu tiên tiếp theo là thu thập
+screenshot chạy thật, hoàn thiện public deployment và theo dõi cost/operations
+qua usage thực tế.
+<!-- PART6_OPERATIONS_GOVERNANCE_END -->

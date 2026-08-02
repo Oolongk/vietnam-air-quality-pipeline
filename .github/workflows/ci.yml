@@ -67,6 +67,9 @@ jobs:
       - name: Verify runtime inventory
         run: python -m scripts.check_runtime_inventory
 
+      - name: Verify operations documentation
+        run: python -m scripts.check_operations_documentation
+
   tests:
     name: Tests and coverage
     runs-on: ubuntu-latest
