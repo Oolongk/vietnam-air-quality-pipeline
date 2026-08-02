@@ -2,29 +2,30 @@
 
 ## Decision
 
-FastAPI remains an **active internal, read-only service**. It is not the
-public website backend and should not be exposed directly to the Internet.
+FastAPI remains an **active internal, read-only operational service**. It is not
+the public website backend and is not exposed directly to the Internet.
 
-The active flow is:
+Since Part 4, public AQI snapshots are read from MinIO Mart. FastAPI continues
+to supply operational and dimension data required by Snapshot Publisher:
 
-`TimescaleDB -> FastAPI -> Snapshot Publisher -> private S3 -> Lambda -> Dashboard`
+- health
+- locations
+- monitoring points
+- alerts
+- pipeline health
+- data-quality status
 
-The Snapshot Publisher depends on the API for health, dimensions, current AQI,
-point/location files, history, alerts, pipeline health and data-quality output.
-Removing FastAPI would break snapshot publication.
+The public serving flow is:
 
-Docker Compose binds the API to `127.0.0.1` on the host while Airflow reaches it
-through the private Docker network as `http://api:8000`.
+````text
+MinIO Mart ────────────────┐
+                           ├──→ Snapshot Publisher → private S3 → Lambda → Dashboard
+TimescaleDB → FastAPI ─────┘
+             operational data
+````
 
-## Database configuration cleanup
-
-The API previously maintained a second PostgreSQL environment parser in
-`api/database.py`. The project now has one canonical implementation in
-`src/utils/db.py`.
-
-`api/database.py` is retained as a thin compatibility adapter because existing
-API imports and tests use that module path. It no longer duplicates password,
-port or timeout validation.
+Docker Compose binds FastAPI to `127.0.0.1` on the host. Airflow reaches it
+through the private Docker network at `http://api:8000`.
 
 ## Active Airflow entrypoints
 
@@ -41,47 +42,45 @@ The production DAG uses only the MinIO pipeline:
 9. `scripts.publish_latest_snapshots`
 10. `scripts.upload_public_snapshots_to_s3`
 
-The runtime inventory test requires the DAG sequence to remain exactly aligned
-with this list.
+## Legacy local-lake pipeline retirement
 
-## Legacy local-lake pipeline
+Part 5 removed the superseded local-filesystem execution path after full tests,
+a successful runtime DAG and Mart snapshot verification.
 
-The following entrypoints belong to the superseded local filesystem pipeline:
+The temporary environment switch `ALLOW_LEGACY_LOCAL_PIPELINE` and its guard
+module were removed because no legacy entrypoint remains.
 
-- `scripts.extract_all_monitoring_points`
-- `scripts.transform_latest_raw_batch`
-- `scripts.run_data_quality_latest_batch`
-- `scripts.load_latest_clean_batch`
-- `scripts.sync_latest_pipeline_health_logs`
+Historical mapping from removed modules to active replacements is preserved in:
 
-They are retained temporarily for historical verification and recovery, but are
-disabled by default. A deliberate run requires:
-
-`ALLOW_LEGACY_LOCAL_PIPELINE=true`
-
-This prevents an accidental parallel write path while avoiding a risky deletion
-before the final full test and Git review.
+````text
+src/operations/runtime_inventory.py
+contracts/runtime_components.v1.json
+docs/legacy_local_pipeline_retirement.md
+````
 
 ## Maintenance utilities
 
-The MinIO setup, inspection, connection tests and
-`scripts.sync_local_lake_to_minio` are maintenance tools. They are not DAG
-stages and are not legacy production entrypoints.
-
-## Removed obsolete helper
-
-`src.utils.logging_config` was an empty, unreferenced module. It was removed
-after the full-suite test and Git review confirmed that the active pipeline did
-not depend on it.
+`scripts.sync_local_lake_to_minio` remains as a one-way migration utility for
+old local artifacts. It is not a DAG stage and cannot create a second
+production write path.
 
 ## Machine-readable inventory
 
-The source of truth is `src/operations/runtime_inventory.py`.
+Source of truth:
+
+````text
+src/operations/runtime_inventory.py
+````
 
 Generated catalog:
 
-`contracts/runtime_components.v1.json`
+````text
+contracts/runtime_components.v1.json
+````
 
 Validate with:
 
-`python -m scripts.check_runtime_inventory`
+````powershell
+python -m scripts.check_runtime_inventory
+python -m scripts.verify_legacy_pipeline_retired
+````

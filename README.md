@@ -38,7 +38,7 @@ Phạm vi cấu hình hiện tại:
 - Snapshot Publisher xuất dữ liệu JSON theo release bất biến.
 - Amazon S3 private kết hợp Lambda Snapshot Reader để phân phối dữ liệu công khai.
 - Streamlit dashboard hỗ trợ tìm kiếm, bộ lọc AQI, so sánh tỉnh, lịch sử và tải CSV.
-- 38 file unit/integration test được tổ chức theo từng lớp hệ thống.
+- Bộ unit/integration test được tổ chức theo từng lớp hệ thống và chạy tự động trong CI.
 - Runtime inventory và data-contract catalog giúp kiểm soát các thành phần đang hoạt động.
 
 ## Kiến trúc hệ thống
@@ -84,7 +84,7 @@ Streamlit Dashboard
 
 FastAPI được bind vào `127.0.0.1` trên máy host và chỉ được các container nội bộ truy cập qua Docker network. Dashboard không kết nối trực tiếp tới database.
 
-Tầng Mart hiện được tạo và lưu trên MinIO. Việc đưa Mart vào trực tiếp luồng Snapshot/Dashboard nằm trong lộ trình cải tiến tiếp theo.
+Tầng Mart được lưu trên MinIO và là nguồn AQI trực tiếp của Snapshot Publisher.
 
 Xem tài liệu chi tiết tại [docs/architecture.md](docs/architecture.md).
 
@@ -240,7 +240,7 @@ Bỏ dấu comment này sau khi bốn ảnh trên đã được thêm vào repos
 | Object storage | MinIO | Raw, Clean, Mart và operational artifacts |
 | Processing | Python, pandas, PyArrow | Transform, validation và Parquet |
 | Time-series database | TimescaleDB trên PostgreSQL 17 | Lưu và truy vấn dữ liệu AQI theo thời gian |
-| Internal API | FastAPI | API nội bộ, read-only cho Snapshot Publisher |
+| Internal API | FastAPI | API nội bộ, read-only cho health, dimensions và operational metadata |
 | Public delivery | Amazon S3 private, AWS Lambda | Xuất bản snapshot mà không mở database ra Internet |
 | Dashboard | Streamlit, Altair, PyDeck | Bản đồ, biểu đồ, lịch sử và trạng thái hệ thống |
 | Containers | Docker Compose | Môi trường chạy đồng nhất |
@@ -424,6 +424,7 @@ FastAPI là dịch vụ nội bộ phục vụ Snapshot Publisher và không đ�
 - [Data dictionary](docs/data_dictionary.md)
 - [Data contracts](docs/data_contracts.md)
 - [FastAPI và runtime inventory](docs/fastapi_runtime_inventory.md)
+- [Legacy local pipeline retirement](docs/legacy_local_pipeline_retirement.md)
 - [Hướng dẫn screenshot](docs/screenshots/README.md)
 - [Continuous Integration](docs/continuous_integration.md)
 
@@ -452,3 +453,42 @@ Dự án được phát hành theo [MIT License](LICENSE).
 **Nguyen Ngoc Tuan Khanh**
 
 GitHub: [Oolongk](https://github.com/Oolongk)
+
+<!-- PART5_LEGACY_RETIREMENT_BEGIN -->
+## Part 5 — Legacy local pipeline retirement
+
+Production hiện chỉ còn một pipeline:
+
+````text
+Open-Meteo
+    ↓
+Airflow
+    ↓
+MinIO Raw → Transform → Data Quality → MinIO Clean
+    ├──→ TimescaleDB → FastAPI operational metadata ──┐
+    ├──→ AQI Alerts                                    │
+    └──→ MinIO Mart ───────────────────────────────────┤
+                                                       ↓
+                                              Snapshot Publisher
+                                                       ↓
+                                         Private S3 → Lambda → Dashboard
+````
+
+Các entrypoint và implementation local-filesystem cũ đã được xóa sau khi full
+test suite, DAG runtime và Mart snapshot verification thành công.
+
+`scripts.sync_local_lake_to_minio` vẫn được giữ như công cụ migration một chiều
+cho artifact lịch sử; nó không thuộc production DAG.
+
+Runtime inventory v2 kiểm tra rằng:
+
+- DAG chỉ dùng 10 entrypoint MinIO đang hoạt động.
+- File và import thuộc pipeline đã retire không còn trong repository.
+- FastAPI vẫn read-only và chỉ phục vụ operational metadata.
+- Public AQI snapshot được lấy từ MinIO Mart.
+
+Tài liệu chi tiết:
+[Legacy local pipeline retirement](docs/legacy_local_pipeline_retirement.md).
+
+Ưu tiên tiếp theo là runbook vận hành, ADR và ước tính chi phí AWS.
+<!-- PART5_LEGACY_RETIREMENT_END -->

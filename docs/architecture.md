@@ -177,7 +177,7 @@ Datasets:
 - `daily_summary`
 - AQI alert artifacts
 
-Hiện Mart được tạo trong Airflow và lưu trên MinIO. Snapshot Publisher chưa đọc trực tiếp Mart; đây là hạng mục cải tiến kiến trúc tiếp theo.
+Mart được tạo trong Airflow, lưu trên MinIO và là nguồn AQI trực tiếp của Snapshot Publisher.
 
 ## 6. Data Quality layer
 
@@ -251,7 +251,7 @@ FastAPI không phải public website backend và không nên expose trực tiế
 
 ## 10. Snapshot publishing và public delivery
 
-Snapshot Publisher gọi FastAPI, chuẩn hóa payload và ghi các file JSON như:
+Snapshot Publisher đọc AQI từ MinIO Mart, đọc operational metadata từ FastAPI và ghi các file JSON như:
 
 ````text
 health.json
@@ -319,3 +319,44 @@ Các hạng mục đang được ưu tiên:
 2. Đưa Mart datasets vào Snapshot Publisher và Dashboard.
 3. Thêm CI, coverage và automated quality gates.
 4. Xóa legacy pipeline sau khi full-suite test xác nhận an toàn.
+
+<!-- PART5_ARCHITECTURE_BEGIN -->
+## Part 5 — Production pipeline after legacy retirement
+
+````text
+Open-Meteo
+    ↓
+Airflow DAG with one deterministic batch context
+    ↓
+MinIO Raw → Transform → Data Quality → MinIO Clean
+    ├──→ TimescaleDB
+    │       └──→ FastAPI read-only operational endpoints ──┐
+    ├──→ AQI Alerts                                        │
+    └──→ MinIO Mart                                        │
+              └─────────────────────────────────────────────┤
+                                                            ↓
+                                                   Snapshot Publisher
+                                                            ↓
+                                              Immutable local JSON release
+                                                            ↓
+                                              Private S3 → Lambda → Dashboard
+````
+
+### Runtime ownership
+
+- MinIO/Airflow là production write path duy nhất.
+- Public AQI snapshot đọc từ `current_aqi`, `location_summary` và
+  `daily_summary` trong MinIO Mart.
+- FastAPI tiếp tục phục vụ health, dimensions, alerts, pipeline health và
+  data-quality metadata.
+- Pipeline local-filesystem và environment guard
+  `ALLOW_LEGACY_LOCAL_PIPELINE` đã bị xóa.
+- `scripts.sync_local_lake_to_minio` chỉ là migration utility cho dữ liệu lịch
+  sử và không được DAG gọi.
+
+### Enforcement
+
+`src/operations/runtime_inventory.py` và
+`contracts/runtime_components.v1.json` là catalog nguồn. Các automated check
+ngăn entrypoint/file/import đã retire xuất hiện trở lại.
+<!-- PART5_ARCHITECTURE_END -->

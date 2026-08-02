@@ -3,48 +3,49 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from src.ingestion.minio_air_quality_extractor import (
+    load_active_monitoring_points,
+)
 from src.ingestion.open_meteo_client import (
     OpenMeteoClient,
     OpenMeteoClientError,
 )
-from src.utils.config_loader import (
-    load_project_config,
-)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-
+MONITORING_POINTS_PATH = PROJECT_ROOT / "configs" / "monitoring_points.csv"
 OUTPUT_DIRECTORY = PROJECT_ROOT / "data" / "local_test"
-
 TARGET_POINT_ID = "HN_CENTER"
 
 
 def main() -> None:
-    _, monitoring_points = load_project_config()
+    monitoring_points = load_active_monitoring_points(MONITORING_POINTS_PATH)
 
-    active_points = monitoring_points[monitoring_points["is_active"]]
+    point = next(
+        (
+            monitoring_point
+            for monitoring_point in monitoring_points
+            if monitoring_point.point_id == TARGET_POINT_ID
+        ),
+        None,
+    )
 
-    selected_points = active_points[active_points["point_id"] == TARGET_POINT_ID]
-
-    if selected_points.empty:
+    if point is None:
         raise ValueError(
             f"Không tìm thấy điểm đang hoạt động có point_id='{TARGET_POINT_ID}'."
         )
-
-    point = selected_points.iloc[0]
 
     client = OpenMeteoClient()
 
     try:
         raw_payload = client.fetch_hourly_air_quality(
-            point_id=str(point["point_id"]),
-            location_id=str(point["location_id"]),
-            latitude=float(point["latitude"]),
-            longitude=float(point["longitude"]),
+            point_id=point.point_id,
+            location_id=point.location_id,
+            latitude=point.latitude,
+            longitude=point.longitude,
             forecast_hours=24,
         )
     except OpenMeteoClientError as error:
         print(f"Gọi Open-Meteo thất bại: {error}")
-
         raise SystemExit(1) from error
     finally:
         client.close()
@@ -88,7 +89,6 @@ def main() -> None:
     print(f"Thời gian đầu tiên: {hourly_data['time'][0]}")
     print(f"Thời gian cuối cùng: {hourly_data['time'][-1]}")
     print(f"File raw mẫu: {output_path}")
-
     print()
     print("Năm bản ghi đầu tiên:")
 

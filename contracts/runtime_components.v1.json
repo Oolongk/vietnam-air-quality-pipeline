@@ -11,73 +11,135 @@
     "scripts.publish_latest_snapshots",
     "scripts.upload_public_snapshots_to_s3"
   ],
-  "catalog_version": "1.0",
+  "catalog_version": "2.0",
   "fastapi_role": {
     "consumer": "snapshot_publisher",
     "public_exposure": false,
     "read_only": true,
-    "reason": "Airflow Snapshot Publisher reads validated data from FastAPI before writing public snapshot files.",
+    "reason": "Snapshot Publisher reads health, dimensions, alerts, pipeline health and data-quality metadata from FastAPI. Public AQI data is read from MinIO Mart.",
     "required_routes": [
       "/health",
       "/api/v1/locations",
       "/api/v1/monitoring-points",
-      "/api/v1/air-quality/latest",
-      "/api/v1/air-quality/top-polluted",
-      "/api/v1/air-quality/locations/{location_id}",
-      "/api/v1/air-quality/points/{point_id}",
-      "/api/v1/air-quality/history",
       "/api/v1/alerts/latest",
       "/api/v1/pipeline/health/latest",
       "/api/v1/data-quality/latest"
     ],
-    "status": "active_internal_service"
+    "status": "active_internal_operational_service"
   },
-  "legacy_local_entrypoints": [
-    {
-      "execution_policy": "disabled_by_default; set ALLOW_LEGACY_LOCAL_PIPELINE=true only for deliberate recovery or historical verification",
-      "module": "scripts.extract_all_monitoring_points",
-      "replacement": "scripts.extract_all_points_to_minio"
-    },
-    {
-      "execution_policy": "disabled_by_default; set ALLOW_LEGACY_LOCAL_PIPELINE=true only for deliberate recovery or historical verification",
-      "module": "scripts.transform_latest_raw_batch",
-      "replacement": "scripts.transform_latest_minio_batch"
-    },
-    {
-      "execution_policy": "disabled_by_default; set ALLOW_LEGACY_LOCAL_PIPELINE=true only for deliberate recovery or historical verification",
-      "module": "scripts.run_data_quality_latest_batch",
-      "replacement": "scripts.run_latest_minio_data_quality"
-    },
-    {
-      "execution_policy": "disabled_by_default; set ALLOW_LEGACY_LOCAL_PIPELINE=true only for deliberate recovery or historical verification",
-      "module": "scripts.load_latest_clean_batch",
-      "replacement": "scripts.load_latest_minio_clean_batch"
-    },
-    {
-      "execution_policy": "disabled_by_default; set ALLOW_LEGACY_LOCAL_PIPELINE=true only for deliberate recovery or historical verification",
-      "module": "scripts.sync_latest_pipeline_health_logs",
-      "replacement": "scripts.sync_latest_minio_pipeline_health"
-    }
-  ],
-  "legacy_local_modules": [
-    "src.ingestion.air_quality_extractor",
-    "src.transform.air_quality_transform",
-    "src.transform.batch_transformer",
-    "src.quality.quality_processor",
-    "src.load.timescaledb_loader",
-    "src.load.pipeline_log_loader",
-    "src.utils.config_loader"
-  ],
   "maintenance_entrypoints": [
     "scripts.setup_minio_buckets",
     "scripts.inspect_latest_minio_quality",
     "scripts.inspect_latest_minio_transform",
     "scripts.sync_local_lake_to_minio",
-    "scripts.test_air_quality_transform",
     "scripts.test_minio_object_io",
     "scripts.test_open_meteo_connection",
-    "scripts.test_timescaledb_connection"
+    "scripts.test_timescaledb_connection",
+    "scripts.verify_mart_serving_snapshots",
+    "scripts.verify_legacy_pipeline_retired"
   ],
+  "mart_serving": {
+    "consumer": "snapshot_publisher",
+    "datasets": [
+      "current_aqi",
+      "location_summary",
+      "daily_summary"
+    ],
+    "source": "minio_mart",
+    "status": "active"
+  },
   "project": "vietnam-air-quality-pipeline",
-  "unused_candidates": []
+  "retired_components": [
+    {
+      "execution_policy": "removed_from_repository",
+      "module": "scripts.extract_all_monitoring_points",
+      "reason": "local-filesystem extraction entrypoint",
+      "replacement": "scripts.extract_all_points_to_minio",
+      "retired_in": "part_5_legacy_local_pipeline_cleanup"
+    },
+    {
+      "execution_policy": "removed_from_repository",
+      "module": "scripts.transform_latest_raw_batch",
+      "reason": "local-filesystem transform entrypoint",
+      "replacement": "scripts.transform_latest_minio_batch",
+      "retired_in": "part_5_legacy_local_pipeline_cleanup"
+    },
+    {
+      "execution_policy": "removed_from_repository",
+      "module": "scripts.run_data_quality_latest_batch",
+      "reason": "local-filesystem data-quality entrypoint",
+      "replacement": "scripts.run_latest_minio_data_quality",
+      "retired_in": "part_5_legacy_local_pipeline_cleanup"
+    },
+    {
+      "execution_policy": "removed_from_repository",
+      "module": "scripts.load_latest_clean_batch",
+      "reason": "local-filesystem TimescaleDB load entrypoint",
+      "replacement": "scripts.load_latest_minio_clean_batch",
+      "retired_in": "part_5_legacy_local_pipeline_cleanup"
+    },
+    {
+      "execution_policy": "removed_from_repository",
+      "module": "scripts.sync_latest_pipeline_health_logs",
+      "reason": "local-filesystem pipeline-health entrypoint",
+      "replacement": "scripts.sync_latest_minio_pipeline_health",
+      "retired_in": "part_5_legacy_local_pipeline_cleanup"
+    },
+    {
+      "execution_policy": "removed_from_repository",
+      "module": "src.ingestion.air_quality_extractor",
+      "reason": "local extraction implementation",
+      "replacement": "src.ingestion.minio_air_quality_extractor",
+      "retired_in": "part_5_legacy_local_pipeline_cleanup"
+    },
+    {
+      "execution_policy": "removed_from_repository",
+      "module": "src.transform.air_quality_transform",
+      "reason": "local single-payload transform implementation",
+      "replacement": "src.transform.minio_batch_transformer",
+      "retired_in": "part_5_legacy_local_pipeline_cleanup"
+    },
+    {
+      "execution_policy": "removed_from_repository",
+      "module": "src.transform.batch_transformer",
+      "reason": "local batch transform implementation",
+      "replacement": "src.transform.minio_batch_transformer",
+      "retired_in": "part_5_legacy_local_pipeline_cleanup"
+    },
+    {
+      "execution_policy": "removed_from_repository",
+      "module": "src.quality.quality_processor",
+      "reason": "local quality-output implementation",
+      "replacement": "src.quality.minio_quality_processor",
+      "retired_in": "part_5_legacy_local_pipeline_cleanup"
+    },
+    {
+      "execution_policy": "removed_from_repository",
+      "module": "src.load.timescaledb_loader",
+      "reason": "local clean-file loader",
+      "replacement": "src.load.minio_timescaledb_loader",
+      "retired_in": "part_5_legacy_local_pipeline_cleanup"
+    },
+    {
+      "execution_policy": "removed_from_repository",
+      "module": "src.load.pipeline_log_loader",
+      "reason": "local pipeline-log loader",
+      "replacement": "src.load.minio_pipeline_log_sync",
+      "retired_in": "part_5_legacy_local_pipeline_cleanup"
+    },
+    {
+      "execution_policy": "removed_from_repository",
+      "module": "src.utils.config_loader",
+      "reason": "legacy local pipeline configuration loader",
+      "replacement": "active layer-specific configuration readers",
+      "retired_in": "part_5_legacy_local_pipeline_cleanup"
+    },
+    {
+      "execution_policy": "removed_from_repository",
+      "module": "src.operations.legacy_runtime",
+      "reason": "temporary execution guard removed with the guarded pipeline",
+      "replacement": "not applicable",
+      "retired_in": "part_5_legacy_local_pipeline_cleanup"
+    }
+  ]
 }
