@@ -51,9 +51,7 @@ def load_manifest(path: Path = DEFAULT_MANIFEST) -> dict[str, Any]:
 
     for index, chapter in enumerate(chapters, start=1):
         if not isinstance(chapter, dict):
-            raise DocumentationBuildError(
-                f"Chapter {index} phải là object."
-            )
+            raise DocumentationBuildError(f"Chapter {index} phải là object.")
 
         missing = sorted(required - set(chapter))
         if missing:
@@ -65,17 +63,11 @@ def load_manifest(path: Path = DEFAULT_MANIFEST) -> dict[str, Any]:
         source = str(chapter["source"]).strip()
 
         if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", chapter_id):
-            raise DocumentationBuildError(
-                f"Chapter id không an toàn: {chapter_id!r}"
-            )
+            raise DocumentationBuildError(f"Chapter id không an toàn: {chapter_id!r}")
         if chapter_id in seen_ids:
-            raise DocumentationBuildError(
-                f"Chapter id bị trùng: {chapter_id}"
-            )
+            raise DocumentationBuildError(f"Chapter id bị trùng: {chapter_id}")
         if source in seen_sources:
-            raise DocumentationBuildError(
-                f"Chapter source bị trùng: {source}"
-            )
+            raise DocumentationBuildError(f"Chapter source bị trùng: {source}")
 
         seen_ids.add(chapter_id)
         seen_sources.add(source)
@@ -136,11 +128,7 @@ def rewrite_relative_links(
             source_path=source_path,
             output_path=output_path,
         )
-        return (
-            match.group("prefix")
-            + rewritten
-            + match.group("suffix")
-        )
+        return match.group("prefix") + rewritten + match.group("suffix")
 
     return MARKDOWN_LINK_PATTERN.sub(replacement, text)
 
@@ -159,9 +147,8 @@ def normalize_chapter_markdown(
             first_content_index = index
             break
 
-    if (
-        first_content_index is not None
-        and re.match(r"^#\s+", lines[first_content_index])
+    if first_content_index is not None and re.match(
+        r"^#\s+", lines[first_content_index]
     ):
         lines.pop(first_content_index)
 
@@ -331,8 +318,7 @@ def build_landing_page(manifest: dict[str, Any]) -> str:
         [
             "## Đọc tài liệu",
             "",
-            f"**[Mở toàn bộ tài liệu dưới dạng một bài liên tục]"
-            f"({book_link})**",
+            f"**[Mở toàn bộ tài liệu dưới dạng một bài liên tục]({book_link})**",
             "",
             "Các file Markdown riêng vẫn được giữ làm source chapter để dễ "
             "bảo trì và review trên Git.",
@@ -360,9 +346,7 @@ def build_landing_page(manifest: dict[str, Any]) -> str:
             )
         ).as_posix()
 
-        lines.append(
-            f"{chapter_number}. [{chapter['title']}]({source_link})"
-        )
+        lines.append(f"{chapter_number}. [{chapter['title']}]({source_link})")
 
     lines.extend(
         [
@@ -391,9 +375,7 @@ def expected_outputs(
     manifest = load_manifest(manifest_path)
     return {
         PROJECT_ROOT / str(manifest["output"]): build_book(manifest),
-        PROJECT_ROOT / str(manifest["landing_page"]): build_landing_page(
-            manifest
-        ),
+        PROJECT_ROOT / str(manifest["landing_page"]): build_landing_page(manifest),
     }
 
 
@@ -410,16 +392,14 @@ def check_outputs(manifest_path: Path = DEFAULT_MANIFEST) -> list[str]:
     for path, expected in expected_outputs(manifest_path).items():
         if not path.exists():
             errors.append(
-                f"Thiếu generated documentation: "
-                f"{path.relative_to(PROJECT_ROOT)}"
+                f"Thiếu generated documentation: {path.relative_to(PROJECT_ROOT)}"
             )
             continue
 
         actual = path.read_text(encoding="utf-8")
         if actual != expected:
             errors.append(
-                f"Generated documentation đã cũ: "
-                f"{path.relative_to(PROJECT_ROOT)}"
+                f"Generated documentation đã cũ: {path.relative_to(PROJECT_ROOT)}"
             )
 
     return errors

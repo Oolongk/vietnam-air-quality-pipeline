@@ -30,8 +30,7 @@ def _is_external(target: str) -> bool:
 def _check_manifest_coverage() -> list[str]:
     manifest = load_manifest(DEFAULT_MANIFEST)
     included = {
-        Path(str(chapter["source"])).as_posix()
-        for chapter in manifest["chapters"]
+        Path(str(chapter["source"])).as_posix() for chapter in manifest["chapters"]
     }
 
     expected: set[str] = set()
@@ -47,23 +46,16 @@ def _check_manifest_coverage() -> list[str]:
     for path in (PROJECT_ROOT / "docs" / "adr").glob("*.md"):
         expected.add(path.relative_to(PROJECT_ROOT).as_posix())
 
-    screenshot_readme = (
-        PROJECT_ROOT / "docs" / "screenshots" / "README.md"
-    )
+    screenshot_readme = PROJECT_ROOT / "docs" / "screenshots" / "README.md"
     if screenshot_readme.exists():
-        expected.add(
-            screenshot_readme.relative_to(PROJECT_ROOT).as_posix()
-        )
+        expected.add(screenshot_readme.relative_to(PROJECT_ROOT).as_posix())
 
     missing = sorted(expected - included)
     unexpected = sorted(included - expected)
 
     errors: list[str] = []
     if missing:
-        errors.append(
-            "Các source doc chưa được đưa vào book: "
-            + ", ".join(missing)
-        )
+        errors.append("Các source doc chưa được đưa vào book: " + ", ".join(missing))
     if unexpected:
         errors.append(
             "Manifest trỏ tới source không thuộc docs inventory: "
@@ -96,14 +88,11 @@ def _check_generated_links() -> list[str]:
             if not path_text:
                 continue
 
-            destination = (
-                document.parent / path_text
-            ).resolve(strict=False)
+            destination = (document.parent / path_text).resolve(strict=False)
 
             if not destination.exists():
                 errors.append(
-                    f"Broken link trong "
-                    f"{document.relative_to(PROJECT_ROOT)}: {target}"
+                    f"Broken link trong {document.relative_to(PROJECT_ROOT)}: {target}"
                 )
 
     return errors
