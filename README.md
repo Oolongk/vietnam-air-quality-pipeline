@@ -513,3 +513,19 @@ Các cải tiến kiến trúc Part 3–5 đã hoàn thành. Ưu tiên tiếp th
 screenshot chạy thật, hoàn thiện public deployment và theo dõi cost/operations
 qua usage thực tế.
 <!-- PART6_OPERATIONS_GOVERNANCE_END -->
+
+<!-- DOCUMENTATION_BOOK_BEGIN -->
+## Tài liệu hệ thống
+
+Toàn bộ tài liệu trong `docs/` được tổ chức thành một documentation book:
+
+- [Trang tài liệu và mục lục](docs/README.md)
+- [Đọc toàn bộ tài liệu dưới dạng một bài liên tục](docs/PROJECT_DOCUMENTATION.md)
+
+Các file riêng trong `docs/` là source chapter. Sau khi sửa chapter, chạy:
+
+````powershell
+python -m scripts.build_unified_documentation
+python -m scripts.check_documentation_book
+````
+<!-- DOCUMENTATION_BOOK_END -->

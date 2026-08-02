@@ -3,52 +3,52 @@
   "documents": [
     {
       "path": "docs/architecture.md",
-      "sha256": "e409b610bb872a8b3270543b9a72100877feb09e52d45f573875b4c0614592a4",
+      "sha256": "8cacb9c959af5ebea7fa6078dd3c626518f39de016d677177b34cc3f20f4b945",
       "title": "Vietnam Air Quality Pipeline Architecture",
       "type": "architecture"
     },
     {
       "path": "docs/operations_runbook.md",
-      "sha256": "f49c6427c42e28e4382320f78f454ccd3f67657d47d19c9ee8d4660ed43d7a17",
+      "sha256": "8a1172fc427cf5efb039e8726b83b4f999f00c694a6642eaa6b8b079ce4b1642",
       "title": "Operations Runbook — Vietnam Air Quality Pipeline",
       "type": "runbook"
     },
     {
       "path": "docs/aws_cost_management.md",
-      "sha256": "1e42bf9ac9327b240a8fcebfb55e9de2bc5967f27f72c8c0a10fb55ece452703",
+      "sha256": "06bc15d3dece6ee3cd368613bf42513e996b67237dc862aacf35b984205cfce0",
       "title": "AWS Cost Management — Public Snapshot Delivery",
       "type": "cost_management"
     },
     {
       "path": "docs/adr/README.md",
-      "sha256": "c09977909be620b66815b32a144d0fd247c3604724f95ac164bc43bcf9a08879",
+      "sha256": "7a0c4e144545b6dbfa314f2bc363e6813f5298b3002bdf525bc3a0ae3dce5f29",
       "title": "Architecture Decision Records",
       "type": "adr_index"
     },
     {
       "path": "docs/adr/0001-single-production-pipeline.md",
-      "sha256": "844ebfda16502a8bfb028fb39e8b35c47a8bdf75d2cd28384ffb36f6c9c7996e",
+      "sha256": "7ef4ed444c441ce82bd41b554ab34e5471c6701ff2d375ee5f0a0243747f65b1",
       "status": "Accepted",
       "title": "ADR-0001 — Airflow và MinIO là production write path duy nhất",
       "type": "adr"
     },
     {
       "path": "docs/adr/0002-deterministic-batch-context.md",
-      "sha256": "afb42c3db0abde6ab68104aacada022a189be95a7c0ed2e8c7c47691ee14c26a",
+      "sha256": "255742811a2957004fee983120a048c61e1e1dde06ad821eeb4d1548a355d727",
       "status": "Accepted",
       "title": "ADR-0002 — Dùng một deterministic batch context xuyên suốt DAG",
       "type": "adr"
     },
     {
       "path": "docs/adr/0003-minio-mart-serving.md",
-      "sha256": "54277cc644caa9c6e55efb1051517e8ccafbf24efb1b466cb6e9173cea3d43a7",
+      "sha256": "40218eedebb3cb58433624b71ce9177d4f6d204bd282c1c459f47005730601ca",
       "status": "Accepted",
       "title": "ADR-0003 — MinIO Mart là nguồn public AQI snapshot",
       "type": "adr"
     },
     {
       "path": "docs/adr/0004-private-s3-immutable-releases.md",
-      "sha256": "42f2115956e75ace2801f8d5777cccaa5ac0230e08ebf58056756bdf592640f6",
+      "sha256": "55c7fda4ad5ffe91fa06ed1f5751a04de47d5a477d2a6891346c0d7e7aaba08b",
       "status": "Accepted",
       "title": "ADR-0004 — Private S3, immutable release và Lambda Snapshot Reader",
       "type": "adr"
@@ -67,19 +67,19 @@
     },
     {
       "path": "docs/continuous_integration.md",
-      "sha256": "526c071269af3625473f84cde335147a307fc4eb653f7813880a2c1d1fdafd00",
+      "sha256": "8d8bc11759a8e4f4052b8461d3732f7ff5cc9f5c26020c6ebcf6c76c611642d8",
       "title": "Continuous Integration",
       "type": "ci"
     },
     {
       "path": "infra/aws/s3/snapshot-release-lifecycle.json",
-      "sha256": "ccf19d2926f0c4670a279b53351877aea7f10464cf5eea864f7647b928fb6f02",
+      "sha256": "321323364738b871e3c501d2bc12cffc44da37ed6edebf5b967dda79fe797a20",
       "title": "snapshot-release-lifecycle.json",
       "type": "aws_policy"
     },
     {
       "path": "configs/aws_cost_assumptions.json",
-      "sha256": "37541daf4fda1fba64a85bdd02cb2ea4ff0fa40dd270336151fb9ee2da670a66",
+      "sha256": "d9674cbe1cf0633420228a3d7590ddd1b160d0ef2ddeae10993d67b11b1416a6",
       "title": "aws_cost_assumptions.json",
       "type": "cost_config"
     }

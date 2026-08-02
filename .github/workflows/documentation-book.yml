@@ -1,0 +1,43 @@
+name: Documentation Book
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**"
+      - "configs/documentation_book.json"
+      - "scripts/build_unified_documentation.py"
+      - "scripts/check_documentation_book.py"
+      - "tests/unit/operations/test_documentation_book.py"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "configs/documentation_book.json"
+      - "scripts/build_unified_documentation.py"
+      - "scripts/check_documentation_book.py"
+      - "tests/unit/operations/test_documentation_book.py"
+
+jobs:
+  documentation-book:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Verify generated documentation
+        run: |
+          python -m scripts.build_unified_documentation --check
+          python -m scripts.check_documentation_book
+
+      - name: Run documentation tests
+        run: |
+          python -m pytest \
+            tests/unit/operations/test_documentation_book.py \
+            -v

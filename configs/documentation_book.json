@@ -1,0 +1,105 @@
+{
+  "schema_version": "1.0",
+  "title": "Vietnam Air Quality Pipeline — Tài liệu hệ thống",
+  "subtitle": "Kiến trúc, dữ liệu, vận hành, quyết định kỹ thuật và hướng dẫn portfolio trong một tài liệu thống nhất.",
+  "output": "docs/PROJECT_DOCUMENTATION.md",
+  "landing_page": "docs/README.md",
+  "chapters": [
+    {
+      "id": "architecture",
+      "part": "Phần I — Kiến trúc và luồng xử lý",
+      "title": "Kiến trúc tổng thể",
+      "source": "docs/architecture.md"
+    },
+    {
+      "id": "batch-execution",
+      "part": "Phần I — Kiến trúc và luồng xử lý",
+      "title": "Batch context và Airflow execution",
+      "source": "docs/batch_execution.md"
+    },
+    {
+      "id": "mart-serving",
+      "part": "Phần I — Kiến trúc và luồng xử lý",
+      "title": "MinIO Mart serving layer",
+      "source": "docs/mart_serving_layer.md"
+    },
+    {
+      "id": "fastapi-runtime",
+      "part": "Phần I — Kiến trúc và luồng xử lý",
+      "title": "FastAPI và runtime inventory",
+      "source": "docs/fastapi_runtime_inventory.md"
+    },
+    {
+      "id": "data-contracts",
+      "part": "Phần II — Mô hình và chất lượng dữ liệu",
+      "title": "Data contracts",
+      "source": "docs/data_contracts.md"
+    },
+    {
+      "id": "data-dictionary",
+      "part": "Phần II — Mô hình và chất lượng dữ liệu",
+      "title": "Data dictionary",
+      "source": "docs/data_dictionary.md"
+    },
+    {
+      "id": "continuous-integration",
+      "part": "Phần III — Kiểm thử và vận hành",
+      "title": "Continuous Integration",
+      "source": "docs/continuous_integration.md"
+    },
+    {
+      "id": "operations-runbook",
+      "part": "Phần III — Kiểm thử và vận hành",
+      "title": "Operations runbook",
+      "source": "docs/operations_runbook.md"
+    },
+    {
+      "id": "aws-cost",
+      "part": "Phần III — Kiểm thử và vận hành",
+      "title": "AWS cost management",
+      "source": "docs/aws_cost_management.md"
+    },
+    {
+      "id": "legacy-retirement",
+      "part": "Phần IV — Lịch sử và quyết định kiến trúc",
+      "title": "Legacy local pipeline retirement",
+      "source": "docs/legacy_local_pipeline_retirement.md"
+    },
+    {
+      "id": "adr-index",
+      "part": "Phần IV — Lịch sử và quyết định kiến trúc",
+      "title": "Architecture Decision Records",
+      "source": "docs/adr/README.md"
+    },
+    {
+      "id": "adr-0001",
+      "part": "Phần IV — Lịch sử và quyết định kiến trúc",
+      "title": "ADR-0001 — Single production pipeline",
+      "source": "docs/adr/0001-single-production-pipeline.md"
+    },
+    {
+      "id": "adr-0002",
+      "part": "Phần IV — Lịch sử và quyết định kiến trúc",
+      "title": "ADR-0002 — Deterministic batch context",
+      "source": "docs/adr/0002-deterministic-batch-context.md"
+    },
+    {
+      "id": "adr-0003",
+      "part": "Phần IV — Lịch sử và quyết định kiến trúc",
+      "title": "ADR-0003 — MinIO Mart serving",
+      "source": "docs/adr/0003-minio-mart-serving.md"
+    },
+    {
+      "id": "adr-0004",
+      "part": "Phần IV — Lịch sử và quyết định kiến trúc",
+      "title": "ADR-0004 — Private S3 immutable releases",
+      "source": "docs/adr/0004-private-s3-immutable-releases.md"
+    },
+    {
+      "id": "screenshots",
+      "part": "Phần V — Portfolio và minh họa",
+      "title": "Screenshot guide",
+      "source": "docs/screenshots/README.md"
+    }
+  ]
+}
