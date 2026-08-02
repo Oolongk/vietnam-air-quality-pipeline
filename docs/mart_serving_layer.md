@@ -1,4 +1,4 @@
-# Part 4 — MinIO Mart Serving Layer
+# MinIO Mart Serving Layer
 
 ## Mục tiêu
 

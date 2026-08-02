@@ -61,8 +61,8 @@
     },
     {
       "path": "docs/mart_serving_layer.md",
-      "sha256": "8ccc9e62fbb7713a8981ee2c48eb242acfa8f7d19d70cb64051755708f942944",
-      "title": "Part 4 — MinIO Mart Serving Layer",
+      "sha256": "586a318a3a2ad1c00db95269f4f71adc34f68de7d9eeea63ef99afa532037e95",
+      "title": "MinIO Mart Serving Layer",
       "type": "serving"
     },
     {
