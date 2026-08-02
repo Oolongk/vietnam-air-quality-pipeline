@@ -9,7 +9,6 @@ import sys
 from typing import Any
 from urllib.parse import unquote
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST = PROJECT_ROOT / "configs" / "documentation_book.json"
 GENERATED_NOTICE = (

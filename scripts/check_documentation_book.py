@@ -11,7 +11,6 @@ from scripts.build_unified_documentation import (
     load_manifest,
 )
 
-
 LINK_PATTERN = re.compile(r"!?\[[^\]]*\]\((?P<target>[^)\s]+)")
 
 

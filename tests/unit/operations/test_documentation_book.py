@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from scripts.build_unified_documentation import (
     DEFAULT_MANIFEST,
     PROJECT_ROOT,
