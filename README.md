@@ -455,7 +455,7 @@ Dự án được phát hành theo [MIT License](LICENSE).
 GitHub: [Oolongk](https://github.com/Oolongk)
 
 <!-- PART5_LEGACY_RETIREMENT_BEGIN -->
-## Part 5 — Legacy local pipeline retirement
+## Legacy local pipeline retirement
 
 Production hiện chỉ còn một pipeline:
 
@@ -491,10 +491,8 @@ Tài liệu chi tiết:
 [Legacy local pipeline retirement](docs/legacy_local_pipeline_retirement.md).
 
 Ưu tiên tiếp theo là runbook vận hành, ADR và ước tính chi phí AWS.
-<!-- PART5_LEGACY_RETIREMENT_END -->
 
-<!-- PART6_OPERATIONS_GOVERNANCE_BEGIN -->
-## Part 6 — Operations governance
+## Operations governance
 
 Project đã bổ sung lớp vận hành và governance có thể kiểm tra tự động:
 
@@ -509,9 +507,6 @@ Project đã bổ sung lớp vận hành và governance có thể kiểm tra t�
 - `scripts.check_operations_documentation` kiểm tra tài liệu, ADR, lifecycle,
   cost config và catalog SHA-256 trong local quality gate lẫn CI.
 
-Các cải tiến kiến trúc Part 3–5 đã hoàn thành. Ưu tiên tiếp theo là thu thập
-screenshot chạy thật, hoàn thiện public deployment và theo dõi cost/operations
-qua usage thực tế.
 <!-- PART6_OPERATIONS_GOVERNANCE_END -->
 
 <!-- DOCUMENTATION_BOOK_BEGIN -->
