@@ -31,6 +31,11 @@ jobs:
         with:
           python-version: "3.13"
 
+      - name: Install development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
       - name: Verify generated documentation
         run: |
           python -m scripts.build_unified_documentation --check
